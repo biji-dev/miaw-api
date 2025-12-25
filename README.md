@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.4.0 (Phase 4 - Group Management)
+**Version:** 0.5.0 (Phase 5 - Profile Management)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -12,14 +12,15 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - **Full Messaging** - Text, media, edit, delete, reactions, forward
 - **Contact Validation** - Check numbers, get contact info, profile pictures
 - **Group Management** - Create groups, manage participants, admin operations
+- **Profile Management** - Update profile name, status, picture
 - **RESTful API** - Clean JSON API with OpenAPI/Swagger documentation
 - **Real-Time Webhooks** - Receive events (messages, edits, reactions, etc.) via webhooks
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 4 - Group Management)
+## Current Status (Phase 5 - Profile Management)
 
-### Implemented (Phase 1-4)
+### Implemented (Phase 1-5)
 
 **Phase 1 - Foundation (v0.1.0)**
 - Instance CRUD operations (create, list, get, delete)
@@ -52,9 +53,14 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Group invite link management (get, revoke, join)
 - Leave group
 
-### Planned (Phase 5+)
+**Phase 5 - Profile Management (v0.5.0)**
+- Update profile picture
+- Remove profile picture
+- Update profile name
+- Update profile status (About)
 
-- Profile management (update name, status, picture)
+### Planned (Phase 6+)
+
 - Presence features (typing indicators, read receipts)
 - Business features (labels, products, newsletters)
 
@@ -378,6 +384,15 @@ npm run test:integration -- setup
 | POST     | `/instances/:id/groups/:groupJid/revoke-invite`       | Revoke invite link               |
 | POST     | `/instances/:id/groups/join/:inviteCode`              | Join via invite code             |
 | DELETE   | `/instances/:id/groups/:groupJid`                     | Leave group                      |
+
+### Profile
+
+| Method   | Endpoint                                  | Description              |
+| -------- | ----------------------------------------- | ------------------------ |
+| POST     | `/instances/:id/profile/picture`          | Update profile picture |
+| DELETE   | `/instances/:id/profile/picture`          | Remove profile picture |
+| PATCH    | `/instances/:id/profile/name`             | Update profile name     |
+| PATCH    | `/instances/:id/profile/status`           | Update profile status   |
 
 ### Health
 
