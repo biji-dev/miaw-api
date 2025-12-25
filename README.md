@@ -34,7 +34,7 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Presence features (typing indicators, read receipts)
 - Business features (labels, products, newsletters)
 
-See [MIAW-API-PLAN.md](./MIAW-API-PLAN.md) for the full roadmap.
+See [docs/ROADMAP.md](./docs/ROADMAP.md) for the full roadmap.
 
 ## Quick Start
 
@@ -198,14 +198,14 @@ When events occur, POST requests are sent to your configured webhook URL:
 
 ### Event Types
 
-| Event | Description |
-|-------|-------------|
-| `qr` | QR code available for scanning |
-| `ready` | Instance connected and ready |
-| `message` | New message received |
-| `connection` | Connection state changed |
-| `disconnected` | Instance disconnected |
-| `error` | Error occurred |
+| Event          | Description                    |
+| -------------- | ------------------------------ |
+| `qr`           | QR code available for scanning |
+| `ready`        | Instance connected and ready   |
+| `message`      | New message received           |
+| `connection`   | Connection state changed       |
+| `disconnected` | Instance disconnected          |
+| `error`        | Error occurred                 |
 
 ## Docker Deployment
 
@@ -288,7 +288,7 @@ npm run lint:fix
 
 ## Testing
 
-See [TESTING.md](./TESTING.md) for detailed testing guide.
+See [docs/TESTING.md](./docs/TESTING.md) for detailed testing guide.
 
 ```bash
 # Run integration tests (requires WhatsApp pairing)
@@ -302,54 +302,54 @@ npm run test:integration -- setup
 
 ### Instance Management
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/instances` | Create new instance |
-| GET | `/instances` | List all instances |
-| GET | `/instances/:id` | Get instance details |
-| DELETE | `/instances/:id` | Delete instance |
+| Method | Endpoint         | Description          |
+| ------ | ---------------- | -------------------- |
+| POST   | `/instances`     | Create new instance  |
+| GET    | `/instances`     | List all instances   |
+| GET    | `/instances/:id` | Get instance details |
+| DELETE | `/instances/:id` | Delete instance      |
 
 ### Connection
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/instances/:id/connect` | Connect to WhatsApp |
+| Method | Endpoint                    | Description              |
+| ------ | --------------------------- | ------------------------ |
+| POST   | `/instances/:id/connect`    | Connect to WhatsApp      |
 | DELETE | `/instances/:id/disconnect` | Disconnect from WhatsApp |
-| POST | `/instances/:id/restart` | Restart connection |
-| GET | `/instances/:id/status` | Get connection status |
+| POST   | `/instances/:id/restart`    | Restart connection       |
+| GET    | `/instances/:id/status`     | Get connection status    |
 
 ### Messaging
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/instances/:id/send-text` | Send text message |
+| Method | Endpoint                   | Description       |
+| ------ | -------------------------- | ----------------- |
+| POST   | `/instances/:id/send-text` | Send text message |
 
 ### Health
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
+| Method | Endpoint  | Description  |
+| ------ | --------- | ------------ |
+| GET    | `/health` | Health check |
 
 ## Documentation
 
-- [API Plan](./MIAW-API-PLAN.md) - Full development roadmap
-- [Integration Test Plan](./INTEGRATION-TEST-PLAN.md) - Test strategy
-- [Testing Guide](./TESTING.md) - How to run tests
+- [Roadmap](./docs/ROADMAP.md) - Full development roadmap
+- [Integration Test Plan](./docs/INTEGRATION-TEST-PLAN.md) - Test strategy
+- [Testing Guide](./docs/TESTING.md) - How to run tests
 
 ## Configuration Reference
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | 3000 | Server port |
-| `HOST` | 0.0.0.0 | Server host |
-| `API_KEY` | - | API key for authentication |
-| `WEBHOOK_SECRET` | - | Secret for webhook signature |
-| `WEBHOOK_TIMEOUT` | 10000 | Webhook delivery timeout (ms) |
-| `WEBHOOK_MAX_RETRIES` | 5 | Max webhook retry attempts |
-| `WEBHOOK_RETRY_DELAY` | 1000 | Initial retry delay (ms) |
-| `SESSION_PATH` | ./sessions | Session storage path |
-| `LOG_LEVEL` | info | Log level (debug, info, warn, error) |
-| `CORS_ORIGIN` | * | CORS allowed origin |
+| Variable              | Default    | Description                          |
+| --------------------- | ---------- | ------------------------------------ |
+| `PORT`                | 3000       | Server port                          |
+| `HOST`                | 0.0.0.0    | Server host                          |
+| `API_KEY`             | -          | API key for authentication           |
+| `WEBHOOK_SECRET`      | -          | Secret for webhook signature         |
+| `WEBHOOK_TIMEOUT`     | 10000      | Webhook delivery timeout (ms)        |
+| `WEBHOOK_MAX_RETRIES` | 5          | Max webhook retry attempts           |
+| `WEBHOOK_RETRY_DELAY` | 1000       | Initial retry delay (ms)             |
+| `SESSION_PATH`        | ./sessions | Session storage path                 |
+| `LOG_LEVEL`           | info       | Log level (debug, info, warn, error) |
+| `CORS_ORIGIN`         | \*         | CORS allowed origin                  |
 
 ## Limitations
 
@@ -371,10 +371,12 @@ npm run test:integration -- setup
 ### Connection Issues
 
 **Problem**: QR code not received
+
 - Check webhook URL is accessible
 - Verify webhook events include `qr`
 
 **Problem**: Connection fails after QR scan
+
 - Check network connectivity
 - Verify WhatsApp can reach the server
 - Check logs for errors
@@ -382,10 +384,12 @@ npm run test:integration -- setup
 ### Session Issues
 
 **Problem**: Instance always shows QR required
+
 - Delete instance's session directory: `rm -rf sessions/{instanceId}/`
 - Re-scan QR code
 
 **Problem**: Session expired
+
 - Sessions expire after ~30 days of inactivity
 - Re-pair by scanning QR code again
 
@@ -410,8 +414,9 @@ Contributions are welcome! Please read the contributing guidelines first.
 ## Support
 
 For issues and questions:
+
 - GitHub Issues: <repository-url>/issues
-- Documentation: See [TESTING.md](./TESTING.md) and [MIAW-API-PLAN.md](./MIAW-API-PLAN.md)
+- Documentation: See [docs/TESTING.md](./docs/TESTING.md) and [docs/ROADMAP.md](./docs/ROADMAP.md)
 
 ---
 
