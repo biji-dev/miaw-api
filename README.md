@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.6.0 (Phase 6 - Presence & UX)
+**Version:** 0.7.0 (Phase 7 - Webhook Enhancements)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -18,9 +18,9 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 5 - Profile Management)
+## Current Status (Phase 7 - Webhook Enhancements)
 
-### Implemented (Phase 1-5)
+### Implemented (Phase 1-7)
 
 **Phase 1 - Foundation (v0.1.0)**
 - Instance CRUD operations (create, list, get, delete)
@@ -67,7 +67,15 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Mark message as read
 - Subscribe to presence updates
 
-### Planned (Phase 7+)
+**Phase 7 - Webhook Enhancements (v0.7.0)**
+- Enhanced webhook signature (X-Miaw-Signature, X-Miaw-Timestamp)
+- Signature format: sha256=<hex>
+- Timestamp-based replay prevention
+- Webhook test endpoint
+- Webhook delivery statistics
+- Signature verification utility
+
+### Planned (Phase 8+)
 
 - Business features (labels, products, newsletters)
 
@@ -411,6 +419,13 @@ npm run test:integration -- setup
 | POST     | `/instances/:id/stop-typing/:to`                    | Stop typing/recording          |
 | POST     | `/instances/:id/read`                               | Mark message as read           |
 | POST     | `/instances/:id/subscribe/:jid`                     | Subscribe to presence updates  |
+
+### Webhooks
+
+| Method   | Endpoint                               | Description                         |
+| -------- | -------------------------------------- | ----------------------------------- |
+| POST     | `/instances/:id/webhook/test`          | Send test webhook event             |
+| GET      | `/instances/:id/webhook/status`        | Get webhook delivery statistics     |
 
 ### Health
 
