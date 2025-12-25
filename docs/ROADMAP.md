@@ -1,8 +1,8 @@
 # Miaw API - Project Plan
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Date:** 2025-12-25
-**Status:** Active (Phase 4 Complete)
+**Status:** Active (Phase 5 Complete)
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## Implementation Status
 
-**Current Version:** v0.4.0 (Phase 4 - Group Management)
+**Current Version:** v0.5.0 (Phase 5 - Profile Management)
 
 | Phase | Name                    | Status    | Version |
 | ----- | ---------------------- | --------- | ------- |
@@ -31,8 +31,8 @@
 | 2     | Core Messaging         | ✅ Complete | v0.2.0  |
 | 3     | Contacts & Validation  | ✅ Complete | v0.3.0  |
 | 4     | Group Management       | ✅ Complete | v0.4.0  |
-| 5     | Profile Management     | 🔄 Next    | v0.5.0  |
-| 6     | Presence & UX          | 📋 Planned | v0.6.0  |
+| 5     | Profile Management     | ✅ Complete | v0.5.0  |
+| 6     | Presence & UX          | 🔄 Next    | v0.6.0  |
 | 7     | Webhook Enhancements   | 📋 Planned | v0.7.0  |
 | 8     | Business Features      | 📋 Planned | v0.8.0  |
 | 9     | Polish & Testing       | 📋 Planned | v1.0.0  |
@@ -662,22 +662,24 @@ miaw-api/
 - ✅ Integration tests for group operations
 - ✅ Documentation updated
 
-### Phase 5: Profile Management (Week 7) 🔄 NEXT
+### Phase 5: Profile Management (Week 7) ✅ COMPLETE
 
 **Goal:** Bot profile management
 
 | Feature                         | Priority | Effort  | Status |
 | ------------------------------- | -------- | ------- | ------ |
-| Update profile picture endpoint | P1       | 0.5 day | 📋 Todo |
-| Remove profile picture endpoint | P1       | 0.5 day | 📋 Todo |
-| Update profile name endpoint    | P1       | 0.5 day | 📋 Todo |
-| Update profile status endpoint  | P1       | 0.5 day | 📋 Todo |
+| Update profile picture endpoint | P1       | 0.5 day | ✅ Done |
+| Remove profile picture endpoint | P1       | 0.5 day | ✅ Done |
+| Update profile name endpoint    | P1       | 0.5 day | ✅ Done |
+| Update profile status endpoint  | P1       | 0.5 day | ✅ Done |
 
 **Deliverables:**
 
-- Profile management endpoints (v0.5.0)
+- ✅ Profile management endpoints (v0.5.0)
+- ✅ Integration tests for profile operations
+- ✅ Documentation updated
 
-### Phase 6: Presence & UX (Week 6) 📋 PLANNED
+### Phase 6: Presence & UX (Week 6) 🔄 NEXT
 
 **Goal:** Presence indicators and UX features
 
