@@ -11,6 +11,7 @@ import { contactRoutes } from './contacts';
 import { groupRoutes } from './groups';
 import { profileRoutes } from './profile';
 import { presenceRoutes } from './presence';
+import { webhookRoutes } from './webhooks';
 
 /**
  * Register all routes
@@ -36,4 +37,7 @@ export async function registerRoutes(server: FastifyInstance): Promise<void> {
 
   // Presence & UX routes
   await server.register(presenceRoutes);
+
+  // Webhook management routes
+  await server.register(webhookRoutes);
 }
