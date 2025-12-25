@@ -20,6 +20,14 @@ interface WebhookDelivery {
   nextRetryTime?: number;
 }
 
+interface WebhookDeliveryStats {
+  queued: number;
+  delivered: number;
+  failed: number;
+  lastDeliveryTime?: number;
+  lastFailureTime?: number;
+}
+
 /**
  * Manages webhook delivery with retry mechanism
  */
@@ -28,6 +36,12 @@ export class WebhookDispatcher {
   private logger: pino.Logger;
   private deliveryQueue: Map<string, WebhookDelivery>;
   private processingInterval?: NodeJS.Timeout;
+  // Stats tracking
+  private stats: WebhookDeliveryStats = {
+    queued: 0,
+    delivered: 0,
+    failed: 0,
+  };
 
   constructor(options: WebhookDispatcherOptions) {
     this.options = options;
@@ -48,6 +62,7 @@ export class WebhookDispatcher {
       attempt: 0,
     });
 
+    this.stats.queued++;
     this.logger.debug(
       { deliveryId, url, event: payload.event },
       'Webhook queued'
@@ -115,13 +130,15 @@ export class WebhookDispatcher {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.options.timeout);
 
-      const signature = this.generateSignature(delivery.payload);
+      const timestamp = Date.now();
+      const signature = this.generateSignature(delivery.payload, timestamp);
 
       const response = await fetch(delivery.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Webhook-Signature': signature,
+          'X-Miaw-Signature': signature,
+          'X-Miaw-Timestamp': timestamp.toString(),
           'User-Agent': 'Miaw-Webhook/1.0',
         },
         body: JSON.stringify(delivery.payload),
@@ -131,6 +148,8 @@ export class WebhookDispatcher {
       clearTimeout(timeoutId);
 
       if (response.ok) {
+        this.stats.delivered++;
+        this.stats.lastDeliveryTime = timestamp;
         this.logger.info(
           {
             deliveryId: this.generateDeliveryId(delivery.payload),
@@ -152,6 +171,8 @@ export class WebhookDispatcher {
       );
       return false;
     } catch (err: any) {
+      this.stats.failed++;
+      this.stats.lastFailureTime = Date.now();
       this.logger.warn(
         {
           deliveryId: this.generateDeliveryId(delivery.payload),
@@ -173,14 +194,50 @@ export class WebhookDispatcher {
   }
 
   /**
-   * Generate webhook signature
+   * Generate webhook signature with timestamp
+   * Format: sha256=<hex_signature>
    */
-  private generateSignature(payload: any): string {
+  private generateSignature(payload: any, timestamp: number): string {
     const payloadString = JSON.stringify(payload);
-    return crypto
+    const payloadWithTimestamp = `${timestamp}.${payloadString}`;
+    const signature = crypto
       .createHmac('sha256', this.options.secret)
-      .update(payloadString)
+      .update(payloadWithTimestamp)
       .digest('hex');
+    return `sha256=${signature}`;
+  }
+
+  /**
+   * Verify webhook signature (for webhook consumers)
+   */
+  static verifySignature(
+    payload: any,
+    signature: string,
+    timestamp: number,
+    secret: string,
+    maxAge: number = 300000 // 5 minutes default
+  ): boolean {
+    // Check timestamp age (replay prevention)
+    const now = Date.now();
+    if (now - timestamp > maxAge) {
+      return false;
+    }
+
+    // Extract signature from format: sha256=<hex>
+    const match = signature.match(/^sha256=(.+)$/);
+    if (!match) {
+      return false;
+    }
+
+    const expectedSignature = match[1];
+    const payloadString = JSON.stringify(payload);
+    const payloadWithTimestamp = `${timestamp}.${payloadString}`;
+    const computedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(payloadWithTimestamp)
+      .digest('hex');
+
+    return expectedSignature === computedSignature;
   }
 
   /**
@@ -195,6 +252,27 @@ export class WebhookDispatcher {
    */
   getQueueSize(): number {
     return this.deliveryQueue.size;
+  }
+
+  /**
+   * Get delivery stats
+   */
+  getStats(): WebhookDeliveryStats {
+    return {
+      ...this.stats,
+      queued: this.deliveryQueue.size, // Current queue size
+    };
+  }
+
+  /**
+   * Reset stats (for testing)
+   */
+  resetStats(): void {
+    this.stats = {
+      queued: 0,
+      delivered: 0,
+      failed: 0,
+    };
   }
 
   /**
