@@ -1,7 +1,7 @@
 /**
  * Basic GET Operations Routes (v0.9.0)
  *
- * GET endpoints for fetching contacts, groups, profile, labels, and messages
+ * GET endpoints for fetching contacts, groups, profile, labels, messages, and chats
  */
 
 import { FastifyInstance } from 'fastify';
@@ -138,6 +138,39 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
     }
 
     const result = await client.fetchAllLabels();
+
+    if (result.success) {
+      return reply.send(result);
+    }
+
+    return reply.code(500).send(result);
+  });
+
+  // ============================================================================
+  // GET /instances/:id/chats - Get all chats
+  // ============================================================================
+  server.get('/instances/:instanceId/chats', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['instanceId'],
+        properties: {
+          instanceId: { type: 'string', minLength: 1 },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const { instanceId } = request.params as { instanceId: string };
+
+    const client = instanceManager.getClient(instanceId);
+    if (!client) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Instance not found',
+      });
+    }
+
+    const result = await client.fetchAllChats();
 
     if (result.success) {
       return reply.send(result);

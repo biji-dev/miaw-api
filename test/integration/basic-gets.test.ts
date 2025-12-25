@@ -6,6 +6,7 @@
  * - GET /instances/:id/groups - Get all groups
  * - GET /instances/:id/profile - Get own profile
  * - GET /instances/:id/labels - Get all labels
+ * - GET /instances/:id/chats - Get all chats
  * - GET /instances/:id/chats/:jid/messages - Get chat messages
  */
 
@@ -160,6 +161,41 @@ describe('Basic GET Operations (v0.9.0)', () => {
 
     test('should return 404 for non-existent instance', async () => {
       const response = await fetch(`${API_URL}/instances/non-existent/labels`, {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      });
+
+      expect(response.status).toBe(404);
+
+      const data = (await response.json()) as { success: boolean; error?: string };
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('Instance not found');
+    });
+  });
+
+  describe('GET /instances/:id/chats - Get all chats', () => {
+    test('should return chats list when instance is connected', async () => {
+      if (!isConnected) {
+        console.log('  ⚠️  Skipping: Instance not connected');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/instances/${INSTANCE_ID}/chats`, {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      });
+
+      expect(response.status).toBe(200);
+
+      const data = (await response.json()) as { success: boolean; chats?: unknown[] };
+      expect(data.success).toBe(true);
+      expect(Array.isArray(data.chats)).toBe(true);
+    });
+
+    test('should return 404 for non-existent instance', async () => {
+      const response = await fetch(`${API_URL}/instances/non-existent/chats`, {
         headers: {
           Authorization: `Bearer ${API_KEY}`,
         },
