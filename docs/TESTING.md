@@ -136,7 +136,7 @@ npm run test:integration -- --reporter=verbose
 | `presence.test.ts` | 33 | Presence, typing, read receipts, subscribe | Yes |
 | `webhooks.test.ts` | 26 | Webhook config, delivery, signature, retry | Yes |
 | `business.test.ts` | 27 | Labels, products, newsletters (Business only) | Yes |
-| `basic-gets.test.ts` | 10 | Basic GET operations (contacts, groups, profile, labels, messages) | Yes |
+| `basic-gets.test.ts` | 12 | Basic GET operations (contacts, groups, profile, labels, chats, messages) | Yes |
 
 ### Skipping Connection-Required Tests
 

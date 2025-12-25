@@ -18,9 +18,9 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 8 - Business Features)
+## Current Status (Phase 9 - Basic GET Operations)
 
-### Implemented (Phase 1-8)
+### Implemented (Phase 1-9)
 
 **Phase 1 - Foundation (v0.1.0)**
 
@@ -89,7 +89,16 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Newsletters (get metadata, get messages)
 - WhatsApp Business account required
 
-### Planned (Phase 9+)
+**Phase 9 - Basic GET Operations (v0.9.0)**
+
+- Get all contacts
+- Get all groups
+- Get own profile
+- Get all labels
+- Get all chats
+- Get chat messages
+
+### Planned (Phase 10+)
 
 - Polish & Testing
 - Performance optimization
@@ -466,6 +475,7 @@ npm run test:integration -- setup
 | GET    | `/instances/:id/groups`                | Get all groups             |
 | GET    | `/instances/:id/profile`               | Get own profile            |
 | GET    | `/instances/:id/labels`                | Get all labels             |
+| GET    | `/instances/:id/chats`                 | Get all chats              |
 | GET    | `/instances/:id/chats/:jid/messages`   | Get chat messages          |
 
 ### Health
