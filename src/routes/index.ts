@@ -8,6 +8,7 @@ import { instanceRoutes } from './instances';
 import { connectionRoutes } from './connection';
 import { messagingRoutes } from './messaging';
 import { contactRoutes } from './contacts';
+import { groupRoutes } from './groups';
 
 /**
  * Register all routes
@@ -24,4 +25,7 @@ export async function registerRoutes(server: FastifyInstance): Promise<void> {
 
   // Contact routes
   await server.register(contactRoutes);
+
+  // Group routes
+  await server.register(groupRoutes);
 }
