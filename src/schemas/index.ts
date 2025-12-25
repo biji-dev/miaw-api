@@ -258,6 +258,18 @@ export function registerSchemas(server: FastifyInstance): void {
   // ============================================================================
 
   server.addSchema({
+    $id: 'updateProfilePicture',
+    type: 'object',
+    required: ['url'],
+    properties: {
+      url: {
+        type: 'string',
+        format: 'uri',
+      },
+    },
+  });
+
+  server.addSchema({
     $id: 'updateProfileName',
     type: 'object',
     required: ['name'],
