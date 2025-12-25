@@ -616,10 +616,10 @@ npm run test:integration -- webhooks
 | Contacts | 12 | 1 min |
 | Groups | 25 | 3 min |
 | Profile | 8 | 1 min |
-| Presence & UX | 10 | 1 min |
+| Presence & UX | 33 | 2 min |
 | Webhooks | 25 | 3 min |
 | Business | 18 | 2 min |
-| **Total** | **~161** | **~21 min** |
+| **Total** | **~184** | **~22 min** |
 
 ### 5.3 CI/CD Considerations
 
