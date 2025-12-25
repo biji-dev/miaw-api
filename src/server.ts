@@ -3,11 +3,10 @@
  * REST API wrapper for miaw-core
  */
 
-import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import pino from 'pino';
 import { config } from './config';
 import { registerRoutes } from './routes';
 import { registerSchemas } from './schemas';
@@ -83,7 +82,7 @@ export async function createServer(): Promise<FastifyInstance> {
   setErrorHandler(server);
 
   // Register health check
-  server.get('/health', async (request, reply) => {
+  server.get('/health', async (_request, _reply) => {
     return { status: 'ok', timestamp: Date.now() };
   });
 
@@ -123,8 +122,8 @@ export async function createServer(): Promise<FastifyInstance> {
  * Set global error handler
  */
 function setErrorHandler(server: FastifyInstance): void {
-  server.setErrorHandler((error, request, reply) => {
-    errorHandler(error, request, reply);
+  server.setErrorHandler((error: unknown, request, reply) => {
+    errorHandler(error as Error, request, reply);
 
     // Don't reply if headers already sent
     if (reply.sent) {

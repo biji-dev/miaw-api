@@ -32,7 +32,7 @@ function extractApiKey(request: FastifyRequest): string | null {
 export function createAuthMiddleware() {
   return async function authMiddleware(
     request: FastifyRequest,
-    reply: FastifyReply
+    _reply: FastifyReply
   ): Promise<void> {
     const apiKey = extractApiKey(request);
 

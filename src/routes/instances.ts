@@ -126,7 +126,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
         },
       },
     },
-    async (request, reply) => {
+    async (_request, reply) => {
       const instanceManager = (server as any).instanceManager;
       const instances = instanceManager.listInstances();
 

@@ -25,6 +25,7 @@ export interface InstanceState {
   status: ConnectionState;
   webhookUrl?: string;
   webhookEvents: WebhookEvent[];
+  webhookEnabled: boolean;
   createdAt: Date;
   lastActivity: Date;
   connectedAt?: Date;

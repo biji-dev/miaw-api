@@ -6,7 +6,6 @@
 import { EventEmitter } from 'events';
 import { MiawClient, MiawClientOptions, ConnectionState } from 'miaw-core';
 import pino from 'pino';
-import path from 'path';
 import {
   InstanceConfig,
   InstanceState,
