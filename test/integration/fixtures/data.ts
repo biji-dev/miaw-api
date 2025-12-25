@@ -13,6 +13,10 @@ export const TEST_CONFIG = {
   TEST_CONTACT_A: '6281234567890',
   TEST_CONTACT_B: '6280987654321',
 
+  // Test group (optional - for group management tests)
+  TEST_GROUP_JID: '', // e.g., '123456789@g.us'
+  TEST_GROUP_INVITE: '', // e.g., 'ABC123Def456' (invite code)
+
   // Timeouts
   CONNECT_TIMEOUT: 120000,
   MESSAGE_TIMEOUT: 30000,
