@@ -129,6 +129,9 @@ npm run test:integration -- --reporter=verbose
 | `instance-management.test.ts` | 15 | Create, list, get, delete instances | No |
 | `connection.test.ts` | 10 | Connect, disconnect, restart, status | Optional |
 | `messaging.test.ts` | 8 | Send text messages | Yes |
+| `messaging-phase2.test.ts` | 35 | Media, edit, delete, reaction, forward | Yes |
+| `contacts.test.ts` | 12 | Number validation, contact info | Yes |
+| `groups.test.ts` | 25 | Create, manage groups, participants | Yes |
 
 ### Skipping Connection-Required Tests
 
@@ -158,6 +161,7 @@ TEST_SESSION_PATH=./test-sessions
 TEST_CONTACT_A=6281234567890
 TEST_CONTACT_B=6280987654321
 TEST_GROUP_JID=123456789@g.us
+TEST_GROUP_INVITE=ABC123Def456
 
 # Timeouts
 TEST_CONNECT_TIMEOUT=120000
@@ -295,4 +299,4 @@ Integration tests are **NOT suitable** for automated CI/CD pipelines:
 ---
 
 **Last Updated:** 2025-12-25
-**Version:** 0.1.0
+**Version:** 0.4.0
