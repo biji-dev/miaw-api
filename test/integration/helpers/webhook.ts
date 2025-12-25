@@ -12,11 +12,20 @@ export interface WebhookEvent {
   data: any;
 }
 
+export interface WebhookRequest {
+  body: WebhookEvent;
+  headers: Record<string, string>;
+  timestamp: number;
+}
+
 export class WebhookTestServer {
   private server?: Server;
   private port: number;
   private events: WebhookEvent[] = [];
+  private requests: WebhookRequest[] = [];
   private isRunning: boolean = false;
+  private failMode: boolean = false;
+  private requestCount: number = 0;
 
   constructor(port = 3001) {
     this.port = port;
@@ -49,6 +58,8 @@ export class WebhookTestServer {
   }
 
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    this.requestCount++;
+
     if (req.method === 'POST' && req.url === '/webhook') {
       let body = '';
 
@@ -61,8 +72,21 @@ export class WebhookTestServer {
           const event: WebhookEvent = JSON.parse(body);
           this.events.push(event);
 
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ received: true }));
+          // Capture headers and request data
+          this.requests.push({
+            body: event,
+            headers: req.headers as Record<string, string>,
+            timestamp: Date.now(),
+          });
+
+          // Handle fail mode (for retry testing)
+          if (this.failMode) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+          } else {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ received: true }));
+          }
         } catch (error) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Invalid JSON' }));
@@ -91,6 +115,23 @@ export class WebhookTestServer {
 
   clearEvents(): void {
     this.events = [];
+    this.requests = [];
+  }
+
+  getRequests(): WebhookRequest[] {
+    return [...this.requests];
+  }
+
+  getRequestCount(): number {
+    return this.requestCount;
+  }
+
+  resetRequestCount(): void {
+    this.requestCount = 0;
+  }
+
+  setFailMode(enabled: boolean): void {
+    this.failMode = enabled;
   }
 
   waitForEvent(
