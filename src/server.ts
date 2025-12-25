@@ -112,8 +112,8 @@ export async function createServer(): Promise<FastifyInstance> {
   server.decorate('instanceManager', instanceManager);
   server.decorate('webhookDispatcher', webhookDispatcher);
 
-  // Register API routes
-  await registerRoutes(server);
+  // Register API routes (pass instanceManager for v0.9.0 routes)
+  await registerRoutes(server, instanceManager);
 
   return server;
 }

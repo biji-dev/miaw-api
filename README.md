@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.8.0 (Phase 8 - Business Features)
+**Version:** 0.9.0 (Phase 9 - Basic GET Operations)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -23,6 +23,7 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 ### Implemented (Phase 1-8)
 
 **Phase 1 - Foundation (v0.1.0)**
+
 - Instance CRUD operations (create, list, get, delete)
 - Connection management (connect, disconnect, restart, status)
 - Send text messages
@@ -31,6 +32,7 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - API documentation (Swagger UI)
 
 **Phase 2 - Core Messaging (v0.2.0)**
+
 - Send media (image, video, audio, document)
 - Edit text messages
 - Delete messages (for everyone / for me)
@@ -39,12 +41,14 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Extended webhook events (edit, delete, reaction)
 
 **Phase 3 - Contacts & Validation (v0.3.0)**
+
 - Check phone number (is on WhatsApp?)
 - Batch check numbers (up to 50 at once)
 - Get contact information
 - Get profile picture URL
 
 **Phase 4 - Group Management (v0.4.0)**
+
 - Create groups
 - Get group info/metadata
 - Add/remove participants
@@ -54,12 +58,14 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Leave group
 
 **Phase 5 - Profile Management (v0.5.0)**
+
 - Update profile picture
 - Remove profile picture
 - Update profile name
 - Update profile status (About)
 
 **Phase 6 - Presence & UX (v0.6.0)**
+
 - Set presence (available/unavailable)
 - Send typing indicator
 - Send recording indicator
@@ -68,6 +74,7 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Subscribe to presence updates
 
 **Phase 7 - Webhook Enhancements (v0.7.0)**
+
 - Enhanced webhook signature (X-Miaw-Signature, X-Miaw-Timestamp)
 - Signature format: sha256=<hex>
 - Timestamp-based replay prevention
@@ -76,6 +83,7 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Signature verification utility
 
 **Phase 8 - Business Features (v0.8.0)**
+
 - Label management (create, delete, chat labels, message labels)
 - Product catalog (get catalog, get collections)
 - Newsletters (get metadata, get messages)
@@ -373,82 +381,92 @@ npm run test:integration -- setup
 
 ### Messaging
 
-| Method   | Endpoint                                    | Description                    |
-| -------- | ------------------------------------------- | ------------------------------ |
-| POST     | `/instances/:id/send-text`                 | Send text message              |
-| POST     | `/instances/:id/send-media`                | Send media (image/video/audio)  |
-| PATCH    | `/instances/:id/messages/edit`             | Edit text message              |
-| DELETE   | `/instances/:id/messages/:messageId`       | Delete message                 |
-| POST     | `/instances/:id/messages/reaction`         | React to message               |
-| POST     | `/instances/:id/messages/forward`          | Forward message                |
+| Method | Endpoint                             | Description                    |
+| ------ | ------------------------------------ | ------------------------------ |
+| POST   | `/instances/:id/send-text`           | Send text message              |
+| POST   | `/instances/:id/send-media`          | Send media (image/video/audio) |
+| PATCH  | `/instances/:id/messages/edit`       | Edit text message              |
+| DELETE | `/instances/:id/messages/:messageId` | Delete message                 |
+| POST   | `/instances/:id/messages/reaction`   | React to message               |
+| POST   | `/instances/:id/messages/forward`    | Forward message                |
 
 ### Contacts
 
-| Method | Endpoint                                          | Description                      |
-| ------ | ------------------------------------------------- | -------------------------------- |
-| POST   | `/instances/:id/check-number`                    | Check if phone is on WhatsApp    |
-| POST   | `/instances/:id/check-batch`                     | Batch check numbers (max 50)     |
-| GET    | `/instances/:id/contacts/:jid`                   | Get contact information          |
-| GET    | `/instances/:id/contacts/:jid/picture`           | Get profile picture URL          |
+| Method | Endpoint                               | Description                   |
+| ------ | -------------------------------------- | ----------------------------- |
+| POST   | `/instances/:id/check-number`          | Check if phone is on WhatsApp |
+| POST   | `/instances/:id/check-batch`           | Batch check numbers (max 50)  |
+| GET    | `/instances/:id/contacts/:jid`         | Get contact information       |
+| GET    | `/instances/:id/contacts/:jid/picture` | Get profile picture URL       |
 
 ### Groups
 
-| Method   | Endpoint                                              | Description                      |
-| -------- | ----------------------------------------------------- | -------------------------------- |
-| POST     | `/instances/:id/groups`                               | Create group                     |
-| GET      | `/instances/:id/groups/:groupJid`                     | Get group info                   |
-| PATCH    | `/instances/:id/groups/:groupJid`                     | Update group name/description     |
-| POST     | `/instances/:id/groups/:groupJid/participants`        | Add participants                 |
-| DELETE   | `/instances/:id/groups/:groupJid/participants`        | Remove participants              |
-| POST     | `/instances/:id/groups/:groupJid/admins`              | Promote to admin                 |
-| DELETE   | `/instances/:id/groups/:groupJid/admins`              | Demote admin                     |
-| POST     | `/instances/:id/groups/:groupJid/picture`             | Update group picture             |
-| GET      | `/instances/:id/groups/:groupJid/invite`              | Get invite link                  |
-| POST     | `/instances/:id/groups/:groupJid/revoke-invite`       | Revoke invite link               |
-| POST     | `/instances/:id/groups/join/:inviteCode`              | Join via invite code             |
-| DELETE   | `/instances/:id/groups/:groupJid`                     | Leave group                      |
+| Method | Endpoint                                        | Description                   |
+| ------ | ----------------------------------------------- | ----------------------------- |
+| POST   | `/instances/:id/groups`                         | Create group                  |
+| GET    | `/instances/:id/groups/:groupJid`               | Get group info                |
+| PATCH  | `/instances/:id/groups/:groupJid`               | Update group name/description |
+| POST   | `/instances/:id/groups/:groupJid/participants`  | Add participants              |
+| DELETE | `/instances/:id/groups/:groupJid/participants`  | Remove participants           |
+| POST   | `/instances/:id/groups/:groupJid/admins`        | Promote to admin              |
+| DELETE | `/instances/:id/groups/:groupJid/admins`        | Demote admin                  |
+| POST   | `/instances/:id/groups/:groupJid/picture`       | Update group picture          |
+| GET    | `/instances/:id/groups/:groupJid/invite`        | Get invite link               |
+| POST   | `/instances/:id/groups/:groupJid/revoke-invite` | Revoke invite link            |
+| POST   | `/instances/:id/groups/join/:inviteCode`        | Join via invite code          |
+| DELETE | `/instances/:id/groups/:groupJid`               | Leave group                   |
 
 ### Profile
 
-| Method   | Endpoint                                  | Description              |
-| -------- | ----------------------------------------- | ------------------------ |
-| POST     | `/instances/:id/profile/picture`          | Update profile picture |
-| DELETE   | `/instances/:id/profile/picture`          | Remove profile picture |
-| PATCH    | `/instances/:id/profile/name`             | Update profile name     |
-| PATCH    | `/instances/:id/profile/status`           | Update profile status   |
+| Method | Endpoint                         | Description            |
+| ------ | -------------------------------- | ---------------------- |
+| POST   | `/instances/:id/profile/picture` | Update profile picture |
+| DELETE | `/instances/:id/profile/picture` | Remove profile picture |
+| PATCH  | `/instances/:id/profile/name`    | Update profile name    |
+| PATCH  | `/instances/:id/profile/status`  | Update profile status  |
 
 ### Presence
 
-| Method   | Endpoint                                            | Description                    |
-| -------- | --------------------------------------------------- | ------------------------------ |
-| POST     | `/instances/:id/presence`                           | Set presence (online/offline)  |
-| POST     | `/instances/:id/typing/:to`                         | Send typing indicator          |
-| POST     | `/instances/:id/recording/:to`                      | Send recording indicator       |
-| POST     | `/instances/:id/stop-typing/:to`                    | Stop typing/recording          |
-| POST     | `/instances/:id/read`                               | Mark message as read           |
-| POST     | `/instances/:id/subscribe/:jid`                     | Subscribe to presence updates  |
+| Method | Endpoint                         | Description                   |
+| ------ | -------------------------------- | ----------------------------- |
+| POST   | `/instances/:id/presence`        | Set presence (online/offline) |
+| POST   | `/instances/:id/typing/:to`      | Send typing indicator         |
+| POST   | `/instances/:id/recording/:to`   | Send recording indicator      |
+| POST   | `/instances/:id/stop-typing/:to` | Stop typing/recording         |
+| POST   | `/instances/:id/read`            | Mark message as read          |
+| POST   | `/instances/:id/subscribe/:jid`  | Subscribe to presence updates |
 
 ### Webhooks
 
-| Method   | Endpoint                               | Description                         |
-| -------- | -------------------------------------- | ----------------------------------- |
-| POST     | `/instances/:id/webhook/test`          | Send test webhook event             |
-| GET      | `/instances/:id/webhook/status`        | Get webhook delivery statistics     |
+| Method | Endpoint                        | Description                     |
+| ------ | ------------------------------- | ------------------------------- |
+| POST   | `/instances/:id/webhook/test`   | Send test webhook event         |
+| GET    | `/instances/:id/webhook/status` | Get webhook delivery statistics |
 
 ### Business (WhatsApp Business Only)
 
-| Method   | Endpoint                                                       | Description                        |
-| -------- | -------------------------------------------------------------- | ---------------------------------- |
-| POST     | `/instances/:id/labels`                                        | Create/edit label                  |
-| DELETE   | `/instances/:id/labels/:labelId`                               | Delete label                       |
-| POST     | `/instances/:id/chats/:jid/labels/:labelId`                    | Add label to chat                  |
-| DELETE   | `/instances/:id/chats/:jid/labels/:labelId`                    | Remove label from chat             |
-| POST     | `/instances/:id/messages/:messageId/labels/:labelId`           | Add label to message               |
-| DELETE   | `/instances/:id/messages/:messageId/labels/:labelId`           | Remove label from message          |
-| GET      | `/instances/:id/products/catalog`                             | Get product catalog                |
-| GET      | `/instances/:id/products/collections`                         | Get product collections             |
-| GET      | `/instances/:id/newsletters/:newsletterId`                    | Get newsletter metadata            |
-| GET      | `/instances/:id/newsletters/:newsletterId/messages`           | Get newsletter messages            |
+| Method | Endpoint                                             | Description               |
+| ------ | ---------------------------------------------------- | ------------------------- |
+| POST   | `/instances/:id/labels`                              | Create/edit label         |
+| DELETE | `/instances/:id/labels/:labelId`                     | Delete label              |
+| POST   | `/instances/:id/chats/:jid/labels/:labelId`          | Add label to chat         |
+| DELETE | `/instances/:id/chats/:jid/labels/:labelId`          | Remove label from chat    |
+| POST   | `/instances/:id/messages/:messageId/labels/:labelId` | Add label to message      |
+| DELETE | `/instances/:id/messages/:messageId/labels/:labelId` | Remove label from message |
+| GET    | `/instances/:id/products/catalog`                    | Get product catalog       |
+| GET    | `/instances/:id/products/collections`                | Get product collections   |
+| GET    | `/instances/:id/newsletters/:newsletterId`           | Get newsletter metadata   |
+| GET    | `/instances/:id/newsletters/:newsletterId/messages`  | Get newsletter messages   |
+
+### Basic GET Operations
+
+| Method | Endpoint                                | Description                |
+| ------ | --------------------------------------- | -------------------------- |
+| GET    | `/instances/:id/contacts`              | Get all contacts           |
+| GET    | `/instances/:id/groups`                | Get all groups             |
+| GET    | `/instances/:id/profile`               | Get own profile            |
+| GET    | `/instances/:id/labels`                | Get all labels             |
+| GET    | `/instances/:id/chats/:jid/messages`   | Get chat messages          |
 
 ### Health
 

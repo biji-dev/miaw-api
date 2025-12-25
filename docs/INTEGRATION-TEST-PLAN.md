@@ -187,6 +187,7 @@ test/integration/
 ├── presence.test.ts              # Presence & UX
 ├── webhooks.test.ts              # Webhook delivery
 ├── business.test.ts              # Business features
+├── basic-gets.test.ts            # Basic GET operations (v0.9.0)
 └── README.md                     # Test documentation
 ```
 

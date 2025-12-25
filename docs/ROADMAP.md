@@ -2,7 +2,7 @@
 
 **Version:** 1.2.0
 **Date:** 2025-12-25
-**Status:** Active (Phase 8 Complete)
+**Status:** Active (Phase 9 In Progress)
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## Implementation Status
 
-**Current Version:** v0.8.0 (Phase 8 - Business Features)
+**Current Version:** v0.9.0 (Phase 9 - Basic GET Operations)
 
 | Phase | Name                    | Status    | Version |
 | ----- | ---------------------- | --------- | ------- |
@@ -35,11 +35,12 @@
 | 6     | Presence & UX          | ✅ Complete | v0.6.0  |
 | 7     | Webhook Enhancements   | ✅ Complete | v0.7.0  |
 | 8     | Business Features      | ✅ Complete | v0.8.0  |
-| 9     | Polish & Testing       | 🔄 Next    | v1.0.0  |
+| 9     | Basic GET Operations   | 🔄 In Progress | v0.9.0  |
+| 10    | Polish & Testing       | 📋 Planned | v1.0.0  |
 
 **Legend:**
 - ✅ Complete - Implemented and tested
-- 🔄 Next - Current focus
+- 🔄 In Progress - Currently being implemented
 - 📋 Planned - Not started
 
 ---
@@ -725,7 +726,44 @@ miaw-api/
 
 - Optional Business features API (v0.8.0)
 
-### Phase 9: Polish & Testing (Week 11-12) 📋 PLANNED
+### Phase 9: Basic GET Operations (Week 10) ✅ COMPLETE
+
+**Goal:** Add missing basic GET endpoints for contacts, groups, profile, labels, and messages
+
+| Feature                         | Priority | Effort  | Status     |
+| ------------------------------- | -------- | ------- | ---------- |
+| GET /instances/:id/contacts     | P0       | 2 days  | ✅ Done    |
+| GET /instances/:id/groups       | P0       | 2 days  | ✅ Done    |
+| GET /instances/:id/profile      | P0       | 1 day   | ✅ Done    |
+| GET /instances/:id/labels       | P0       | 1 day   | ✅ Done    |
+| GET /instances/:id/chats/:jid/messages | P0 | 1 day | ✅ Done |
+| Integration tests               | P0       | 1 day   | ✅ Done    |
+| Update miaw-core with new methods | P0    | 2 days  | ✅ Done    |
+
+**New miaw-core Methods:**
+- `fetchAllContacts()` - Get all contacts from in-memory store
+- `fetchAllGroups()` - Get all groups via Baileys API
+- `getOwnProfile()` - Get authenticated user's profile
+- `fetchAllLabels()` - Get all labels from in-memory store
+- `getChatMessages(jid)` - Get messages from a specific chat
+
+**New API Endpoints:**
+| Method | Endpoint                              | Description              |
+| ------ | ------------------------------------- | ------------------------ |
+| GET    | `/instances/:id/contacts`             | Get all contacts         |
+| GET    | `/instances/:id/groups`               | Get all groups           |
+| GET    | `/instances/:id/profile`              | Get own profile          |
+| GET    | `/instances/:id/labels`               | Get all labels           |
+| GET    | `/instances/:id/chats/:jid/messages`  | Get chat messages        |
+
+**Deliverables:**
+- ✅ Basic GET operations API (v0.9.0)
+- ✅ In-memory stores for contacts, labels, messages
+- ✅ Integration tests (5 tests per endpoint = 25 tests total)
+
+---
+
+### Phase 10: Polish & Testing (Week 11-12) 📋 PLANNED
 
 **Goal:** Production readiness
 

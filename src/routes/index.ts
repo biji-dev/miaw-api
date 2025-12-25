@@ -4,6 +4,7 @@
  */
 
 import { FastifyInstance } from 'fastify';
+import { InstanceManager } from '../services/InstanceManager';
 import { instanceRoutes } from './instances';
 import { connectionRoutes } from './connection';
 import { messagingRoutes } from './messaging';
@@ -13,11 +14,12 @@ import { profileRoutes } from './profile';
 import { presenceRoutes } from './presence';
 import { webhookRoutes } from './webhooks';
 import { businessRoutes } from './business';
+import { basicGetsRoutes } from './basic-gets';
 
 /**
  * Register all routes
  */
-export async function registerRoutes(server: FastifyInstance): Promise<void> {
+export async function registerRoutes(server: FastifyInstance, instanceManager: InstanceManager): Promise<void> {
   // Instance management routes
   await server.register(instanceRoutes);
 
@@ -44,4 +46,9 @@ export async function registerRoutes(server: FastifyInstance): Promise<void> {
 
   // Business features routes
   await server.register(businessRoutes);
+
+  // Basic GET operations routes (v0.9.0)
+  await server.register(async (server) => {
+    await basicGetsRoutes(server, instanceManager);
+  });
 }
