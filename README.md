@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.5.0 (Phase 5 - Profile Management)
+**Version:** 0.6.0 (Phase 6 - Presence & UX)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -59,9 +59,16 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Update profile name
 - Update profile status (About)
 
-### Planned (Phase 6+)
+**Phase 6 - Presence & UX (v0.6.0)**
+- Set presence (available/unavailable)
+- Send typing indicator
+- Send recording indicator
+- Stop typing/recording indicator
+- Mark message as read
+- Subscribe to presence updates
 
-- Presence features (typing indicators, read receipts)
+### Planned (Phase 7+)
+
 - Business features (labels, products, newsletters)
 
 See [docs/ROADMAP.md](./docs/ROADMAP.md) for the full roadmap.
@@ -393,6 +400,17 @@ npm run test:integration -- setup
 | DELETE   | `/instances/:id/profile/picture`          | Remove profile picture |
 | PATCH    | `/instances/:id/profile/name`             | Update profile name     |
 | PATCH    | `/instances/:id/profile/status`           | Update profile status   |
+
+### Presence
+
+| Method   | Endpoint                                            | Description                    |
+| -------- | --------------------------------------------------- | ------------------------------ |
+| POST     | `/instances/:id/presence`                           | Set presence (online/offline)  |
+| POST     | `/instances/:id/typing/:to`                         | Send typing indicator          |
+| POST     | `/instances/:id/recording/:to`                      | Send recording indicator       |
+| POST     | `/instances/:id/stop-typing/:to`                    | Stop typing/recording          |
+| POST     | `/instances/:id/read`                               | Mark message as read           |
+| POST     | `/instances/:id/subscribe/:jid`                     | Subscribe to presence updates  |
 
 ### Health
 

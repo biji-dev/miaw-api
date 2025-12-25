@@ -133,6 +133,7 @@ npm run test:integration -- --reporter=verbose
 | `contacts.test.ts` | 12 | Number validation, contact info | Yes |
 | `groups.test.ts` | 25 | Create, manage groups, participants | Yes |
 | `profile.test.ts` | 8 | Update profile picture, name, status | Yes |
+| `presence.test.ts` | 33 | Presence, typing, read receipts, subscribe | Yes |
 
 ### Skipping Connection-Required Tests
 
@@ -300,4 +301,4 @@ Integration tests are **NOT suitable** for automated CI/CD pipelines:
 ---
 
 **Last Updated:** 2025-12-25
-**Version:** 0.5.0
+**Version:** 0.6.0
