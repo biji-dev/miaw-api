@@ -9,6 +9,7 @@ import { connectionRoutes } from './connection';
 import { messagingRoutes } from './messaging';
 import { contactRoutes } from './contacts';
 import { groupRoutes } from './groups';
+import { profileRoutes } from './profile';
 
 /**
  * Register all routes
@@ -28,4 +29,7 @@ export async function registerRoutes(server: FastifyInstance): Promise<void> {
 
   // Group routes
   await server.register(groupRoutes);
+
+  // Profile routes
+  await server.register(profileRoutes);
 }
