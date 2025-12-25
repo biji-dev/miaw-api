@@ -2,22 +2,24 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.1.0 (Phase 1 - MVP)
+**Version:** 0.2.0 (Phase 2 - Core Messaging)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
 ## Features
 
 - **Multi-Instance Management** - Create and manage multiple WhatsApp instances
+- **Full Messaging** - Text, media, edit, delete, reactions, forward
 - **RESTful API** - Clean JSON API with OpenAPI/Swagger documentation
-- **Real-Time Webhooks** - Receive events (messages, status changes) via webhooks
+- **Real-Time Webhooks** - Receive events (messages, edits, reactions, etc.) via webhooks
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 1 - MVP)
+## Current Status (Phase 2 - Core Messaging)
 
-### Implemented
+### Implemented (Phase 1 & 2)
 
+**Phase 1 - Foundation (v0.1.0)**
 - Instance CRUD operations (create, list, get, delete)
 - Connection management (connect, disconnect, restart, status)
 - Send text messages
@@ -25,11 +27,18 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Webhook delivery with retry mechanism
 - API documentation (Swagger UI)
 
-### Planned (Phase 2+)
-
+**Phase 2 - Core Messaging (v0.2.0)**
 - Send media (image, video, audio, document)
-- Contact operations (check numbers, get info)
-- Group management (create, add/remove participants)
+- Edit text messages
+- Delete messages (for everyone / for me)
+- Emoji reactions (add/remove)
+- Forward messages (to multiple recipients)
+- Extended webhook events (edit, delete, reaction)
+
+### Planned (Phase 3+)
+
+- Contact operations (check numbers, get info, profile picture)
+- Group management (create, add/remove participants, admin)
 - Profile management (update name, status, picture)
 - Presence features (typing indicators, read receipts)
 - Business features (labels, products, newsletters)
@@ -320,9 +329,14 @@ npm run test:integration -- setup
 
 ### Messaging
 
-| Method | Endpoint                   | Description       |
-| ------ | -------------------------- | ----------------- |
-| POST   | `/instances/:id/send-text` | Send text message |
+| Method   | Endpoint                                    | Description                    |
+| -------- | ------------------------------------------- | ------------------------------ |
+| POST     | `/instances/:id/send-text`                 | Send text message              |
+| POST     | `/instances/:id/send-media`                | Send media (image/video/audio)  |
+| PATCH    | `/instances/:id/messages/edit`             | Edit text message              |
+| DELETE   | `/instances/:id/messages/:messageId`       | Delete message                 |
+| POST     | `/instances/:id/messages/reaction`         | React to message               |
+| POST     | `/instances/:id/messages/forward`          | Forward message                |
 
 ### Health
 
