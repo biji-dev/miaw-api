@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.7.0 (Phase 7 - Webhook Enhancements)
+**Version:** 0.8.0 (Phase 8 - Business Features)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -18,9 +18,9 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 7 - Webhook Enhancements)
+## Current Status (Phase 8 - Business Features)
 
-### Implemented (Phase 1-7)
+### Implemented (Phase 1-8)
 
 **Phase 1 - Foundation (v0.1.0)**
 - Instance CRUD operations (create, list, get, delete)
@@ -75,9 +75,17 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Webhook delivery statistics
 - Signature verification utility
 
-### Planned (Phase 8+)
+**Phase 8 - Business Features (v0.8.0)**
+- Label management (create, delete, chat labels, message labels)
+- Product catalog (get catalog, get collections)
+- Newsletters (get metadata, get messages)
+- WhatsApp Business account required
 
-- Business features (labels, products, newsletters)
+### Planned (Phase 9+)
+
+- Polish & Testing
+- Performance optimization
+- Security audit
 
 See [docs/ROADMAP.md](./docs/ROADMAP.md) for the full roadmap.
 
@@ -426,6 +434,21 @@ npm run test:integration -- setup
 | -------- | -------------------------------------- | ----------------------------------- |
 | POST     | `/instances/:id/webhook/test`          | Send test webhook event             |
 | GET      | `/instances/:id/webhook/status`        | Get webhook delivery statistics     |
+
+### Business (WhatsApp Business Only)
+
+| Method   | Endpoint                                                       | Description                        |
+| -------- | -------------------------------------------------------------- | ---------------------------------- |
+| POST     | `/instances/:id/labels`                                        | Create/edit label                  |
+| DELETE   | `/instances/:id/labels/:labelId`                               | Delete label                       |
+| POST     | `/instances/:id/chats/:jid/labels/:labelId`                    | Add label to chat                  |
+| DELETE   | `/instances/:id/chats/:jid/labels/:labelId`                    | Remove label from chat             |
+| POST     | `/instances/:id/messages/:messageId/labels/:labelId`           | Add label to message               |
+| DELETE   | `/instances/:id/messages/:messageId/labels/:labelId`           | Remove label from message          |
+| GET      | `/instances/:id/products/catalog`                             | Get product catalog                |
+| GET      | `/instances/:id/products/collections`                         | Get product collections             |
+| GET      | `/instances/:id/newsletters/:newsletterId`                    | Get newsletter metadata            |
+| GET      | `/instances/:id/newsletters/:newsletterId/messages`           | Get newsletter messages            |
 
 ### Health
 

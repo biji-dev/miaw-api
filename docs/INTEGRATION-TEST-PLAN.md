@@ -618,8 +618,8 @@ npm run test:integration -- webhooks
 | Profile | 8 | 1 min |
 | Presence & UX | 33 | 2 min |
 | Webhooks | 26 | 3 min |
-| Business | 18 | 2 min |
-| **Total** | **~187** | **~23 min** |
+| Business | 27 | 3 min |
+| **Total** | **~214** | **~26 min** |
 
 ### 5.3 CI/CD Considerations
 

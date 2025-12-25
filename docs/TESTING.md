@@ -135,6 +135,7 @@ npm run test:integration -- --reporter=verbose
 | `profile.test.ts` | 8 | Update profile picture, name, status | Yes |
 | `presence.test.ts` | 33 | Presence, typing, read receipts, subscribe | Yes |
 | `webhooks.test.ts` | 26 | Webhook config, delivery, signature, retry | Yes |
+| `business.test.ts` | 27 | Labels, products, newsletters (Business only) | Yes |
 
 ### Skipping Connection-Required Tests
 
@@ -302,4 +303,4 @@ Integration tests are **NOT suitable** for automated CI/CD pipelines:
 ---
 
 **Last Updated:** 2025-12-25
-**Version:** 0.7.0
+**Version:** 0.8.0
