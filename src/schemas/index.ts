@@ -112,6 +112,54 @@ export function registerSchemas(server: FastifyInstance): void {
     },
   });
 
+  server.addSchema({
+    $id: 'editMessage',
+    type: 'object',
+    required: ['messageId', 'text'],
+    properties: {
+      messageId: {
+        type: 'string',
+      },
+      text: {
+        type: 'string',
+        minLength: 1,
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'reactionMessage',
+    type: 'object',
+    required: ['messageId', 'emoji'],
+    properties: {
+      messageId: {
+        type: 'string',
+      },
+      emoji: {
+        type: 'string',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'forwardMessage',
+    type: 'object',
+    required: ['messageId', 'to'],
+    properties: {
+      messageId: {
+        type: 'string',
+      },
+      to: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+        minItems: 1,
+        maxItems: 50,
+      },
+    },
+  });
+
   // ============================================================================
   // Contact Schemas
   // ============================================================================
