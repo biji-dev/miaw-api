@@ -5,6 +5,7 @@
  * PATCH /instances/:id/messages/edit - Edit message
  * DELETE /instances/:id/messages/:messageId - Delete message
  * POST /instances/:id/messages/reaction - React to message
+ * POST /instances/:id/messages/forward - Forward message
  */
 
 import { FastifyInstance } from 'fastify';
@@ -594,6 +595,129 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to react to message', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/forward
+   * Forward a message to one or more recipients
+   */
+  server.post(
+    '/instances/:id/messages/forward',
+    {
+      schema: {
+        description: 'Forward a message to one or more recipients',
+        tags: ['Messaging'],
+        summary: 'Forward message',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'forwardMessage#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  forwarded: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        to: { type: 'string' },
+                        messageId: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        messageId: string;
+        to: string[];
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const results = await client.forwardMessage(body.messageId, body.to);
+
+        reply.send({
+          success: true,
+          data: {
+            forwarded: results.map((r: any) => ({
+              to: r.to || body.to[0],
+              messageId: r.messageId,
+            })),
+          },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to forward message', { error: err.message });
       }
     }
   );
