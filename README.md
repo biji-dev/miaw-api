@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.2.0 (Phase 2 - Core Messaging)
+**Version:** 0.3.0 (Phase 3 - Contacts & Validation)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -10,14 +10,15 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 
 - **Multi-Instance Management** - Create and manage multiple WhatsApp instances
 - **Full Messaging** - Text, media, edit, delete, reactions, forward
+- **Contact Validation** - Check numbers, get contact info, profile pictures
 - **RESTful API** - Clean JSON API with OpenAPI/Swagger documentation
 - **Real-Time Webhooks** - Receive events (messages, edits, reactions, etc.) via webhooks
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 2 - Core Messaging)
+## Current Status (Phase 3 - Contacts & Validation)
 
-### Implemented (Phase 1 & 2)
+### Implemented (Phase 1-3)
 
 **Phase 1 - Foundation (v0.1.0)**
 - Instance CRUD operations (create, list, get, delete)
@@ -35,9 +36,14 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Forward messages (to multiple recipients)
 - Extended webhook events (edit, delete, reaction)
 
-### Planned (Phase 3+)
+**Phase 3 - Contacts & Validation (v0.3.0)**
+- Check phone number (is on WhatsApp?)
+- Batch check numbers (up to 50 at once)
+- Get contact information
+- Get profile picture URL
 
-- Contact operations (check numbers, get info, profile picture)
+### Planned (Phase 4+)
+
 - Group management (create, add/remove participants, admin)
 - Profile management (update name, status, picture)
 - Presence features (typing indicators, read receipts)
@@ -337,6 +343,15 @@ npm run test:integration -- setup
 | DELETE   | `/instances/:id/messages/:messageId`       | Delete message                 |
 | POST     | `/instances/:id/messages/reaction`         | React to message               |
 | POST     | `/instances/:id/messages/forward`          | Forward message                |
+
+### Contacts
+
+| Method | Endpoint                                          | Description                      |
+| ------ | ------------------------------------------------- | -------------------------------- |
+| POST   | `/instances/:id/check-number`                    | Check if phone is on WhatsApp    |
+| POST   | `/instances/:id/check-batch`                     | Batch check numbers (max 50)     |
+| GET    | `/instances/:id/contacts/:jid`                   | Get contact information          |
+| GET    | `/instances/:id/contacts/:jid/picture`           | Get profile picture URL          |
 
 ### Health
 
