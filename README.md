@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.3.0 (Phase 3 - Contacts & Validation)
+**Version:** 0.4.0 (Phase 4 - Group Management)
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -11,14 +11,15 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - **Multi-Instance Management** - Create and manage multiple WhatsApp instances
 - **Full Messaging** - Text, media, edit, delete, reactions, forward
 - **Contact Validation** - Check numbers, get contact info, profile pictures
+- **Group Management** - Create groups, manage participants, admin operations
 - **RESTful API** - Clean JSON API with OpenAPI/Swagger documentation
 - **Real-Time Webhooks** - Receive events (messages, edits, reactions, etc.) via webhooks
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 3 - Contacts & Validation)
+## Current Status (Phase 4 - Group Management)
 
-### Implemented (Phase 1-3)
+### Implemented (Phase 1-4)
 
 **Phase 1 - Foundation (v0.1.0)**
 - Instance CRUD operations (create, list, get, delete)
@@ -42,9 +43,17 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Get contact information
 - Get profile picture URL
 
-### Planned (Phase 4+)
+**Phase 4 - Group Management (v0.4.0)**
+- Create groups
+- Get group info/metadata
+- Add/remove participants
+- Promote/demote admin
+- Update group name, description, picture
+- Group invite link management (get, revoke, join)
+- Leave group
 
-- Group management (create, add/remove participants, admin)
+### Planned (Phase 5+)
+
 - Profile management (update name, status, picture)
 - Presence features (typing indicators, read receipts)
 - Business features (labels, products, newsletters)
@@ -352,6 +361,23 @@ npm run test:integration -- setup
 | POST   | `/instances/:id/check-batch`                     | Batch check numbers (max 50)     |
 | GET    | `/instances/:id/contacts/:jid`                   | Get contact information          |
 | GET    | `/instances/:id/contacts/:jid/picture`           | Get profile picture URL          |
+
+### Groups
+
+| Method   | Endpoint                                              | Description                      |
+| -------- | ----------------------------------------------------- | -------------------------------- |
+| POST     | `/instances/:id/groups`                               | Create group                     |
+| GET      | `/instances/:id/groups/:groupJid`                     | Get group info                   |
+| PATCH    | `/instances/:id/groups/:groupJid`                     | Update group name/description     |
+| POST     | `/instances/:id/groups/:groupJid/participants`        | Add participants                 |
+| DELETE   | `/instances/:id/groups/:groupJid/participants`        | Remove participants              |
+| POST     | `/instances/:id/groups/:groupJid/admins`              | Promote to admin                 |
+| DELETE   | `/instances/:id/groups/:groupJid/admins`              | Demote admin                     |
+| POST     | `/instances/:id/groups/:groupJid/picture`             | Update group picture             |
+| GET      | `/instances/:id/groups/:groupJid/invite`              | Get invite link                  |
+| POST     | `/instances/:id/groups/:groupJid/revoke-invite`       | Revoke invite link               |
+| POST     | `/instances/:id/groups/join/:inviteCode`              | Join via invite code             |
+| DELETE   | `/instances/:id/groups/:groupJid`                     | Leave group                      |
 
 ### Health
 
