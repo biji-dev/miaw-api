@@ -4,6 +4,7 @@
  * POST /instances/:id/send-media - Send media (image, video, audio, document)
  * PATCH /instances/:id/messages/edit - Edit message
  * DELETE /instances/:id/messages/:messageId - Delete message
+ * POST /instances/:id/messages/reaction - React to message
  */
 
 import { FastifyInstance } from 'fastify';
@@ -481,6 +482,118 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to delete message', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/reaction
+   * React to a message with emoji
+   */
+  server.post(
+    '/instances/:id/messages/reaction',
+    {
+      schema: {
+        description: 'React to a message with an emoji (send empty emoji to remove)',
+        tags: ['Messaging'],
+        summary: 'React to message',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'reactionMessage#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  emoji: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        messageId: string;
+        emoji: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        await client.reactMessage(body.messageId, body.emoji);
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: body.messageId,
+            emoji: body.emoji || '(removed)',
+          },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to react to message', { error: err.message });
       }
     }
   );
