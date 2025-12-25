@@ -12,6 +12,7 @@ import { config } from './config';
 import { registerRoutes } from './routes';
 import { registerSchemas } from './schemas';
 import { InstanceManager } from './services/InstanceManager';
+import { WebhookDispatcher } from './services/WebhookDispatcher';
 import { errorHandler } from './utils/errorHandler';
 
 /**
@@ -95,8 +96,22 @@ export async function createServer(): Promise<FastifyInstance> {
     webhookRetryDelay: config.webhookRetryDelay,
   });
 
+  // Create webhook dispatcher
+  const webhookDispatcher = new WebhookDispatcher({
+    secret: config.webhookSecret,
+    timeout: config.webhookTimeout,
+    maxRetries: config.webhookMaxRetries,
+    retryDelay: config.webhookRetryDelay,
+  });
+
+  // Connect instance manager webhook events to dispatcher
+  instanceManager.on('webhook', (url: string, payload: any) => {
+    webhookDispatcher.queue(url, payload);
+  });
+
   // Decorate server with instance manager
   server.decorate('instanceManager', instanceManager);
+  server.decorate('webhookDispatcher', webhookDispatcher);
 
   // Register API routes
   await registerRoutes(server);

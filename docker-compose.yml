@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  miaw-api:
+    build: .
+    container_name: miaw-api
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - API_KEY=${API_KEY:-change-me-in-production}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-change-me-in-production}
+      - WEBHOOK_TIMEOUT=10000
+      - WEBHOOK_MAX_RETRIES=5
+      - WEBHOOK_RETRY_DELAY=1000
+      - CORS_ORIGIN=*
+      - SESSION_PATH=/app/sessions
+      - LOG_LEVEL=info
+    volumes:
+      - ./sessions:/app/sessions
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
