@@ -2,6 +2,8 @@
  * Messaging Routes
  * POST /instances/:id/send-text - Send text message
  * POST /instances/:id/send-media - Send media (image, video, audio, document)
+ * PATCH /instances/:id/messages/edit - Edit message
+ * DELETE /instances/:id/messages/:messageId - Delete message
  */
 
 import { FastifyInstance } from 'fastify';
@@ -257,6 +259,228 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to send media', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * PATCH /instances/:id/messages/edit
+   * Edit a text message
+   */
+  server.patch(
+    '/instances/:id/messages/edit',
+    {
+      schema: {
+        description: 'Edit a previously sent text message',
+        tags: ['Messaging'],
+        summary: 'Edit message',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'editMessage#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        messageId: string;
+        text: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.editMessage(body.messageId, body.text);
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId || body.messageId,
+            timestamp: result.timestamp || Date.now(),
+          },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to edit message', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * DELETE /instances/:id/messages/:messageId
+   * Delete a message
+   */
+  server.delete(
+    '/instances/:id/messages/:messageId',
+    {
+      schema: {
+        description: 'Delete a message (for everyone or for me)',
+        tags: ['Messaging'],
+        summary: 'Delete message',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            messageId: { type: 'string' },
+          },
+          required: ['id', 'messageId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            forMe: {
+              type: 'boolean',
+              default: false,
+              description: 'Delete only for me (true) or for everyone (false)',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; messageId: string };
+      const query = request.query as { forMe?: boolean };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        await client.deleteMessage(params.messageId, query.forMe);
+
+        reply.send({
+          success: true,
+          message: query.forMe
+            ? 'Message deleted for me'
+            : 'Message deleted for everyone',
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to delete message', { error: err.message });
       }
     }
   );
