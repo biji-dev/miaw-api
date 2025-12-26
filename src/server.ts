@@ -6,7 +6,7 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
-import swaggerUi from '@fastify/swagger-ui';
+import ScalarApiReference from '@scalar/fastify-api-reference';
 import { config } from './config';
 import { registerRoutes } from './routes';
 import { registerSchemas } from './schemas';
@@ -67,11 +67,13 @@ export async function createServer(): Promise<FastifyInstance> {
     },
   });
 
-  await server.register(swaggerUi, {
-    routePrefix: '/',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: true,
+  await server.register(ScalarApiReference, {
+    routePrefix: '/docs',
+    configuration: {
+      title: 'Miaw API Documentation',
+      spec: {
+        url: '/documentation/json',
+      },
     },
   });
 
@@ -144,7 +146,7 @@ export async function startServer(): Promise<void> {
   try {
     await server.listen({ port: config.port, host: config.host });
     server.log.info(`Server listening on http://${config.host}:${config.port}`);
-    server.log.info(`API documentation available at http://${config.host}:${config.port}/`);
+    server.log.info(`API documentation available at http://${config.host}:${config.port}/docs`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);
