@@ -88,6 +88,11 @@ export async function createServer(): Promise<FastifyInstance> {
     return { status: 'ok', timestamp: Date.now() };
   });
 
+  // Serve OpenAPI JSON spec
+  server.get('/documentation/json', async (_request, _reply) => {
+    return server.swagger();
+  });
+
   // Create instance manager (shared across requests)
   const instanceManager = new InstanceManager({
     sessionPath: config.sessionPath,
