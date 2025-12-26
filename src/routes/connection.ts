@@ -25,8 +25,8 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     '/instances/:id/connect',
     {
       schema: {
-        description: 'Connect instance to WhatsApp (returns QR code if needed)',
-        tags: ['Instances'],
+        description: 'Connect instance to WhatsApp (returns QR code if needed). Scan the QR code with WhatsApp to authenticate. Listen to webhooks for the QR code.',
+        tags: ['Connection'],
         summary: 'Connect instance',
         params: {
           type: 'object',
@@ -139,8 +139,8 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     '/instances/:id/disconnect',
     {
       schema: {
-        description: 'Disconnect instance from WhatsApp',
-        tags: ['Instances'],
+        description: 'Disconnect instance from WhatsApp. You can reconnect later using the connect endpoint.',
+        tags: ['Connection'],
         summary: 'Disconnect instance',
         params: {
           type: 'object',
@@ -199,8 +199,8 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     '/instances/:id/restart',
     {
       schema: {
-        description: 'Restart instance connection',
-        tags: ['Instances'],
+        description: 'Restart instance connection. Useful when the connection is stale or having issues.',
+        tags: ['Connection'],
         summary: 'Restart instance',
         params: {
           type: 'object',
@@ -267,8 +267,15 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     '/instances/:id/status',
     {
       schema: {
-        description: 'Get instance connection status',
-        tags: ['Instances'],
+        description: `Get instance connection status.
+
+**Possible statuses:**
+- \`disconnected\`: Not connected to WhatsApp
+- \`connecting\`: Connection in progress
+- \`connected\`: Successfully connected
+- \`reconnecting\`: Reconnection in progress (after connection loss)
+- \`qr_required\`: QR code needs to be scanned`,
+        tags: ['Connection'],
         summary: 'Get instance status',
         params: {
           type: 'object',
