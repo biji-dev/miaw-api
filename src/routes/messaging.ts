@@ -10,6 +10,10 @@
  * POST /instances/:id/messages/forward - Forward message
  * GET /instances/:id/messages/:messageId/media - Download media from message
  * GET /instances/:id/chats/:jid/messages/load - Load more messages from history
+ * POST /instances/:id/messages/image - Send image message
+ * POST /instances/:id/messages/video - Send video message
+ * POST /instances/:id/messages/audio - Send audio message
+ * POST /instances/:id/messages/document - Send document message
  */
 
 import { FastifyInstance } from 'fastify';
@@ -1263,6 +1267,528 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to load more messages', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/image
+   * Send an image message
+   */
+  server.post(
+    '/instances/:id/messages/image',
+    {
+      schema: {
+        description: 'Send an image message',
+        tags: ['Messaging'],
+        summary: 'Send image',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendImage#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        image: string;
+        caption?: string;
+        viewOnce?: boolean;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendImage(body.to, body.image, {
+          caption: body.caption,
+          viewOnce: body.viewOnce,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send image', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send image', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/video
+   * Send a video message
+   */
+  server.post(
+    '/instances/:id/messages/video',
+    {
+      schema: {
+        description: 'Send a video message',
+        tags: ['Messaging'],
+        summary: 'Send video',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendVideo#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        video: string;
+        caption?: string;
+        viewOnce?: boolean;
+        gifPlayback?: boolean;
+        ptv?: boolean;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendVideo(body.to, body.video, {
+          caption: body.caption,
+          viewOnce: body.viewOnce,
+          gifPlayback: body.gifPlayback,
+          ptv: body.ptv,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send video', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send video', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/audio
+   * Send an audio message
+   */
+  server.post(
+    '/instances/:id/messages/audio',
+    {
+      schema: {
+        description: 'Send an audio message',
+        tags: ['Messaging'],
+        summary: 'Send audio',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendAudio#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        audio: string;
+        ptt?: boolean;
+        mimetype?: string;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendAudio(body.to, body.audio, {
+          ptt: body.ptt,
+          mimetype: body.mimetype,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send audio', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send audio', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/document
+   * Send a document message
+   */
+  server.post(
+    '/instances/:id/messages/document',
+    {
+      schema: {
+        description: 'Send a document message',
+        tags: ['Messaging'],
+        summary: 'Send document',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendDocument#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        document: string;
+        caption?: string;
+        fileName?: string;
+        mimetype?: string;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendDocument(body.to, body.document, {
+          caption: body.caption,
+          fileName: body.fileName,
+          mimetype: body.mimetype,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send document', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send document', { error: err.message });
       }
     }
   );
