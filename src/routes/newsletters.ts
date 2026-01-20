@@ -483,4 +483,331 @@ export async function newsletterRoutes(server: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  /**
+   * POST /instances/:id/newsletters/:newsletterId/messages/text
+   * Send text message to newsletter
+   */
+  server.post(
+    '/instances/:id/newsletters/:newsletterId/messages/text',
+    {
+      schema: {
+        description: 'Send a text message to a newsletter/channel',
+        tags: ['Newsletters'],
+        summary: 'Send newsletter text',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        body: {
+          $ref: 'sendNewsletterText#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  messageId: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+      const body = request.body as { text: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendNewsletterMessage(params.newsletterId, body.text);
+
+        reply.send({
+          success: true,
+          data: result,
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to send newsletter text', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/newsletters/:newsletterId/messages/image
+   * Send image to newsletter
+   */
+  server.post(
+    '/instances/:id/newsletters/:newsletterId/messages/image',
+    {
+      schema: {
+        description: 'Send an image to a newsletter/channel',
+        tags: ['Newsletters'],
+        summary: 'Send newsletter image',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        body: {
+          $ref: 'sendNewsletterImage#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  messageId: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+      const body = request.body as { image: string; caption?: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendNewsletterImage(params.newsletterId, body.image, body.caption);
+
+        reply.send({
+          success: true,
+          data: result,
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to send newsletter image', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/newsletters/:newsletterId/messages/video
+   * Send video to newsletter
+   */
+  server.post(
+    '/instances/:id/newsletters/:newsletterId/messages/video',
+    {
+      schema: {
+        description: 'Send a video to a newsletter/channel',
+        tags: ['Newsletters'],
+        summary: 'Send newsletter video',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        body: {
+          $ref: 'sendNewsletterVideo#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  messageId: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+      const body = request.body as { video: string; caption?: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendNewsletterVideo(params.newsletterId, body.video, body.caption);
+
+        reply.send({
+          success: true,
+          data: result,
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to send newsletter video', {
+          error: err.message,
+        });
+      }
+    }
+  );
 }
