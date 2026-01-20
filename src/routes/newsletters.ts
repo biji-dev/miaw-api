@@ -1330,4 +1330,426 @@ export async function newsletterRoutes(server: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  /**
+   * PATCH /instances/:id/newsletters/:newsletterId/name
+   * Update newsletter name
+   */
+  server.patch(
+    '/instances/:id/newsletters/:newsletterId/name',
+    {
+      schema: {
+        description: 'Update the name of a newsletter/channel you own',
+        tags: ['Newsletters'],
+        summary: 'Update newsletter name',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        body: { $ref: 'updateNewsletterName#' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+      const body = request.body as { name: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.updateNewsletterName(params.newsletterId, body.name);
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to update newsletter name', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * PATCH /instances/:id/newsletters/:newsletterId/description
+   * Update newsletter description
+   */
+  server.patch(
+    '/instances/:id/newsletters/:newsletterId/description',
+    {
+      schema: {
+        description: 'Update the description of a newsletter/channel you own',
+        tags: ['Newsletters'],
+        summary: 'Update newsletter description',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        body: { $ref: 'updateNewsletterDescription#' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+      const body = request.body as { description: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.updateNewsletterDescription(params.newsletterId, body.description);
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to update newsletter description', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/newsletters/:newsletterId/picture
+   * Update newsletter picture
+   */
+  server.post(
+    '/instances/:id/newsletters/:newsletterId/picture',
+    {
+      schema: {
+        description: 'Update the profile picture of a newsletter/channel you own',
+        tags: ['Newsletters'],
+        summary: 'Update newsletter picture',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        body: { $ref: 'updateNewsletterPicture#' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+      const body = request.body as { image: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.updateNewsletterPicture(params.newsletterId, body.image);
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to update newsletter picture', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /instances/:id/newsletters/:newsletterId/picture
+   * Remove newsletter picture
+   */
+  server.delete(
+    '/instances/:id/newsletters/:newsletterId/picture',
+    {
+      schema: {
+        description: 'Remove the profile picture of a newsletter/channel you own',
+        tags: ['Newsletters'],
+        summary: 'Remove newsletter picture',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.removeNewsletterPicture(params.newsletterId);
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to remove newsletter picture', {
+          error: err.message,
+        });
+      }
+    }
+  );
 }
