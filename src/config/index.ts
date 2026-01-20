@@ -2,6 +2,10 @@
  * Environment configuration
  */
 
+// Default values that indicate insecure configuration
+const DEFAULT_API_KEY = 'miaw-api-key';
+const DEFAULT_WEBHOOK_SECRET = 'webhook-secret';
+
 interface Config {
   // API Configuration
   port: number;
@@ -25,11 +29,11 @@ interface Config {
 }
 
 function loadConfig(): Config {
-  return {
+  const config: Config = {
     port: parseInt(process.env.API_PORT || '3000', 10),
     host: process.env.API_HOST || '0.0.0.0',
-    apiKey: process.env.API_KEY || 'miaw-api-key',
-    webhookSecret: process.env.API_WEBHOOK_SECRET || 'webhook-secret',
+    apiKey: process.env.API_KEY || DEFAULT_API_KEY,
+    webhookSecret: process.env.API_WEBHOOK_SECRET || DEFAULT_WEBHOOK_SECRET,
     corsOrigin: process.env.CORS_ORIGIN || '*',
     sessionPath: process.env.SESSION_PATH || './sessions',
     webhookTimeout: parseInt(process.env.WEBHOOK_TIMEOUT_MS || '10000', 10),
@@ -37,6 +41,55 @@ function loadConfig(): Config {
     webhookRetryDelay: parseInt(process.env.WEBHOOK_RETRY_DELAY_MS || '60000', 10),
     logLevel: process.env.LOG_LEVEL || 'info',
   };
+
+  // Validate configuration and log warnings
+  validateConfig(config);
+
+  return config;
+}
+
+/**
+ * Validate configuration and log security warnings
+ */
+function validateConfig(config: Config): void {
+  const warnings: string[] = [];
+
+  // Check for insecure defaults
+  if (config.apiKey === DEFAULT_API_KEY) {
+    warnings.push(
+      'Using default API key. Set API_KEY environment variable for production.'
+    );
+  }
+
+  if (config.webhookSecret === DEFAULT_WEBHOOK_SECRET) {
+    warnings.push(
+      'Using default webhook secret. Set API_WEBHOOK_SECRET environment variable for production.'
+    );
+  }
+
+  // Validate port range
+  if (config.port < 1 || config.port > 65535) {
+    warnings.push(
+      `Invalid port ${config.port}. Port must be between 1 and 65535. Defaulting to 3000.`
+    );
+    config.port = 3000;
+  }
+
+  // Check for open CORS in non-development
+  if (config.corsOrigin === '*' && process.env.NODE_ENV === 'production') {
+    warnings.push(
+      'CORS origin is set to "*" in production. Consider restricting to specific origins.'
+    );
+  }
+
+  // Log all warnings
+  if (warnings.length > 0) {
+    console.warn('\n⚠️  Configuration Warnings:');
+    warnings.forEach((warning) => {
+      console.warn(`   - ${warning}`);
+    });
+    console.warn('');
+  }
 }
 
 export const config = loadConfig();
