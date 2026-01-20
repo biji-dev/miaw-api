@@ -706,6 +706,128 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
     }
   );
 
+  /**
+   * GET /instances/:id/labels/:labelId/chats
+   * Get all chats associated with a label
+   */
+  server.get(
+    '/instances/:id/labels/:labelId/chats',
+    {
+      schema: {
+        description: 'Get all chats associated with a label (WhatsApp Business only)',
+        tags: ['Business'],
+        summary: 'Get chats by label',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            labelId: { type: 'string' },
+          },
+          required: ['id', 'labelId'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  chats: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        jid: { type: 'string' },
+                        phone: { type: 'string' },
+                        isGroup: { type: 'boolean' },
+                        name: { type: 'string' },
+                        unreadCount: { type: 'number' },
+                        lastMessageTimestamp: { type: 'number' },
+                        isArchived: { type: 'boolean' },
+                        isPinned: { type: 'boolean' },
+                      },
+                    },
+                  },
+                  count: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; labelId: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        // getChatsByLabel is synchronous in miaw-core
+        const chats = client.getChatsByLabel(params.labelId);
+
+        reply.send({
+          success: true,
+          data: {
+            chats,
+            count: chats.length,
+          },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to get chats by label', { error: err.message });
+      }
+    }
+  );
+
   // ===================== PRODUCT CATALOG =====================
 
   /**
