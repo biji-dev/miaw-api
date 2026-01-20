@@ -4,6 +4,8 @@
  * POST /instances/:id/check-batch - Batch check multiple numbers
  * GET /instances/:id/contacts/:jid - Get contact info
  * GET /instances/:id/contacts/:jid/picture - Get profile picture URL
+ * POST /instances/:id/contacts - Add or edit contact
+ * DELETE /instances/:id/contacts/:phone - Remove contact
  */
 
 import { FastifyInstance } from 'fastify';
@@ -441,6 +443,249 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to get profile picture', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/contacts
+   * Add or edit a contact
+   */
+  server.post(
+    '/instances/:id/contacts',
+    {
+      schema: {
+        description: 'Add or edit a contact in WhatsApp',
+        tags: ['Contacts'],
+        summary: 'Add/edit contact',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'addContact#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  phone: { type: 'string' },
+                  name: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        phone: string;
+        name: string;
+        firstName?: string;
+        lastName?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.addOrEditContact({
+          phone: body.phone,
+          name: body.name,
+          firstName: body.firstName,
+          lastName: body.lastName,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to add/edit contact', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            success: true,
+            phone: body.phone,
+            name: body.name,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to add/edit contact', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * DELETE /instances/:id/contacts/:phone
+   * Remove a contact
+   */
+  server.delete(
+    '/instances/:id/contacts/:phone',
+    {
+      schema: {
+        description: 'Remove a contact from WhatsApp',
+        tags: ['Contacts'],
+        summary: 'Remove contact',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            phone: { type: 'string' },
+          },
+          required: ['id', 'phone'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  phone: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; phone: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.removeContact(params.phone);
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to remove contact', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            success: true,
+            phone: params.phone,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to remove contact', { error: err.message });
       }
     }
   );
