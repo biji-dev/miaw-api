@@ -148,15 +148,8 @@ export async function createServer(): Promise<FastifyInstance> {
  */
 function setErrorHandler(server: FastifyInstance): void {
   server.setErrorHandler((error: unknown, request, reply) => {
+    // errorHandler already sends the response, no need to call reply.send again
     errorHandler(error as Error, request, reply);
-
-    // Don't reply if headers already sent
-    if (reply.sent) {
-      request.log.error('Error after headers sent: %s', error);
-      return;
-    }
-
-    reply.send(error);
   });
 }
 
