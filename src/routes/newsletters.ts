@@ -271,4 +271,216 @@ export async function newsletterRoutes(server: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  /**
+   * POST /instances/:id/newsletters
+   * Create a new newsletter
+   */
+  server.post(
+    '/instances/:id/newsletters',
+    {
+      schema: {
+        description: 'Create a new newsletter/channel',
+        tags: ['Newsletters'],
+        summary: 'Create newsletter',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'createNewsletter#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  newsletterId: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as { name: string; description?: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.createNewsletter(body.name, body.description);
+
+        reply.send({
+          success: true,
+          data: result,
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to create newsletter', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /instances/:id/newsletters/:newsletterId
+   * Delete a newsletter
+   */
+  server.delete(
+    '/instances/:id/newsletters/:newsletterId',
+    {
+      schema: {
+        description: 'Delete a newsletter/channel',
+        tags: ['Newsletters'],
+        summary: 'Delete newsletter',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.deleteNewsletter(params.newsletterId);
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to delete newsletter', {
+          error: err.message,
+        });
+      }
+    }
+  );
 }
