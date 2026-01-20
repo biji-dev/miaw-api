@@ -3,6 +3,7 @@
  * POST /instances/:id/groups - Create group
  * GET /instances/:id/groups/:groupJid - Get group info
  * PATCH /instances/:id/groups/:groupJid - Update group name/description
+ * GET /instances/:id/groups/:groupJid/participants - Get group participants
  * POST /instances/:id/groups/:groupJid/participants - Add participants
  * DELETE /instances/:id/groups/:groupJid/participants - Remove participants
  * POST /instances/:id/groups/:groupJid/admins - Promote to admin
@@ -10,6 +11,7 @@
  * POST /instances/:id/groups/:groupJid/picture - Update group picture
  * GET /instances/:id/groups/:groupJid/invite - Get invite link
  * POST /instances/:id/groups/:groupJid/revoke-invite - Revoke invite link
+ * GET /instances/:id/groups/invite/:code/info - Preview group before joining
  * POST /instances/:id/groups/join/:inviteCode - Join via invite code
  * DELETE /instances/:id/groups/:groupJid - Leave group
  */
@@ -381,6 +383,129 @@ export async function groupRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to update group', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * GET /instances/:id/groups/:groupJid/participants
+   * Get group participants list
+   */
+  server.get(
+    '/instances/:id/groups/:groupJid/participants',
+    {
+      schema: {
+        description: 'Get list of group participants with their roles',
+        tags: ['Groups'],
+        summary: 'Get group participants',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            groupJid: { type: 'string' },
+          },
+          required: ['id', 'groupJid'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  groupJid: { type: 'string' },
+                  participants: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        jid: { type: 'string' },
+                        role: { type: 'string', enum: ['admin', 'superadmin', 'member'] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; groupJid: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const participants = await client.getGroupParticipants(params.groupJid);
+
+        if (!participants) {
+          throw new NotFoundError('Group');
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            groupJid: params.groupJid,
+            participants,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'NOT_FOUND') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to get group participants', { error: err.message });
       }
     }
   );
@@ -1146,6 +1271,120 @@ export async function groupRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to revoke invite', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * GET /instances/:id/groups/invite/:code/info
+   * Get group info from invite code before joining
+   */
+  server.get(
+    '/instances/:id/groups/invite/:code/info',
+    {
+      schema: {
+        description: 'Preview group information before joining via invite code',
+        tags: ['Groups'],
+        summary: 'Get group invite info',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            code: { type: 'string' },
+          },
+          required: ['id', 'code'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  jid: { type: 'string' },
+                  name: { type: 'string' },
+                  description: { type: 'string', nullable: true },
+                  participantCount: { type: 'number' },
+                  createdAt: { type: 'number', nullable: true },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; code: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const inviteInfo = await client.getGroupInviteInfo(params.code);
+
+        if (!inviteInfo) {
+          throw new NotFoundError('Group invite');
+        }
+
+        reply.send({
+          success: true,
+          data: inviteInfo,
+        });
+      } catch (err: any) {
+        if (err.code === 'NOT_FOUND') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to get group invite info', { error: err.message });
       }
     }
   );
