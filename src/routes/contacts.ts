@@ -3,7 +3,9 @@
  * POST /instances/:id/check-number - Check if phone number is on WhatsApp
  * POST /instances/:id/check-batch - Batch check multiple numbers
  * GET /instances/:id/contacts/:jid - Get contact info
+ * GET /instances/:id/contacts/:jid/profile - Get full contact profile
  * GET /instances/:id/contacts/:jid/picture - Get profile picture URL
+ * GET /instances/:id/contacts/:jid/business - Get business profile
  * POST /instances/:id/contacts - Add or edit contact
  * DELETE /instances/:id/contacts/:phone - Remove contact
  */
@@ -344,6 +346,125 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
+   * GET /instances/:id/contacts/:jid/profile
+   * Get full contact profile including business details
+   */
+  server.get(
+    '/instances/:id/contacts/:jid/profile',
+    {
+      schema: {
+        description: 'Get full contact profile including name, status, picture URL, and business details',
+        tags: ['Contacts'],
+        summary: 'Get contact profile',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            jid: { type: 'string' },
+          },
+          required: ['id', 'jid'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  jid: { type: 'string' },
+                  name: { type: 'string', nullable: true },
+                  phone: { type: 'string', nullable: true },
+                  status: { type: 'string', nullable: true },
+                  isBusiness: { type: 'boolean', nullable: true },
+                  pictureUrl: { type: 'string', nullable: true },
+                  business: {
+                    type: 'object',
+                    nullable: true,
+                    properties: {
+                      description: { type: 'string', nullable: true },
+                      category: { type: 'string', nullable: true },
+                      website: { type: 'string', nullable: true },
+                      email: { type: 'string', nullable: true },
+                      address: { type: 'string', nullable: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; jid: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const profile = await client.getContactProfile(params.jid);
+
+        reply.send({
+          success: true,
+          data: profile,
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to get contact profile', { error: err.message });
+      }
+    }
+  );
+
+  /**
    * GET /instances/:id/contacts/:jid/picture
    * Get profile picture URL
    */
@@ -443,6 +564,113 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to get profile picture', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * GET /instances/:id/contacts/:jid/business
+   * Get business profile for WhatsApp Business accounts
+   */
+  server.get(
+    '/instances/:id/contacts/:jid/business',
+    {
+      schema: {
+        description: 'Get business profile for WhatsApp Business accounts (description, category, website, email, address)',
+        tags: ['Contacts'],
+        summary: 'Get business profile',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            jid: { type: 'string' },
+          },
+          required: ['id', 'jid'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  description: { type: 'string', nullable: true },
+                  category: { type: 'string', nullable: true },
+                  website: { type: 'string', nullable: true },
+                  email: { type: 'string', nullable: true },
+                  address: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; jid: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const businessProfile = await client.getBusinessProfile(params.jid);
+
+        reply.send({
+          success: true,
+          data: businessProfile,
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to get business profile', { error: err.message });
       }
     }
   );
