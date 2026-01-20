@@ -82,32 +82,40 @@ export class WebhookDispatcher {
    * Process delivery queue
    */
   private async processQueue(): Promise<void> {
-    const now = Date.now();
+    try {
+      const now = Date.now();
 
-    for (const [deliveryId, delivery] of this.deliveryQueue.entries()) {
-      // Check if it's time to retry
-      if (delivery.nextRetryTime && delivery.nextRetryTime > now) {
-        continue;
+      for (const [deliveryId, delivery] of this.deliveryQueue.entries()) {
+        // Check if it's time to retry
+        if (delivery.nextRetryTime && delivery.nextRetryTime > now) {
+          continue;
+        }
+
+        // Attempt delivery
+        const success = await this.deliver(delivery);
+
+        if (success) {
+          this.deliveryQueue.delete(deliveryId);
+        } else if (delivery.attempt >= this.options.maxRetries) {
+          // Max retries reached, give up
+          this.logger.warn(
+            { deliveryId, attempt: delivery.attempt },
+            'Webhook delivery failed, max retries reached'
+          );
+          this.deliveryQueue.delete(deliveryId);
+        } else {
+          // Schedule retry
+          const retryDelay = this.calculateRetryDelay(delivery.attempt);
+          delivery.nextRetryTime = Date.now() + retryDelay;
+          this.deliveryQueue.set(deliveryId, delivery);
+        }
       }
-
-      // Attempt delivery
-      const success = await this.deliver(delivery);
-
-      if (success) {
-        this.deliveryQueue.delete(deliveryId);
-      } else if (delivery.attempt >= this.options.maxRetries) {
-        // Max retries reached, give up
-        this.logger.warn(
-          { deliveryId, attempt: delivery.attempt },
-          'Webhook delivery failed, max retries reached'
-        );
-        this.deliveryQueue.delete(deliveryId);
-      } else {
-        // Schedule retry
-        const retryDelay = this.calculateRetryDelay(delivery.attempt);
-        delivery.nextRetryTime = Date.now() + retryDelay;
-        this.deliveryQueue.set(deliveryId, delivery);
-      }
+    } catch (err) {
+      // Log error but don't crash the processing loop
+      this.logger.error(
+        { error: err instanceof Error ? err.message : 'Unknown error' },
+        'Error in webhook processing queue'
+      );
     }
   }
 
@@ -209,6 +217,7 @@ export class WebhookDispatcher {
 
   /**
    * Verify webhook signature (for webhook consumers)
+   * Uses timing-safe comparison to prevent timing attacks
    */
   static verifySignature(
     payload: any,
@@ -237,7 +246,14 @@ export class WebhookDispatcher {
       .update(payloadWithTimestamp)
       .digest('hex');
 
-    return expectedSignature === computedSignature;
+    // Use timing-safe comparison to prevent timing attacks
+    if (expectedSignature.length !== computedSignature.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSignature),
+      Buffer.from(computedSignature)
+    );
   }
 
   /**
