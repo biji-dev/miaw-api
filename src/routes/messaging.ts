@@ -14,6 +14,40 @@ import { createAuthMiddleware } from '../middleware/auth';
 import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler';
 
 /**
+ * Helper to find a message by ID across all chats or within a specific chat
+ * @param client - MiawClient instance
+ * @param messageId - Message ID to find
+ * @param chatJid - Optional chat JID to search in (speeds up lookup)
+ * @returns The message object or null if not found
+ */
+async function findMessageById(
+  client: any,
+  messageId: string,
+  chatJid?: string
+): Promise<any | null> {
+  if (chatJid) {
+    // If chatJid is provided, search only in that chat
+    const chatResult = await client.getChatMessages(chatJid);
+    if (chatResult.success && chatResult.messages) {
+      return chatResult.messages.find((m: any) => m.id === messageId) || null;
+    }
+  } else {
+    // Search through all chats (less efficient)
+    const messageCounts = client.getMessageCounts();
+    for (const jid of messageCounts.keys()) {
+      const chatResult = await client.getChatMessages(jid);
+      if (chatResult.success && chatResult.messages) {
+        const found = chatResult.messages.find((m: any) => m.id === messageId);
+        if (found) {
+          return found;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Register messaging routes
  */
 export async function messagingRoutes(server: FastifyInstance): Promise<void> {
@@ -812,29 +846,8 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        // Find the message in the store
-        let message: any = null;
-
-        if (query.chatJid) {
-          // If chatJid is provided, search only in that chat
-          const chatResult = await client.getChatMessages(query.chatJid);
-          if (chatResult.success && chatResult.messages) {
-            message = chatResult.messages.find((m: any) => m.id === params.messageId);
-          }
-        } else {
-          // Search through all chats (less efficient)
-          const messageCounts = client.getMessageCounts();
-          for (const chatJid of messageCounts.keys()) {
-            const chatResult = await client.getChatMessages(chatJid);
-            if (chatResult.success && chatResult.messages) {
-              const found = chatResult.messages.find((m: any) => m.id === params.messageId);
-              if (found) {
-                message = found;
-                break;
-              }
-            }
-          }
-        }
+        // Find the message in the store using helper
+        const message = await findMessageById(client, params.messageId, query.chatJid);
 
         if (!message) {
           throw new NotFoundError('Message');
