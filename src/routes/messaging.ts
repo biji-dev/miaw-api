@@ -6,6 +6,7 @@
  * DELETE /instances/:id/messages/:messageId - Delete message
  * POST /instances/:id/messages/reaction - React to message
  * POST /instances/:id/messages/forward - Forward message
+ * GET /instances/:id/messages/:messageId/media - Download media from message
  */
 
 import { FastifyInstance } from 'fastify';
@@ -718,6 +719,168 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to forward message', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * GET /instances/:id/messages/:messageId/media
+   * Download media from a message
+   */
+  server.get(
+    '/instances/:id/messages/:messageId/media',
+    {
+      schema: {
+        description: 'Download media from a message (image, video, audio, document, sticker)',
+        tags: ['Messaging'],
+        summary: 'Download media',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            messageId: { type: 'string' },
+          },
+          required: ['id', 'messageId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            chatJid: {
+              type: 'string',
+              description: 'Optional chat JID to speed up message lookup',
+            },
+          },
+        },
+        response: {
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; messageId: string };
+      const query = request.query as { chatJid?: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        // Find the message in the store
+        let message: any = null;
+
+        if (query.chatJid) {
+          // If chatJid is provided, search only in that chat
+          const chatResult = await client.getChatMessages(query.chatJid);
+          if (chatResult.success && chatResult.messages) {
+            message = chatResult.messages.find((m: any) => m.id === params.messageId);
+          }
+        } else {
+          // Search through all chats (less efficient)
+          const messageCounts = client.getMessageCounts();
+          for (const chatJid of messageCounts.keys()) {
+            const chatResult = await client.getChatMessages(chatJid);
+            if (chatResult.success && chatResult.messages) {
+              const found = chatResult.messages.find((m: any) => m.id === params.messageId);
+              if (found) {
+                message = found;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!message) {
+          throw new NotFoundError('Message');
+        }
+
+        // Check if it's a media message
+        const mediaTypes = ['image', 'video', 'audio', 'document', 'sticker'];
+        if (!mediaTypes.includes(message.type)) {
+          throw new BadRequestError('Message is not a media message', {
+            type: message.type,
+            supportedTypes: mediaTypes,
+          });
+        }
+
+        // Download the media
+        const buffer = await client.downloadMedia(message);
+
+        if (!buffer) {
+          throw new BadRequestError('Failed to download media', {
+            error: 'Media download returned null - media may be expired or unavailable',
+          });
+        }
+
+        // Determine content type
+        const mimetypeMap: Record<string, string> = {
+          image: 'image/jpeg',
+          video: 'video/mp4',
+          audio: 'audio/ogg',
+          document: 'application/octet-stream',
+          sticker: 'image/webp',
+        };
+        const contentType = message.media?.mimetype || mimetypeMap[message.type] || 'application/octet-stream';
+
+        // Set appropriate headers
+        reply.header('Content-Type', contentType);
+        reply.header('Content-Length', buffer.length);
+        if (message.media?.fileName) {
+          reply.header('Content-Disposition', `attachment; filename="${message.media.fileName}"`);
+        }
+
+        return reply.send(buffer);
+      } catch (err: any) {
+        if (err.code === 'NOT_FOUND' || err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to download media', { error: err.message });
       }
     }
   );
