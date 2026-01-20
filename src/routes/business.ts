@@ -1221,5 +1221,117 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
     }
   );
 
+  /**
+   * DELETE /instances/:id/products
+   * Delete one or more products from the catalog
+   */
+  server.delete(
+    '/instances/:id/products',
+    {
+      schema: {
+        description: 'Delete one or more products from the catalog (WhatsApp Business only)',
+        tags: ['Business'],
+        summary: 'Delete products',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: { $ref: 'deleteProducts' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  deletedCount: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as { productIds: string[] };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.deleteProducts(body.productIds);
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to delete products', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            success: result.success,
+            deletedCount: result.deletedCount,
+          },
+        });
+      } catch (err: any) {
+        if (err instanceof BadRequestError) throw err;
+        throw new BadRequestError('Failed to delete products', { error: err.message });
+      }
+    }
+  );
+
   // Newsletter endpoints moved to src/routes/newsletters.ts (Phase 12)
 }
