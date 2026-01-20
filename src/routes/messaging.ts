@@ -9,6 +9,7 @@
  * DELETE /instances/:id/messages/:messageId/local - Delete message for self only
  * POST /instances/:id/messages/forward - Forward message
  * GET /instances/:id/messages/:messageId/media - Download media from message
+ * GET /instances/:id/chats/:jid/messages/load - Load more messages from history
  */
 
 import { FastifyInstance } from 'fastify';
@@ -1146,6 +1147,122 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
           throw err;
         }
         throw new BadRequestError('Failed to download media', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * GET /instances/:id/chats/:jid/messages/load
+   * Load more messages from chat history
+   */
+  server.get(
+    '/instances/:id/chats/:jid/messages/load',
+    {
+      schema: {
+        description: 'Load more messages from chat history (pagination). Fetches older messages beyond what is currently in memory.',
+        tags: ['Messaging'],
+        summary: 'Load more messages',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            jid: { type: 'string', description: 'Chat JID (phone@s.whatsapp.net or groupId@g.us)' },
+          },
+          required: ['id', 'jid'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            count: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 50,
+              default: 50,
+              description: 'Number of messages to load (1-50, default: 50)',
+            },
+            timeout: {
+              type: 'integer',
+              minimum: 5000,
+              maximum: 60000,
+              default: 30000,
+              description: 'Timeout in milliseconds (5000-60000, default: 30000)',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messagesLoaded: { type: 'integer', description: 'Number of messages loaded' },
+                  hasMore: { type: 'boolean', description: 'Whether more messages are available' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; jid: string };
+      const query = request.query as { count?: number; timeout?: number };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      const count = query.count || 50;
+      const timeout = query.timeout || 30000;
+
+      try {
+        const result = await client.loadMoreMessages(params.jid, count, timeout);
+
+        reply.send({
+          success: true,
+          data: {
+            messagesLoaded: result.messagesLoaded,
+            hasMore: result.hasMore,
+          },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to load more messages', { error: err.message });
       }
     }
   );
