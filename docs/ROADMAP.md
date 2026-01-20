@@ -1,7 +1,7 @@
 # Miaw API - Project Plan
 
 **Date:** 2026-01-21
-**Status:** Active (Phase 14 Complete, Planning Phase 15)
+**Status:** v1.0.0 Released (Phase 15 Complete)
 
 ---
 
@@ -22,7 +22,7 @@
 
 ## Implementation Status
 
-**Current Version:** v0.15.0 (Phase 14 Complete)
+**Current Version:** v1.0.0 (Phase 15 Complete)
 **miaw-core Version:** v1.2.1 (Production-ready)
 
 | Phase | Name                       | Status         | Version |
@@ -42,7 +42,7 @@
 | 12    | Full Newsletter Support    | ✅ Complete    | v0.13.0 |
 | 13    | Full Product Management    | ✅ Complete    | v0.14.0 |
 | 14    | Session & Lifecycle        | ✅ Complete    | v0.15.0 |
-| 15    | Polish & Testing           | 📋 Planned     | v1.0.0  |
+| 15    | Polish & Testing           | ✅ Complete    | v1.0.0  |
 
 **Legend:**
 
