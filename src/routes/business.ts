@@ -1086,5 +1086,140 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
     }
   );
 
+  /**
+   * PATCH /instances/:id/products/:productId
+   * Update an existing product in the catalog
+   */
+  server.patch(
+    '/instances/:id/products/:productId',
+    {
+      schema: {
+        description: 'Update an existing product in the catalog (WhatsApp Business only)',
+        tags: ['Business'],
+        summary: 'Update product',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            productId: { type: 'string' },
+          },
+          required: ['id', 'productId'],
+        },
+        body: { $ref: 'updateProduct' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  productId: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; productId: string };
+      const body = request.body as {
+        name?: string;
+        description?: string;
+        price?: number;
+        currency?: string;
+        imageUrls?: string[];
+        isHidden?: boolean;
+        retailerId?: string;
+        url?: string;
+        originCountryCode?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      // Build options object with only provided fields
+      const options: any = {};
+      if (body.name !== undefined) options.name = body.name;
+      if (body.description !== undefined) options.description = body.description;
+      if (body.price !== undefined) options.price = body.price;
+      if (body.currency !== undefined) options.currency = body.currency;
+      if (body.imageUrls !== undefined) options.imageUrls = body.imageUrls;
+      if (body.isHidden !== undefined) options.isHidden = body.isHidden;
+      if (body.retailerId !== undefined) options.retailerId = body.retailerId;
+      if (body.url !== undefined) options.url = body.url;
+      if (body.originCountryCode !== undefined) options.originCountryCode = body.originCountryCode;
+
+      try {
+        const result = await client.updateProduct(params.productId, options);
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to update product', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            success: result.success,
+            productId: result.productId,
+          },
+        });
+      } catch (err: any) {
+        if (err instanceof BadRequestError) throw err;
+        throw new BadRequestError('Failed to update product', { error: err.message });
+      }
+    }
+  );
+
   // Newsletter endpoints moved to src/routes/newsletters.ts (Phase 12)
 }
