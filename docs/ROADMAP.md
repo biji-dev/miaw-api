@@ -1,8 +1,8 @@
 # Miaw API - Project Plan
 
-**Version:** 1.2.0
-**Date:** 2025-12-26
-**Status:** Active (Phase 9 Complete)
+**Version:** 1.3.0
+**Date:** 2026-01-20
+**Status:** Active (Phase 9 Complete, Planning Phase 10-15)
 
 ---
 
@@ -24,24 +24,30 @@
 ## Implementation Status
 
 **Current Version:** v0.9.0 (Phase 9 - Basic GET Operations)
+**miaw-core Version:** v1.0.0 (Production-ready)
 
-| Phase | Name                  | Status         | Version |
-| ----- | --------------------- | -------------- | ------- |
-| 1     | Foundation            | ✅ Complete    | v0.1.0  |
-| 2     | Core Messaging        | ✅ Complete    | v0.2.0  |
-| 3     | Contacts & Validation | ✅ Complete    | v0.3.0  |
-| 4     | Group Management      | ✅ Complete    | v0.4.0  |
-| 5     | Profile Management    | ✅ Complete    | v0.5.0  |
-| 6     | Presence & UX         | ✅ Complete    | v0.6.0  |
-| 7     | Webhook Enhancements  | ✅ Complete    | v0.7.0  |
-| 8     | Business Features     | ✅ Complete    | v0.8.0  |
-| 9     | Basic GET Operations  | ✅ Complete    | v0.9.0  |
-| 10    | Polish & Testing      | 📋 Planned     | v1.0.0  |
+| Phase | Name                       | Status         | Version |
+| ----- | -------------------------- | -------------- | ------- |
+| 1     | Foundation                 | ✅ Complete    | v0.1.0  |
+| 2     | Core Messaging             | 🔄 Partial     | v0.2.0  |
+| 3     | Contacts & Validation      | 🔄 Partial     | v0.3.0  |
+| 4     | Group Management           | ✅ Complete    | v0.4.0  |
+| 5     | Profile Management         | ✅ Complete    | v0.5.0  |
+| 6     | Presence & UX              | ✅ Complete    | v0.6.0  |
+| 7     | Webhook Enhancements       | ✅ Complete    | v0.7.0  |
+| 8     | Business Features          | ✅ Complete    | v0.8.0  |
+| 9     | Basic GET Operations       | ✅ Complete    | v0.9.0  |
+| 10    | Enhanced Contact Operations| 📋 Planned     | v0.10.0 |
+| 11    | Advanced Messaging         | 📋 Planned     | v0.11.0 |
+| 12    | Full Newsletter Support    | 📋 Planned     | v0.12.0 |
+| 13    | Full Product Management    | 📋 Planned     | v0.13.0 |
+| 14    | Session & Lifecycle        | 📋 Planned     | v0.14.0 |
+| 15    | Polish & Testing           | 📋 Planned     | v1.0.0  |
 
 **Legend:**
 
 - ✅ Complete - Implemented and tested
-- 🔄 In Progress - Currently being implemented
+- 🔄 Partial - Most features implemented, some missing
 - 📋 Planned - Not started
 
 ---
@@ -608,7 +614,7 @@ miaw-api/
 - ✅ Can send text messages
 - ✅ Webhook fires for incoming messages
 
-### Phase 2: Core Messaging (Week 3) ✅ COMPLETE
+### Phase 2: Core Messaging (Week 3) 🔄 PARTIAL
 
 **Goal:** Complete messaging features
 
@@ -618,16 +624,16 @@ miaw-api/
 | Message edit/delete endpoints                        | P1       | 0.5 day | ✅ Done |
 | Reaction endpoint                                    | P1       | 0.5 day | ✅ Done |
 | Forward message endpoint                             | P1       | 0.5 day | ✅ Done |
-| Download media endpoint                              | P1       | 0.5 day | ✅ Done |
+| Download media endpoint                              | P1       | 0.5 day | 📋 Todo |
 | Webhook events (edit, delete, reaction)              | P1       | 1 day   | ✅ Done |
 | Quoting/replying support                             | P2       | 0.5 day | ✅ Done |
 
 **Deliverables:**
 
-- ✅ Full messaging capabilities (v0.2.0)
+- 🔄 Messaging capabilities (v0.2.0) - Missing: download media
 - ✅ All webhook events for messaging
 
-### Phase 3: Contacts & Validation (Week 4) ✅ COMPLETE
+### Phase 3: Contacts & Validation (Week 4) 🔄 PARTIAL
 
 **Goal:** Contact management and number validation
 
@@ -637,12 +643,12 @@ miaw-api/
 | Batch check numbers endpoint      | P1       | 0.5 day | ✅ Done |
 | Get contact info endpoint         | P1       | 0.5 day | ✅ Done |
 | Get profile picture endpoint      | P1       | 0.5 day | ✅ Done |
-| Add/edit/remove contact endpoints | P2       | 1 day   | ✅ Done |
+| Add/edit/remove contact endpoints | P2       | 1 day   | 📋 Todo |
 
 **Deliverables:**
 
 - ✅ Contact validation endpoints (v0.3.0)
-- ✅ Contact CRUD operations
+- 📋 Contact CRUD operations (add/edit/remove) - Not implemented
 
 ### Phase 4: Group Management (Week 5) ✅ COMPLETE
 
@@ -775,9 +781,192 @@ miaw-api/
 
 ---
 
-### Phase 10: Polish & Testing (Week 11-12) 📋 PLANNED
+### Phase 10: Enhanced Contact Operations (Week 11) 📋 PLANNED
 
-**Goal:** Production readiness
+**Goal:** Full contact management capabilities matching miaw-core
+
+| Feature                              | Priority | Effort  | Status  | miaw-core Method        |
+| ------------------------------------ | -------- | ------- | ------- | ----------------------- |
+| Get contact profile endpoint         | P0       | 0.5 day | 📋 Todo | `getContactProfile()`   |
+| Get business profile endpoint        | P1       | 0.5 day | 📋 Todo | `getBusinessProfile()`  |
+| Add/edit contact endpoint            | P1       | 1 day   | 📋 Todo | `addOrEditContact()`    |
+| Remove contact endpoint              | P1       | 0.5 day | 📋 Todo | `removeContact()`       |
+| Get group participants endpoint      | P1       | 0.5 day | 📋 Todo | `getGroupParticipants()`|
+| Get group invite info endpoint       | P2       | 0.5 day | 📋 Todo | `getGroupInviteInfo()`  |
+
+**New API Endpoints:**
+
+| Method | Endpoint                                       | Description              |
+| ------ | ---------------------------------------------- | ------------------------ |
+| GET    | `/instances/:id/contacts/:jid/profile`         | Get full contact profile |
+| GET    | `/instances/:id/contacts/:jid/business`        | Get business profile     |
+| POST   | `/instances/:id/contacts`                      | Add or edit contact      |
+| DELETE | `/instances/:id/contacts/:phone`               | Remove contact           |
+| GET    | `/instances/:id/groups/:groupJid/participants` | Get group participants   |
+| GET    | `/instances/:id/groups/invite/:code/info`      | Preview group before join|
+
+**Deliverables:**
+
+- Full contact management API (v0.10.0)
+- Integration tests
+- Documentation updated
+
+---
+
+### Phase 11: Advanced Messaging (Week 12) 📋 PLANNED
+
+**Goal:** Complete messaging capabilities including media download and message pagination
+
+| Feature                              | Priority | Effort  | Status  | miaw-core Method        |
+| ------------------------------------ | -------- | ------- | ------- | ----------------------- |
+| Download media endpoint              | P0       | 1 day   | 📋 Todo | `downloadMedia()`       |
+| Remove reaction endpoint             | P1       | 0.5 day | 📋 Todo | `removeReaction()`      |
+| Delete message for me endpoint       | P1       | 0.5 day | 📋 Todo | `deleteMessageForMe()`  |
+| Load more messages (pagination)      | P1       | 1 day   | 📋 Todo | `loadMoreMessages()`    |
+| Direct send image endpoint           | P2       | 0.5 day | 📋 Todo | `sendImage()`           |
+| Direct send video endpoint           | P2       | 0.5 day | 📋 Todo | `sendVideo()`           |
+| Direct send audio endpoint           | P2       | 0.5 day | 📋 Todo | `sendAudio()`           |
+| Direct send document endpoint        | P2       | 0.5 day | 📋 Todo | `sendDocument()`        |
+
+**New API Endpoints:**
+
+| Method | Endpoint                                              | Description                    |
+| ------ | ----------------------------------------------------- | ------------------------------ |
+| GET    | `/instances/:id/messages/:messageId/media`            | Download media from message    |
+| DELETE | `/instances/:id/messages/:messageId/reaction`         | Remove reaction from message   |
+| DELETE | `/instances/:id/messages/:messageId/local`            | Delete message for self only   |
+| GET    | `/instances/:id/chats/:jid/messages/load`             | Load older messages (paginate) |
+| POST   | `/instances/:id/messages/image`                       | Send image (direct)            |
+| POST   | `/instances/:id/messages/video`                       | Send video (direct)            |
+| POST   | `/instances/:id/messages/audio`                       | Send audio (direct)            |
+| POST   | `/instances/:id/messages/document`                    | Send document (direct)         |
+
+**Deliverables:**
+
+- Complete messaging API (v0.11.0)
+- Media download functionality
+- Message pagination support
+- Integration tests
+
+---
+
+### Phase 12: Full Newsletter/Channel Support (Week 13-14) 📋 PLANNED
+
+**Goal:** Complete newsletter/channel management matching miaw-core
+
+| Feature                              | Priority | Effort  | Status  | miaw-core Method              |
+| ------------------------------------ | -------- | ------- | ------- | ----------------------------- |
+| Create newsletter endpoint           | P0       | 0.5 day | 📋 Todo | `createNewsletter()`          |
+| Send newsletter text endpoint        | P0       | 0.5 day | 📋 Todo | `sendNewsletterMessage()`     |
+| Send newsletter image endpoint       | P0       | 0.5 day | 📋 Todo | `sendNewsletterImage()`       |
+| Send newsletter video endpoint       | P1       | 0.5 day | 📋 Todo | `sendNewsletterVideo()`       |
+| Follow/unfollow newsletter           | P1       | 0.5 day | 📋 Todo | `followNewsletter()` / `unfollowNewsletter()` |
+| Mute/unmute newsletter               | P1       | 0.5 day | 📋 Todo | `muteNewsletter()` / `unmuteNewsletter()`     |
+| Update newsletter name               | P1       | 0.5 day | 📋 Todo | `updateNewsletterName()`      |
+| Update newsletter description        | P1       | 0.5 day | 📋 Todo | `updateNewsletterDescription()`|
+| Update newsletter picture            | P1       | 0.5 day | 📋 Todo | `updateNewsletterPicture()`   |
+| Remove newsletter picture            | P2       | 0.5 day | 📋 Todo | `removeNewsletterPicture()`   |
+| React to newsletter message          | P2       | 0.5 day | 📋 Todo | `reactToNewsletterMessage()`  |
+| Subscribe to newsletter updates      | P2       | 0.5 day | 📋 Todo | `subscribeNewsletterUpdates()`|
+| Get newsletter subscribers           | P2       | 0.5 day | 📋 Todo | `getNewsletterSubscribers()`  |
+| Get newsletter admin count           | P2       | 0.5 day | 📋 Todo | `getNewsletterAdminCount()`   |
+| Change newsletter owner              | P2       | 0.5 day | 📋 Todo | `changeNewsletterOwner()`     |
+| Demote newsletter admin              | P2       | 0.5 day | 📋 Todo | `demoteNewsletterAdmin()`     |
+| Delete newsletter                    | P2       | 0.5 day | 📋 Todo | `deleteNewsletter()`          |
+
+**New API Endpoints:**
+
+| Method | Endpoint                                                | Description                     |
+| ------ | ------------------------------------------------------- | ------------------------------- |
+| POST   | `/instances/:id/newsletters`                            | Create newsletter               |
+| POST   | `/instances/:id/newsletters/:id/messages/text`          | Send text to newsletter         |
+| POST   | `/instances/:id/newsletters/:id/messages/image`         | Send image to newsletter        |
+| POST   | `/instances/:id/newsletters/:id/messages/video`         | Send video to newsletter        |
+| POST   | `/instances/:id/newsletters/:id/follow`                 | Follow newsletter               |
+| DELETE | `/instances/:id/newsletters/:id/follow`                 | Unfollow newsletter             |
+| POST   | `/instances/:id/newsletters/:id/mute`                   | Mute newsletter                 |
+| DELETE | `/instances/:id/newsletters/:id/mute`                   | Unmute newsletter               |
+| PATCH  | `/instances/:id/newsletters/:id/name`                   | Update newsletter name          |
+| PATCH  | `/instances/:id/newsletters/:id/description`            | Update newsletter description   |
+| POST   | `/instances/:id/newsletters/:id/picture`                | Update newsletter picture       |
+| DELETE | `/instances/:id/newsletters/:id/picture`                | Remove newsletter picture       |
+| POST   | `/instances/:id/newsletters/:id/messages/:msgId/reaction`| React to newsletter message    |
+| POST   | `/instances/:id/newsletters/:id/subscribe`              | Subscribe to updates            |
+| GET    | `/instances/:id/newsletters/:id/subscribers`            | Get subscriber info             |
+| GET    | `/instances/:id/newsletters/:id/admins/count`           | Get admin count                 |
+| POST   | `/instances/:id/newsletters/:id/owner`                  | Transfer ownership              |
+| DELETE | `/instances/:id/newsletters/:id/admins/:adminId`        | Demote admin                    |
+| DELETE | `/instances/:id/newsletters/:id`                        | Delete newsletter               |
+
+**Deliverables:**
+
+- Complete newsletter/channel API (v0.12.0)
+- Full CRUD operations for newsletters
+- Integration tests
+
+---
+
+### Phase 13: Full Product Catalog Management (Week 15) 📋 PLANNED
+
+**Goal:** Complete product catalog CRUD operations for WhatsApp Business
+
+| Feature                              | Priority | Effort  | Status  | miaw-core Method        |
+| ------------------------------------ | -------- | ------- | ------- | ----------------------- |
+| Create product endpoint              | P0       | 1 day   | 📋 Todo | `createProduct()`       |
+| Update product endpoint              | P0       | 1 day   | 📋 Todo | `updateProduct()`       |
+| Delete products endpoint             | P1       | 0.5 day | 📋 Todo | `deleteProducts()`      |
+| Get chats by label endpoint          | P2       | 0.5 day | 📋 Todo | `getChatsByLabel()`     |
+
+**New API Endpoints:**
+
+| Method | Endpoint                                    | Description          |
+| ------ | ------------------------------------------- | -------------------- |
+| POST   | `/instances/:id/products`                   | Create product       |
+| PATCH  | `/instances/:id/products/:productId`        | Update product       |
+| DELETE | `/instances/:id/products`                   | Delete products      |
+| GET    | `/instances/:id/labels/:labelId/chats`      | Get chats by label   |
+
+**Deliverables:**
+
+- Complete product management API (v0.13.0)
+- Full CRUD for products
+- Integration tests
+
+---
+
+### Phase 14: Session & Lifecycle Management (Week 16) 📋 PLANNED
+
+**Goal:** Complete session and instance lifecycle management
+
+| Feature                              | Priority | Effort  | Status  | miaw-core Method        |
+| ------------------------------------ | -------- | ------- | ------- | ----------------------- |
+| Logout endpoint                      | P0       | 0.5 day | 📋 Todo | `logout()`              |
+| Dispose endpoint                     | P1       | 0.5 day | 📋 Todo | `dispose()`             |
+| Clear session endpoint               | P1       | 0.5 day | 📋 Todo | `clearSession()`        |
+| Get message counts endpoint          | P2       | 0.5 day | 📋 Todo | `getMessageCounts()`    |
+| Get labels store info endpoint       | P2       | 0.5 day | 📋 Todo | `getLabelsStoreInfo()`  |
+
+**New API Endpoints:**
+
+| Method | Endpoint                                    | Description              |
+| ------ | ------------------------------------------- | ------------------------ |
+| POST   | `/instances/:id/logout`                     | Logout (clears session)  |
+| POST   | `/instances/:id/dispose`                    | Dispose and cleanup      |
+| DELETE | `/instances/:id/session`                    | Clear session manually   |
+| GET    | `/instances/:id/stats/messages`             | Get message counts       |
+| GET    | `/instances/:id/stats/labels`               | Get labels store info    |
+
+**Deliverables:**
+
+- Complete lifecycle management API (v0.14.0)
+- Session control endpoints
+- Integration tests
+
+---
+
+### Phase 15: Polish & Testing (Week 17-18) 📋 PLANNED
+
+**Goal:** Production readiness - Final phase before v1.0.0
 
 | Feature                      | Priority | Effort | Status  |
 | ---------------------------- | -------- | ------ | ------- |
@@ -793,6 +982,38 @@ miaw-api/
 - Production-ready API (v1.0.0)
 - Complete documentation
 - Test coverage > 80%
+
+---
+
+## API Coverage Summary
+
+### Current Coverage (v0.9.0)
+
+| Category              | miaw-core Methods | API Endpoints | Coverage | Missing Features |
+| --------------------- | ----------------- | ------------- | -------- | ---------------- |
+| Instance Management   | 4                 | 4             | 100%     | - |
+| Connection            | 5                 | 4             | 80%      | logout |
+| Core Messaging        | 5                 | 5             | 100%     | - |
+| Media Operations      | 1                 | 0             | 0%       | downloadMedia |
+| Message Manipulation  | 5                 | 4             | 80%      | removeReaction |
+| Contact Management    | 9                 | 4             | 44%      | profile, business, add/remove |
+| Profile Management    | 5                 | 5             | 100%     | - |
+| Presence & UX         | 5                 | 6             | 100%     | - |
+| Group Management      | 15                | 12            | 80%      | participants, inviteInfo |
+| Labels                | 5                 | 6             | 100%     | - |
+| Product Catalog       | 5                 | 2             | 40%      | create, update, delete |
+| Newsletters           | 17                | 2             | 12%      | Most operations |
+| Data Fetch            | 6                 | 6             | 100%     | - |
+| **TOTAL**             | **92+**           | **54**        | **~59%** | |
+
+### Partially Implemented Phases
+
+**Phase 2 (Core Messaging):** Missing download media endpoint
+**Phase 3 (Contacts & Validation):** Missing add/edit/remove contact endpoints
+
+### Target Coverage (v1.0.0)
+
+After completing Phases 10-15, the API will have **100% coverage** of all miaw-core public methods.
 
 ---
 
