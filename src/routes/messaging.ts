@@ -5,6 +5,7 @@
  * PATCH /instances/:id/messages/edit - Edit message
  * DELETE /instances/:id/messages/:messageId - Delete message
  * POST /instances/:id/messages/reaction - React to message
+ * DELETE /instances/:id/messages/:messageId/reaction - Remove reaction from message
  * POST /instances/:id/messages/forward - Forward message
  * GET /instances/:id/messages/:messageId/media - Download media from message
  */
@@ -630,6 +631,128 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (err: any) {
         throw new BadRequestError('Failed to react to message', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * DELETE /instances/:id/messages/:messageId/reaction
+   * Remove reaction from a message
+   */
+  server.delete(
+    '/instances/:id/messages/:messageId/reaction',
+    {
+      schema: {
+        description: 'Remove reaction from a message',
+        tags: ['Messaging'],
+        summary: 'Remove reaction',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            messageId: { type: 'string' },
+          },
+          required: ['id', 'messageId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            chatJid: {
+              type: 'string',
+              description: 'Optional chat JID to speed up message lookup',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; messageId: string };
+      const query = request.query as { chatJid?: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        // Find the message in the store
+        const message = await findMessageById(client, params.messageId, query.chatJid);
+
+        if (!message) {
+          throw new NotFoundError('Message');
+        }
+
+        const result = await client.removeReaction(message);
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to remove reaction', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          message: 'Reaction removed',
+        });
+      } catch (err: any) {
+        if (err.code === 'NOT_FOUND' || err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to remove reaction', { error: err.message });
       }
     }
   );
