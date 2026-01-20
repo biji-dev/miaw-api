@@ -1,6 +1,5 @@
 # Miaw API - Project Plan
 
-**Version:** 1.4.0
 **Date:** 2026-01-20
 **Status:** Active (Phase 9 Complete, Phase 2-3 Gaps Filled, Planning Phase 10-15)
 
@@ -29,19 +28,20 @@
 | Phase | Name                       | Status         | Version |
 | ----- | -------------------------- | -------------- | ------- |
 | 1     | Foundation                 | ✅ Complete    | v0.1.0  |
-| 2     | Core Messaging             | ✅ Complete    | v0.10.0 |
-| 3     | Contacts & Validation      | ✅ Complete    | v0.10.0 |
+| 2     | Core Messaging             | ✅ Complete    | v0.2.0  |
+| 3     | Contacts & Validation      | ✅ Complete    | v0.3.0  |
 | 4     | Group Management           | ✅ Complete    | v0.4.0  |
 | 5     | Profile Management         | ✅ Complete    | v0.5.0  |
 | 6     | Presence & UX              | ✅ Complete    | v0.6.0  |
 | 7     | Webhook Enhancements       | ✅ Complete    | v0.7.0  |
 | 8     | Business Features          | ✅ Complete    | v0.8.0  |
 | 9     | Basic GET Operations       | ✅ Complete    | v0.9.0  |
-| 10    | Enhanced Contact Operations| 📋 Planned     | v0.10.0 |
-| 11    | Advanced Messaging         | 📋 Planned     | v0.11.0 |
-| 12    | Full Newsletter Support    | 📋 Planned     | v0.12.0 |
-| 13    | Full Product Management    | 📋 Planned     | v0.13.0 |
-| 14    | Session & Lifecycle        | 📋 Planned     | v0.14.0 |
+| 9.1   | Gap Fill (Phase 2-3)       | ✅ Complete    | v0.10.0 |
+| 10    | Enhanced Contact Operations| 📋 Planned     | v0.11.0 |
+| 11    | Advanced Messaging         | 📋 Planned     | v0.12.0 |
+| 12    | Full Newsletter Support    | 📋 Planned     | v0.13.0 |
+| 13    | Full Product Management    | 📋 Planned     | v0.14.0 |
+| 14    | Session & Lifecycle        | 📋 Planned     | v0.15.0 |
 | 15    | Polish & Testing           | 📋 Planned     | v1.0.0  |
 
 **Legend:**
@@ -614,7 +614,7 @@ miaw-api/
 - ✅ Can send text messages
 - ✅ Webhook fires for incoming messages
 
-### Phase 2: Core Messaging (Week 3) 🔄 PARTIAL
+### Phase 2: Core Messaging (Week 3) ✅ COMPLETE
 
 **Goal:** Complete messaging features
 
@@ -630,10 +630,10 @@ miaw-api/
 
 **Deliverables:**
 
-- ✅ Complete messaging capabilities (v0.10.0)
+- ✅ Complete messaging capabilities (v0.2.0, download media added in v0.10.0)
 - ✅ All webhook events for messaging
 
-### Phase 3: Contacts & Validation (Week 4) 🔄 PARTIAL
+### Phase 3: Contacts & Validation (Week 4) ✅ COMPLETE
 
 **Goal:** Contact management and number validation
 
@@ -648,7 +648,7 @@ miaw-api/
 **Deliverables:**
 
 - ✅ Contact validation endpoints (v0.3.0)
-- ✅ Contact CRUD operations (add/edit/remove) (v0.10.0)
+- ✅ Contact CRUD operations (add/edit/remove) (added in v0.10.0)
 
 ### Phase 4: Group Management (Week 5) ✅ COMPLETE
 
@@ -807,7 +807,7 @@ miaw-api/
 
 **Deliverables:**
 
-- Full contact management API (v0.10.0)
+- Full contact management API (v0.11.0)
 - Integration tests
 - Documentation updated
 
@@ -843,7 +843,7 @@ miaw-api/
 
 **Deliverables:**
 
-- Complete messaging API (v0.11.0)
+- Complete messaging API (v0.12.0)
 - Media download functionality
 - Message pagination support
 - Integration tests
@@ -900,7 +900,7 @@ miaw-api/
 
 **Deliverables:**
 
-- Complete newsletter/channel API (v0.12.0)
+- Complete newsletter/channel API (v0.13.0)
 - Full CRUD operations for newsletters
 - Integration tests
 
@@ -928,7 +928,7 @@ miaw-api/
 
 **Deliverables:**
 
-- Complete product management API (v0.13.0)
+- Complete product management API (v0.14.0)
 - Full CRUD for products
 - Integration tests
 
@@ -958,7 +958,7 @@ miaw-api/
 
 **Deliverables:**
 
-- Complete lifecycle management API (v0.14.0)
+- Complete lifecycle management API (v0.15.0)
 - Session control endpoints
 - Integration tests
 
@@ -987,7 +987,7 @@ miaw-api/
 
 ## API Coverage Summary
 
-### Current Coverage (v0.9.0)
+### Current Coverage (v0.10.0)
 
 | Category              | miaw-core Methods | API Endpoints | Coverage | Missing Features |
 | --------------------- | ----------------- | ------------- | -------- | ---------------- |
