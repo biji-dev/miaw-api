@@ -1,7 +1,7 @@
 # Miaw API - Project Plan
 
 **Date:** 2026-01-21
-**Status:** Active (Phase 13 Complete, Planning Phase 14-15)
+**Status:** Active (Phase 14 Complete, Planning Phase 15)
 
 ---
 
@@ -22,7 +22,7 @@
 
 ## Implementation Status
 
-**Current Version:** v0.14.0 (Phase 13 Complete)
+**Current Version:** v0.15.0 (Phase 14 Complete)
 **miaw-core Version:** v1.2.1 (Production-ready)
 
 | Phase | Name                       | Status         | Version |
@@ -41,7 +41,7 @@
 | 11    | Advanced Messaging         | ✅ Complete    | v0.12.0 |
 | 12    | Full Newsletter Support    | ✅ Complete    | v0.13.0 |
 | 13    | Full Product Management    | ✅ Complete    | v0.14.0 |
-| 14    | Session & Lifecycle        | 📋 Planned     | v0.15.0 |
+| 14    | Session & Lifecycle        | ✅ Complete    | v0.15.0 |
 | 15    | Polish & Testing           | 📋 Planned     | v1.0.0  |
 
 **Legend:**
@@ -943,17 +943,17 @@ miaw-api/
 
 ---
 
-### Phase 14: Session & Lifecycle Management (Week 16) 📋 PLANNED
+### Phase 14: Session & Lifecycle Management (Week 16) ✅ COMPLETE
 
 **Goal:** Complete session and instance lifecycle management
 
 | Feature                              | Priority | Effort  | Status  | miaw-core Method        |
 | ------------------------------------ | -------- | ------- | ------- | ----------------------- |
-| Logout endpoint                      | P0       | 0.5 day | 📋 Todo | `logout()`              |
-| Dispose endpoint                     | P1       | 0.5 day | 📋 Todo | `dispose()`             |
-| Clear session endpoint               | P1       | 0.5 day | 📋 Todo | `clearSession()`        |
-| Get message counts endpoint          | P2       | 0.5 day | 📋 Todo | `getMessageCounts()`    |
-| Get labels store info endpoint       | P2       | 0.5 day | 📋 Todo | `getLabelsStoreInfo()`  |
+| Logout endpoint                      | P0       | 0.5 day | ✅ Done | `logout()`              |
+| Dispose endpoint                     | P1       | 0.5 day | ✅ Done | `dispose()`             |
+| Clear session endpoint               | P1       | 0.5 day | ✅ Done | `clearSession()`        |
+| Get message counts endpoint          | P2       | 0.5 day | ✅ Done | `getMessageCounts()`    |
+| Get labels store info endpoint       | P2       | 0.5 day | ✅ Done | `getLabelsStoreInfo()`  |
 
 **New API Endpoints:**
 
@@ -967,9 +967,10 @@ miaw-api/
 
 **Deliverables:**
 
-- Complete lifecycle management API (v0.15.0)
-- Session control endpoints
-- Integration tests
+- ✅ Complete lifecycle management API (v0.15.0)
+- ✅ Session control endpoints (logout, dispose, clear session)
+- ✅ Stats endpoints (message counts, labels store info)
+- ✅ Integration tests (session.test.ts)
 
 ---
 
@@ -996,12 +997,14 @@ miaw-api/
 
 ## API Coverage Summary
 
-### Current Coverage (v0.14.0)
+### Current Coverage (v0.15.0)
 
 | Category              | miaw-core Methods | API Endpoints | Coverage | Missing Features |
 | --------------------- | ----------------- | ------------- | -------- | ---------------- |
 | Instance Management   | 4                 | 4             | 100%     | - |
-| Connection            | 5                 | 4             | 80%      | logout |
+| Connection            | 5                 | 5             | 100%     | - |
+| Session & Lifecycle   | 3                 | 3             | 100%     | - |
+| Stats                 | 2                 | 2             | 100%     | - |
 | Core Messaging        | 9                 | 9             | 100%     | - |
 | Media Operations      | 1                 | 1             | 100%     | - |
 | Message Manipulation  | 5                 | 5             | 100%     | - |
@@ -1013,15 +1016,16 @@ miaw-api/
 | Product Catalog       | 5                 | 5             | 100%     | - |
 | Newsletters           | 21                | 19            | 90%      | - |
 | Data Fetch            | 7                 | 7             | 100%     | - |
-| **TOTAL**             | **97+**           | **90**        | **~93%** | |
+| **TOTAL**             | **102+**          | **95**        | **~95%** | |
 
-### Completed Gap-Fill (v0.10.0 - v0.14.0)
+### Completed Gap-Fill (v0.10.0 - v0.15.0)
 
 **Phase 2 (Core Messaging):** ✅ Download media endpoint added (v0.10.0)
 **Phase 3 (Contacts & Validation):** ✅ Add/edit/remove contact endpoints added (v0.10.0)
 **Phase 11 (Advanced Messaging):** ✅ Remove reaction, delete for me, load more, direct media send (v0.12.0)
 **Phase 12 (Newsletters):** ✅ Full newsletter CRUD, messaging, subscription, admin operations (v0.13.0)
 **Phase 13 (Products):** ✅ Full product CRUD (create, update, delete) + get chats by label (v0.14.0)
+**Phase 14 (Session & Lifecycle):** ✅ Logout, dispose, clear session, message counts, labels store info (v0.15.0)
 
 ### Target Coverage (v1.0.0)
 
