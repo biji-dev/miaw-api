@@ -466,4 +466,138 @@ export function registerSchemas(server: FastifyInstance): void {
       },
     },
   });
+
+  // ============================================================================
+  // Newsletter Schemas (Phase 12)
+  // ============================================================================
+
+  server.addSchema({
+    $id: 'createNewsletter',
+    type: 'object',
+    required: ['name'],
+    properties: {
+      name: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+        description: 'Newsletter name',
+      },
+      description: {
+        type: 'string',
+        maxLength: 2048,
+        nullable: true,
+        description: 'Newsletter description',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'sendNewsletterText',
+    type: 'object',
+    required: ['text'],
+    properties: {
+      text: {
+        type: 'string',
+        minLength: 1,
+        description: 'Text message to send to the newsletter',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'sendNewsletterImage',
+    type: 'object',
+    required: ['image'],
+    properties: {
+      image: {
+        type: 'string',
+        description: 'Image URL or base64 data',
+      },
+      caption: {
+        type: 'string',
+        nullable: true,
+        description: 'Image caption',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'sendNewsletterVideo',
+    type: 'object',
+    required: ['video'],
+    properties: {
+      video: {
+        type: 'string',
+        description: 'Video URL or base64 data',
+      },
+      caption: {
+        type: 'string',
+        nullable: true,
+        description: 'Video caption',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'updateNewsletterName',
+    type: 'object',
+    required: ['name'],
+    properties: {
+      name: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+        description: 'New newsletter name',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'updateNewsletterDescription',
+    type: 'object',
+    required: ['description'],
+    properties: {
+      description: {
+        type: 'string',
+        maxLength: 2048,
+        description: 'New newsletter description',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'updateNewsletterPicture',
+    type: 'object',
+    required: ['image'],
+    properties: {
+      image: {
+        type: 'string',
+        description: 'Image URL or base64 data for newsletter picture',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'reactToNewsletterMessage',
+    type: 'object',
+    required: ['emoji'],
+    properties: {
+      emoji: {
+        type: 'string',
+        description: 'Emoji to react with (empty string removes reaction)',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'changeNewsletterOwner',
+    type: 'object',
+    required: ['newOwnerJid'],
+    properties: {
+      newOwnerJid: {
+        type: 'string',
+        description: 'JID of the new owner',
+      },
+    },
+  });
 }
