@@ -5,13 +5,54 @@
  * PATCH /instances/:id/messages/edit - Edit message
  * DELETE /instances/:id/messages/:messageId - Delete message
  * POST /instances/:id/messages/reaction - React to message
+ * DELETE /instances/:id/messages/:messageId/reaction - Remove reaction from message
+ * DELETE /instances/:id/messages/:messageId/local - Delete message for self only
  * POST /instances/:id/messages/forward - Forward message
  * GET /instances/:id/messages/:messageId/media - Download media from message
+ * GET /instances/:id/chats/:jid/messages/load - Load more messages from history
+ * POST /instances/:id/messages/image - Send image message
+ * POST /instances/:id/messages/video - Send video message
+ * POST /instances/:id/messages/audio - Send audio message
+ * POST /instances/:id/messages/document - Send document message
  */
 
 import { FastifyInstance } from 'fastify';
 import { createAuthMiddleware } from '../middleware/auth';
 import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler';
+
+/**
+ * Helper to find a message by ID across all chats or within a specific chat
+ * @param client - MiawClient instance
+ * @param messageId - Message ID to find
+ * @param chatJid - Optional chat JID to search in (speeds up lookup)
+ * @returns The message object or null if not found
+ */
+async function findMessageById(
+  client: any,
+  messageId: string,
+  chatJid?: string
+): Promise<any | null> {
+  if (chatJid) {
+    // If chatJid is provided, search only in that chat
+    const chatResult = await client.getChatMessages(chatJid);
+    if (chatResult.success && chatResult.messages) {
+      return chatResult.messages.find((m: any) => m.id === messageId) || null;
+    }
+  } else {
+    // Search through all chats (less efficient)
+    const messageCounts = client.getMessageCounts();
+    for (const jid of messageCounts.keys()) {
+      const chatResult = await client.getChatMessages(jid);
+      if (chatResult.success && chatResult.messages) {
+        const found = chatResult.messages.find((m: any) => m.id === messageId);
+        if (found) {
+          return found;
+        }
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Register messaging routes
@@ -601,6 +642,256 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
+   * DELETE /instances/:id/messages/:messageId/reaction
+   * Remove reaction from a message
+   */
+  server.delete(
+    '/instances/:id/messages/:messageId/reaction',
+    {
+      schema: {
+        description: 'Remove reaction from a message',
+        tags: ['Messaging'],
+        summary: 'Remove reaction',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            messageId: { type: 'string' },
+          },
+          required: ['id', 'messageId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            chatJid: {
+              type: 'string',
+              description: 'Optional chat JID to speed up message lookup',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; messageId: string };
+      const query = request.query as { chatJid?: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        // Find the message in the store
+        const message = await findMessageById(client, params.messageId, query.chatJid);
+
+        if (!message) {
+          throw new NotFoundError('Message');
+        }
+
+        const result = await client.removeReaction(message);
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to remove reaction', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          message: 'Reaction removed',
+        });
+      } catch (err: any) {
+        if (err.code === 'NOT_FOUND' || err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to remove reaction', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * DELETE /instances/:id/messages/:messageId/local
+   * Delete a message for self only (local deletion)
+   */
+  server.delete(
+    '/instances/:id/messages/:messageId/local',
+    {
+      schema: {
+        description: 'Delete a message for yourself only (local deletion, does not affect other participants)',
+        tags: ['Messaging'],
+        summary: 'Delete message locally',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            messageId: { type: 'string' },
+          },
+          required: ['id', 'messageId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            chatJid: {
+              type: 'string',
+              description: 'Optional chat JID to speed up message lookup',
+            },
+            deleteMedia: {
+              type: 'boolean',
+              default: true,
+              description: 'Whether to also delete associated media files (default: true)',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; messageId: string };
+      const query = request.query as { chatJid?: string; deleteMedia?: boolean };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        // Find the message in the store
+        const message = await findMessageById(client, params.messageId, query.chatJid);
+
+        if (!message) {
+          throw new NotFoundError('Message');
+        }
+
+        const deleteMedia = query.deleteMedia !== false; // default true
+        const success = await client.deleteMessageForMe(message, deleteMedia);
+
+        if (!success) {
+          throw new BadRequestError('Failed to delete message locally');
+        }
+
+        reply.send({
+          success: true,
+          message: 'Message deleted locally',
+        });
+      } catch (err: any) {
+        if (err.code === 'NOT_FOUND' || err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to delete message locally', { error: err.message });
+      }
+    }
+  );
+
+  /**
    * POST /instances/:id/messages/forward
    * Forward a message to one or more recipients
    */
@@ -812,29 +1103,8 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        // Find the message in the store
-        let message: any = null;
-
-        if (query.chatJid) {
-          // If chatJid is provided, search only in that chat
-          const chatResult = await client.getChatMessages(query.chatJid);
-          if (chatResult.success && chatResult.messages) {
-            message = chatResult.messages.find((m: any) => m.id === params.messageId);
-          }
-        } else {
-          // Search through all chats (less efficient)
-          const messageCounts = client.getMessageCounts();
-          for (const chatJid of messageCounts.keys()) {
-            const chatResult = await client.getChatMessages(chatJid);
-            if (chatResult.success && chatResult.messages) {
-              const found = chatResult.messages.find((m: any) => m.id === params.messageId);
-              if (found) {
-                message = found;
-                break;
-              }
-            }
-          }
-        }
+        // Find the message in the store using helper
+        const message = await findMessageById(client, params.messageId, query.chatJid);
 
         if (!message) {
           throw new NotFoundError('Message');
@@ -881,6 +1151,644 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
           throw err;
         }
         throw new BadRequestError('Failed to download media', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * GET /instances/:id/chats/:jid/messages/load
+   * Load more messages from chat history
+   */
+  server.get(
+    '/instances/:id/chats/:jid/messages/load',
+    {
+      schema: {
+        description: 'Load more messages from chat history (pagination). Fetches older messages beyond what is currently in memory.',
+        tags: ['Messaging'],
+        summary: 'Load more messages',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            jid: { type: 'string', description: 'Chat JID (phone@s.whatsapp.net or groupId@g.us)' },
+          },
+          required: ['id', 'jid'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            count: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 50,
+              default: 50,
+              description: 'Number of messages to load (1-50, default: 50)',
+            },
+            timeout: {
+              type: 'integer',
+              minimum: 5000,
+              maximum: 60000,
+              default: 30000,
+              description: 'Timeout in milliseconds (5000-60000, default: 30000)',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messagesLoaded: { type: 'integer', description: 'Number of messages loaded' },
+                  hasMore: { type: 'boolean', description: 'Whether more messages are available' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; jid: string };
+      const query = request.query as { count?: number; timeout?: number };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      const count = query.count || 50;
+      const timeout = query.timeout || 30000;
+
+      try {
+        const result = await client.loadMoreMessages(params.jid, count, timeout);
+
+        reply.send({
+          success: true,
+          data: {
+            messagesLoaded: result.messagesLoaded,
+            hasMore: result.hasMore,
+          },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to load more messages', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/image
+   * Send an image message
+   */
+  server.post(
+    '/instances/:id/messages/image',
+    {
+      schema: {
+        description: 'Send an image message',
+        tags: ['Messaging'],
+        summary: 'Send image',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendImage#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        image: string;
+        caption?: string;
+        viewOnce?: boolean;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendImage(body.to, body.image, {
+          caption: body.caption,
+          viewOnce: body.viewOnce,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send image', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send image', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/video
+   * Send a video message
+   */
+  server.post(
+    '/instances/:id/messages/video',
+    {
+      schema: {
+        description: 'Send a video message',
+        tags: ['Messaging'],
+        summary: 'Send video',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendVideo#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        video: string;
+        caption?: string;
+        viewOnce?: boolean;
+        gifPlayback?: boolean;
+        ptv?: boolean;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendVideo(body.to, body.video, {
+          caption: body.caption,
+          viewOnce: body.viewOnce,
+          gifPlayback: body.gifPlayback,
+          ptv: body.ptv,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send video', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send video', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/audio
+   * Send an audio message
+   */
+  server.post(
+    '/instances/:id/messages/audio',
+    {
+      schema: {
+        description: 'Send an audio message',
+        tags: ['Messaging'],
+        summary: 'Send audio',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendAudio#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        audio: string;
+        ptt?: boolean;
+        mimetype?: string;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendAudio(body.to, body.audio, {
+          ptt: body.ptt,
+          mimetype: body.mimetype,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send audio', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send audio', { error: err.message });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/messages/document
+   * Send a document message
+   */
+  server.post(
+    '/instances/:id/messages/document',
+    {
+      schema: {
+        description: 'Send a document message',
+        tags: ['Messaging'],
+        summary: 'Send document',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: {
+          $ref: 'sendDocument#',
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  messageId: { type: 'string' },
+                  to: { type: 'string' },
+                  timestamp: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                  details: { type: 'object' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        to: string;
+        document: string;
+        caption?: string;
+        fileName?: string;
+        mimetype?: string;
+        quoted?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.sendDocument(body.to, body.document, {
+          caption: body.caption,
+          fileName: body.fileName,
+          mimetype: body.mimetype,
+          quoted: body.quoted,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to send document', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            messageId: result.messageId,
+            to: result.to,
+            timestamp: result.timestamp,
+          },
+        });
+      } catch (err: any) {
+        if (err.code === 'BAD_REQUEST') {
+          throw err;
+        }
+        throw new BadRequestError('Failed to send document', { error: err.message });
       }
     }
   );

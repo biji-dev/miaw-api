@@ -160,6 +160,136 @@ export function registerSchemas(server: FastifyInstance): void {
     },
   });
 
+  server.addSchema({
+    $id: 'sendImage',
+    type: 'object',
+    required: ['to', 'image'],
+    properties: {
+      to: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+      },
+      image: {
+        type: 'string',
+        format: 'uri',
+      },
+      caption: {
+        type: 'string',
+        nullable: true,
+      },
+      viewOnce: {
+        type: 'boolean',
+        nullable: true,
+      },
+      quoted: {
+        type: 'string',
+        nullable: true,
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'sendVideo',
+    type: 'object',
+    required: ['to', 'video'],
+    properties: {
+      to: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+      },
+      video: {
+        type: 'string',
+        format: 'uri',
+      },
+      caption: {
+        type: 'string',
+        nullable: true,
+      },
+      viewOnce: {
+        type: 'boolean',
+        nullable: true,
+      },
+      gifPlayback: {
+        type: 'boolean',
+        nullable: true,
+      },
+      ptv: {
+        type: 'boolean',
+        nullable: true,
+        description: 'Send as video note (circular video)',
+      },
+      quoted: {
+        type: 'string',
+        nullable: true,
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'sendAudio',
+    type: 'object',
+    required: ['to', 'audio'],
+    properties: {
+      to: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+      },
+      audio: {
+        type: 'string',
+        format: 'uri',
+      },
+      ptt: {
+        type: 'boolean',
+        nullable: true,
+        description: 'Send as voice note (push-to-talk)',
+      },
+      mimetype: {
+        type: 'string',
+        nullable: true,
+      },
+      quoted: {
+        type: 'string',
+        nullable: true,
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'sendDocument',
+    type: 'object',
+    required: ['to', 'document'],
+    properties: {
+      to: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+      },
+      document: {
+        type: 'string',
+        format: 'uri',
+      },
+      caption: {
+        type: 'string',
+        nullable: true,
+      },
+      fileName: {
+        type: 'string',
+        nullable: true,
+      },
+      mimetype: {
+        type: 'string',
+        nullable: true,
+      },
+      quoted: {
+        type: 'string',
+        nullable: true,
+      },
+    },
+  });
+
   // ============================================================================
   // Contact Schemas
   // ============================================================================
