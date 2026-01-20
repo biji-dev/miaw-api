@@ -2174,4 +2174,115 @@ export async function newsletterRoutes(server: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  /**
+   * POST /instances/:id/newsletters/:newsletterId/messages/:messageId/reaction
+   * React to a newsletter message
+   */
+  server.post(
+    '/instances/:id/newsletters/:newsletterId/messages/:messageId/reaction',
+    {
+      schema: {
+        description: 'React to a newsletter/channel message with an emoji. Use empty string to remove reaction.',
+        tags: ['Newsletters'],
+        summary: 'React to newsletter message',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+            messageId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId', 'messageId'],
+        },
+        body: { $ref: 'reactToNewsletterMessage#' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string; messageId: string };
+      const body = request.body as { emoji: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.reactToNewsletterMessage(
+          params.newsletterId,
+          params.messageId,
+          body.emoji
+        );
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to react to newsletter message', {
+          error: err.message,
+        });
+      }
+    }
+  );
 }
