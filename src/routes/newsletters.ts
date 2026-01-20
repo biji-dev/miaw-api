@@ -1752,4 +1752,426 @@ export async function newsletterRoutes(server: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  /**
+   * GET /instances/:id/newsletters/:newsletterId/subscribers
+   * Get newsletter subscribers
+   */
+  server.get(
+    '/instances/:id/newsletters/:newsletterId/subscribers',
+    {
+      schema: {
+        description: 'Get the list of subscribers for a newsletter/channel you own',
+        tags: ['Newsletters'],
+        summary: 'Get newsletter subscribers',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  subscribers: {
+                    type: 'array',
+                    items: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const subscribers = await client.getNewsletterSubscribers(params.newsletterId);
+
+        reply.send({
+          success: true,
+          data: { subscribers },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to get newsletter subscribers', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /instances/:id/newsletters/:newsletterId/admins/count
+   * Get newsletter admin count
+   */
+  server.get(
+    '/instances/:id/newsletters/:newsletterId/admins/count',
+    {
+      schema: {
+        description: 'Get the number of admins for a newsletter/channel',
+        tags: ['Newsletters'],
+        summary: 'Get newsletter admin count',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  count: { type: 'number' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const count = await client.getNewsletterAdminCount(params.newsletterId);
+
+        reply.send({
+          success: true,
+          data: { count },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to get newsletter admin count', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/newsletters/:newsletterId/owner
+   * Transfer newsletter ownership
+   */
+  server.post(
+    '/instances/:id/newsletters/:newsletterId/owner',
+    {
+      schema: {
+        description: 'Transfer ownership of a newsletter/channel to another user',
+        tags: ['Newsletters'],
+        summary: 'Transfer newsletter ownership',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+          },
+          required: ['id', 'newsletterId'],
+        },
+        body: { $ref: 'changeNewsletterOwner#' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string };
+      const body = request.body as { newOwnerJid: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.changeNewsletterOwner(params.newsletterId, body.newOwnerJid);
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to transfer newsletter ownership', {
+          error: err.message,
+        });
+      }
+    }
+  );
+
+  /**
+   * DELETE /instances/:id/newsletters/:newsletterId/admins/:adminJid
+   * Demote newsletter admin
+   */
+  server.delete(
+    '/instances/:id/newsletters/:newsletterId/admins/:adminJid',
+    {
+      schema: {
+        description: 'Demote an admin of a newsletter/channel you own',
+        tags: ['Newsletters'],
+        summary: 'Demote newsletter admin',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            newsletterId: { type: 'string' },
+            adminJid: { type: 'string' },
+          },
+          required: ['id', 'newsletterId', 'adminJid'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string; newsletterId: string; adminJid: string };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.demoteNewsletterAdmin(params.newsletterId, params.adminJid);
+
+        reply.send({
+          success: true,
+          data: { success: result },
+        });
+      } catch (err: any) {
+        throw new BadRequestError('Failed to demote newsletter admin', {
+          error: err.message,
+        });
+      }
+    }
+  );
 }
