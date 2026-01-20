@@ -16,6 +16,7 @@ import { webhookRoutes } from './webhooks';
 import { businessRoutes } from './business';
 import { newsletterRoutes } from './newsletters';
 import { basicGetsRoutes } from './basic-gets';
+import { sessionRoutes } from './session';
 
 /**
  * Register all routes
@@ -55,4 +56,7 @@ export async function registerRoutes(server: FastifyInstance, instanceManager: I
   await server.register(async (server) => {
     await basicGetsRoutes(server, instanceManager);
   });
+
+  // Session lifecycle & stats routes (v0.15.0)
+  await server.register(sessionRoutes);
 }
