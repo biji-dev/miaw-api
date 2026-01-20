@@ -14,6 +14,7 @@ import { profileRoutes } from './profile';
 import { presenceRoutes } from './presence';
 import { webhookRoutes } from './webhooks';
 import { businessRoutes } from './business';
+import { newsletterRoutes } from './newsletters';
 import { basicGetsRoutes } from './basic-gets';
 
 /**
@@ -46,6 +47,9 @@ export async function registerRoutes(server: FastifyInstance, instanceManager: I
 
   // Business features routes
   await server.register(businessRoutes);
+
+  // Newsletter routes (v0.13.0)
+  await server.register(newsletterRoutes);
 
   // Basic GET operations routes (v0.9.0)
   await server.register(async (server) => {
