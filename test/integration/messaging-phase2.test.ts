@@ -489,4 +489,123 @@ describe('Phase 2 Messaging Tests', () => {
       expect(reactionEvent?.event).toBe('message_reaction');
     });
   });
+
+  describe('Download Media', () => {
+    it.skip('should download media from image message', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      // Send an image first
+      const sendResponse = await client.post(`/instances/${testInstanceId}/send-media`, {
+        to: TEST_CONFIG.TEST_CONTACT_A,
+        media: 'https://picsum.photos/100/100',
+        caption: 'Test download',
+      });
+
+      expect(sendResponse.status).toBe(200);
+      const messageId = sendResponse.data.data.messageId;
+
+      // Wait a bit for message to be stored
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Download the media
+      const downloadResponse = await client.get(
+        `/instances/${testInstanceId}/messages/${messageId}/media`,
+        { responseType: 'arraybuffer' }
+      );
+
+      // Should get binary data back
+      expect(downloadResponse.status).toBe(200);
+      expect(downloadResponse.headers['content-type']).toBeDefined();
+    });
+
+    it.skip('should return 404 for non-existent message', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      const response = await client.get(
+        `/instances/${testInstanceId}/messages/non-existent-message-id/media`
+      );
+
+      expect(response.status).toBe(404);
+      expect(response.data.success).toBe(false);
+      expect(response.data.error.code).toBe('NOT_FOUND');
+    });
+
+    it.skip('should return 400 for text message (not media)', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      // Send a text message
+      const sendResponse = await client.post(`/instances/${testInstanceId}/send-text`, {
+        to: TEST_CONFIG.TEST_CONTACT_A,
+        text: 'This is not a media message',
+      });
+
+      const messageId = sendResponse.data.data.messageId;
+
+      // Wait for message to be stored
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Try to download media from text message
+      const response = await client.get(
+        `/instances/${testInstanceId}/messages/${messageId}/media`
+      );
+
+      expect(response.status).toBe(400);
+      expect(response.data.success).toBe(false);
+      expect(response.data.error.message).toContain('not a media message');
+    });
+
+    it.skip('should reject download when instance is not connected', async () => {
+      const response = await client.get(
+        `/instances/${testInstanceId}/messages/fake-message-id/media`
+      );
+
+      expect(response.status).toBe(503);
+      expect(response.data.success).toBe(false);
+      expect(response.data.error.code).toBe('SERVICE_UNAVAILABLE');
+    });
+
+    it.skip('should accept optional chatJid query parameter for faster lookup', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      // Send an image
+      const sendResponse = await client.post(`/instances/${testInstanceId}/send-media`, {
+        to: TEST_CONFIG.TEST_CONTACT_A,
+        media: 'https://picsum.photos/100/100',
+      });
+
+      const messageId = sendResponse.data.data.messageId;
+      const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
+
+      // Wait for message to be stored
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Download with chatJid hint
+      const downloadResponse = await client.get(
+        `/instances/${testInstanceId}/messages/${messageId}/media?chatJid=${encodeURIComponent(chatJid)}`,
+        { responseType: 'arraybuffer' }
+      );
+
+      expect(downloadResponse.status).toBe(200);
+    });
+  });
 });

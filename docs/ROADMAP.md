@@ -1,8 +1,8 @@
 # Miaw API - Project Plan
 
-**Version:** 1.3.0
+**Version:** 1.4.0
 **Date:** 2026-01-20
-**Status:** Active (Phase 9 Complete, Planning Phase 10-15)
+**Status:** Active (Phase 9 Complete, Phase 2-3 Gaps Filled, Planning Phase 10-15)
 
 ---
 
@@ -23,14 +23,14 @@
 
 ## Implementation Status
 
-**Current Version:** v0.9.0 (Phase 9 - Basic GET Operations)
+**Current Version:** v0.10.0 (Phase 9 Complete + Phase 2-3 Gaps Filled)
 **miaw-core Version:** v1.0.0 (Production-ready)
 
 | Phase | Name                       | Status         | Version |
 | ----- | -------------------------- | -------------- | ------- |
 | 1     | Foundation                 | ✅ Complete    | v0.1.0  |
-| 2     | Core Messaging             | 🔄 Partial     | v0.2.0  |
-| 3     | Contacts & Validation      | 🔄 Partial     | v0.3.0  |
+| 2     | Core Messaging             | ✅ Complete    | v0.10.0 |
+| 3     | Contacts & Validation      | ✅ Complete    | v0.10.0 |
 | 4     | Group Management           | ✅ Complete    | v0.4.0  |
 | 5     | Profile Management         | ✅ Complete    | v0.5.0  |
 | 6     | Presence & UX              | ✅ Complete    | v0.6.0  |
@@ -624,13 +624,13 @@ miaw-api/
 | Message edit/delete endpoints                        | P1       | 0.5 day | ✅ Done |
 | Reaction endpoint                                    | P1       | 0.5 day | ✅ Done |
 | Forward message endpoint                             | P1       | 0.5 day | ✅ Done |
-| Download media endpoint                              | P1       | 0.5 day | 📋 Todo |
+| Download media endpoint                              | P1       | 0.5 day | ✅ Done |
 | Webhook events (edit, delete, reaction)              | P1       | 1 day   | ✅ Done |
 | Quoting/replying support                             | P2       | 0.5 day | ✅ Done |
 
 **Deliverables:**
 
-- 🔄 Messaging capabilities (v0.2.0) - Missing: download media
+- ✅ Complete messaging capabilities (v0.10.0)
 - ✅ All webhook events for messaging
 
 ### Phase 3: Contacts & Validation (Week 4) 🔄 PARTIAL
@@ -643,12 +643,12 @@ miaw-api/
 | Batch check numbers endpoint      | P1       | 0.5 day | ✅ Done |
 | Get contact info endpoint         | P1       | 0.5 day | ✅ Done |
 | Get profile picture endpoint      | P1       | 0.5 day | ✅ Done |
-| Add/edit/remove contact endpoints | P2       | 1 day   | 📋 Todo |
+| Add/edit/remove contact endpoints | P2       | 1 day   | ✅ Done |
 
 **Deliverables:**
 
 - ✅ Contact validation endpoints (v0.3.0)
-- 📋 Contact CRUD operations (add/edit/remove) - Not implemented
+- ✅ Contact CRUD operations (add/edit/remove) (v0.10.0)
 
 ### Phase 4: Group Management (Week 5) ✅ COMPLETE
 
@@ -994,9 +994,9 @@ miaw-api/
 | Instance Management   | 4                 | 4             | 100%     | - |
 | Connection            | 5                 | 4             | 80%      | logout |
 | Core Messaging        | 5                 | 5             | 100%     | - |
-| Media Operations      | 1                 | 0             | 0%       | downloadMedia |
+| Media Operations      | 1                 | 1             | 100%     | - |
 | Message Manipulation  | 5                 | 4             | 80%      | removeReaction |
-| Contact Management    | 9                 | 4             | 44%      | profile, business, add/remove |
+| Contact Management    | 9                 | 6             | 67%      | profile, business |
 | Profile Management    | 5                 | 5             | 100%     | - |
 | Presence & UX         | 5                 | 6             | 100%     | - |
 | Group Management      | 15                | 12            | 80%      | participants, inviteInfo |
@@ -1004,12 +1004,12 @@ miaw-api/
 | Product Catalog       | 5                 | 2             | 40%      | create, update, delete |
 | Newsletters           | 17                | 2             | 12%      | Most operations |
 | Data Fetch            | 6                 | 6             | 100%     | - |
-| **TOTAL**             | **92+**           | **54**        | **~59%** | |
+| **TOTAL**             | **92+**           | **57**        | **~62%** | |
 
-### Partially Implemented Phases
+### Completed Gap-Fill (v0.10.0)
 
-**Phase 2 (Core Messaging):** Missing download media endpoint
-**Phase 3 (Contacts & Validation):** Missing add/edit/remove contact endpoints
+**Phase 2 (Core Messaging):** ✅ Download media endpoint added
+**Phase 3 (Contacts & Validation):** ✅ Add/edit/remove contact endpoints added
 
 ### Target Coverage (v1.0.0)
 

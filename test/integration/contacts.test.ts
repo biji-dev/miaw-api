@@ -402,4 +402,136 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       }
     });
   });
+
+  describe('Add/Edit Contact', () => {
+    it.skip('should add a new contact', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
+        phone: TEST_CONFIG.TEST_CONTACT_A,
+        name: 'Test Contact',
+        firstName: 'Test',
+        lastName: 'Contact',
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data.success).toBe(true);
+      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.phone).toBe(TEST_CONFIG.TEST_CONTACT_A);
+      expect(response.data.data.name).toBe('Test Contact');
+    });
+
+    it.skip('should edit an existing contact', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      // First add
+      await client.post(`/instances/${testInstanceId}/contacts`, {
+        phone: TEST_CONFIG.TEST_CONTACT_A,
+        name: 'Original Name',
+      });
+
+      // Then edit
+      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
+        phone: TEST_CONFIG.TEST_CONTACT_A,
+        name: 'Updated Name',
+        firstName: 'Updated',
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data.success).toBe(true);
+      expect(response.data.data.name).toBe('Updated Name');
+    });
+
+    it.skip('should reject add contact when instance is not connected', async () => {
+      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
+        phone: TEST_CONFIG.TEST_CONTACT_A,
+        name: 'Test Contact',
+      });
+
+      expect(response.status).toBe(503);
+      expect(response.data.success).toBe(false);
+      expect(response.data.error.code).toBe('SERVICE_UNAVAILABLE');
+    });
+
+    it.skip('should reject invalid phone format', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
+        phone: 'invalid-phone',
+        name: 'Test Contact',
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.data.success).toBe(false);
+    });
+
+    it.skip('should reject missing required fields', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      // Missing name
+      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
+        phone: TEST_CONFIG.TEST_CONTACT_A,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.data.success).toBe(false);
+    });
+  });
+
+  describe('Remove Contact', () => {
+    it.skip('should remove a contact', async () => {
+      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+
+      if (statusResponse.data.data.status !== 'connected') {
+        console.log('Skipping test - instance not connected');
+        return;
+      }
+
+      // First add the contact
+      await client.post(`/instances/${testInstanceId}/contacts`, {
+        phone: TEST_CONFIG.TEST_CONTACT_A,
+        name: 'Contact To Remove',
+      });
+
+      // Then remove
+      const response = await client.delete(
+        `/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.data.success).toBe(true);
+      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.phone).toBe(TEST_CONFIG.TEST_CONTACT_A);
+    });
+
+    it.skip('should reject remove when instance is not connected', async () => {
+      const response = await client.delete(
+        `/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`
+      );
+
+      expect(response.status).toBe(503);
+      expect(response.data.success).toBe(false);
+      expect(response.data.error.code).toBe('SERVICE_UNAVAILABLE');
+    });
+  });
 });

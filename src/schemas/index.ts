@@ -195,6 +195,33 @@ export function registerSchemas(server: FastifyInstance): void {
     },
   });
 
+  server.addSchema({
+    $id: 'addContact',
+    type: 'object',
+    required: ['phone', 'name'],
+    properties: {
+      phone: {
+        type: 'string',
+        pattern: '^[0-9]+$',
+        minLength: 10,
+        maxLength: 15,
+      },
+      name: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 100,
+      },
+      firstName: {
+        type: 'string',
+        nullable: true,
+      },
+      lastName: {
+        type: 'string',
+        nullable: true,
+      },
+    },
+  });
+
   // ============================================================================
   // Group Schemas
   // ============================================================================
