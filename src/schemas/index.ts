@@ -600,4 +600,158 @@ export function registerSchemas(server: FastifyInstance): void {
       },
     },
   });
+
+  // ============================================================================
+  // Product Catalog Schemas (Phase 13)
+  // ============================================================================
+
+  server.addSchema({
+    $id: 'createProduct',
+    type: 'object',
+    required: ['name', 'description', 'price', 'currency'],
+    properties: {
+      name: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 150,
+        description: 'Product name',
+      },
+      description: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 5000,
+        description: 'Product description',
+      },
+      price: {
+        type: 'number',
+        minimum: 0,
+        description: 'Price in cents/base currency units',
+      },
+      currency: {
+        type: 'string',
+        minLength: 3,
+        maxLength: 3,
+        description: 'ISO 4217 currency code (e.g., USD, BRL)',
+      },
+      imageUrls: {
+        type: 'array',
+        items: {
+          type: 'string',
+          format: 'uri',
+        },
+        maxItems: 10,
+        nullable: true,
+        description: 'Publicly accessible image URLs',
+      },
+      isHidden: {
+        type: 'boolean',
+        nullable: true,
+        description: 'Hide product from catalog',
+      },
+      retailerId: {
+        type: 'string',
+        maxLength: 100,
+        nullable: true,
+        description: 'Internal SKU or retailer ID',
+      },
+      url: {
+        type: 'string',
+        format: 'uri',
+        nullable: true,
+        description: 'Product landing page URL',
+      },
+      originCountryCode: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 2,
+        nullable: true,
+        description: 'ISO 3166-1 alpha-2 country code',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'updateProduct',
+    type: 'object',
+    properties: {
+      name: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 150,
+        nullable: true,
+        description: 'Product name',
+      },
+      description: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 5000,
+        nullable: true,
+        description: 'Product description',
+      },
+      price: {
+        type: 'number',
+        minimum: 0,
+        nullable: true,
+        description: 'Price in cents/base currency units',
+      },
+      currency: {
+        type: 'string',
+        minLength: 3,
+        maxLength: 3,
+        nullable: true,
+        description: 'ISO 4217 currency code (e.g., USD, BRL)',
+      },
+      imageUrls: {
+        type: 'array',
+        items: {
+          type: 'string',
+          format: 'uri',
+        },
+        maxItems: 10,
+        nullable: true,
+        description: 'Publicly accessible image URLs',
+      },
+      isHidden: {
+        type: 'boolean',
+        nullable: true,
+        description: 'Hide product from catalog',
+      },
+      retailerId: {
+        type: 'string',
+        maxLength: 100,
+        nullable: true,
+        description: 'Internal SKU or retailer ID',
+      },
+      url: {
+        type: 'string',
+        format: 'uri',
+        nullable: true,
+        description: 'Product landing page URL',
+      },
+      originCountryCode: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 2,
+        nullable: true,
+        description: 'ISO 3166-1 alpha-2 country code',
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'deleteProducts',
+    type: 'object',
+    required: ['productIds'],
+    properties: {
+      productIds: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+        minItems: 1,
+        maxItems: 100,
+        description: 'Array of product IDs to delete',
+      },
+    },
+  });
 }
