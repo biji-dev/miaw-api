@@ -7,6 +7,7 @@
 
 import { FastifyInstance } from 'fastify';
 import { InstanceManager } from '../services/InstanceManager';
+import { NotFoundError, BadRequestError } from '../utils/errorHandler';
 
 /**
  * Register basic GET operation routes
@@ -43,19 +44,16 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
 
     const client = instanceManager.getClient(instanceId);
     if (!client) {
-      return reply.code(404).send({
-        success: false,
-        error: 'Instance not found',
-      });
+      throw new NotFoundError('Instance');
     }
 
     const result = await client.fetchAllContacts();
 
-    if (result.success) {
-      return reply.send(result);
+    if (!result.success) {
+      throw new BadRequestError('Failed to fetch contacts', result);
     }
 
-    return reply.code(500).send(result);
+    return reply.send(result);
   });
 
   // ============================================================================
@@ -84,19 +82,16 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
 
     const client = instanceManager.getClient(instanceId);
     if (!client) {
-      return reply.code(404).send({
-        success: false,
-        error: 'Instance not found',
-      });
+      throw new NotFoundError('Instance');
     }
 
     const result = await client.fetchAllGroups();
 
-    if (result.success) {
-      return reply.send(result);
+    if (!result.success) {
+      throw new BadRequestError('Failed to fetch groups', result);
     }
 
-    return reply.code(500).send(result);
+    return reply.send(result);
   });
 
   // ============================================================================
@@ -127,22 +122,16 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
 
     const client = instanceManager.getClient(instanceId);
     if (!client) {
-      return reply.code(404).send({
-        success: false,
-        error: 'Instance not found',
-      });
+      throw new NotFoundError('Instance');
     }
 
     const profile = await client.getOwnProfile();
 
-    if (profile) {
-      return reply.send(profile);
+    if (!profile) {
+      throw new BadRequestError('Failed to get profile');
     }
 
-    return reply.code(500).send({
-      success: false,
-      error: 'Failed to get profile',
-    });
+    return reply.send(profile);
   });
 
   // ============================================================================
@@ -173,19 +162,16 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
 
     const client = instanceManager.getClient(instanceId);
     if (!client) {
-      return reply.code(404).send({
-        success: false,
-        error: 'Instance not found',
-      });
+      throw new NotFoundError('Instance');
     }
 
     const result = await client.fetchAllLabels();
 
-    if (result.success) {
-      return reply.send(result);
+    if (!result.success) {
+      throw new BadRequestError('Failed to fetch labels', result);
     }
 
-    return reply.code(500).send(result);
+    return reply.send(result);
   });
 
   // ============================================================================
@@ -220,19 +206,16 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
 
     const client = instanceManager.getClient(instanceId);
     if (!client) {
-      return reply.code(404).send({
-        success: false,
-        error: 'Instance not found',
-      });
+      throw new NotFoundError('Instance');
     }
 
     const result = await client.fetchAllChats();
 
-    if (result.success) {
-      return reply.send(result);
+    if (!result.success) {
+      throw new BadRequestError('Failed to fetch chats', result);
     }
 
-    return reply.code(500).send(result);
+    return reply.send(result);
   });
 
   // ============================================================================
@@ -280,18 +263,15 @@ WhatsApp uses LID (Limited ID) as a privacy measure for phone numbers. When What
 
     const client = instanceManager.getClient(instanceId);
     if (!client) {
-      return reply.code(404).send({
-        success: false,
-        error: 'Instance not found',
-      });
+      throw new NotFoundError('Instance');
     }
 
     const result = await client.getChatMessages(jid);
 
-    if (result.success) {
-      return reply.send(result);
+    if (!result.success) {
+      throw new BadRequestError('Failed to fetch messages', result);
     }
 
-    return reply.code(500).send(result);
+    return reply.send(result);
   });
 }
