@@ -6,10 +6,12 @@
  * DELETE /instances/:id/chats/:jid/labels/:labelId - Remove label from chat
  * POST /instances/:id/messages/:messageId/labels/:labelId - Add label to message
  * DELETE /instances/:id/messages/:messageId/labels/:labelId - Remove label from message
+ * GET /instances/:id/labels/:labelId/chats - Get chats by label (Phase 13)
  * GET /instances/:id/products/catalog - Get product catalog
  * GET /instances/:id/products/collections - Get product collections
- * GET /instances/:id/newsletters/:newsletterId - Get newsletter metadata
- * GET /instances/:id/newsletters/:newsletterId/messages - Get newsletter messages
+ * POST /instances/:id/products - Create product (Phase 13)
+ * PATCH /instances/:id/products/:productId - Update product (Phase 13)
+ * DELETE /instances/:id/products - Delete products (Phase 13)
  */
 
 import { FastifyInstance } from 'fastify';
@@ -948,6 +950,138 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
         throw new BadRequestError('Failed to get product collections', {
           error: err.message,
         });
+      }
+    }
+  );
+
+  /**
+   * POST /instances/:id/products
+   * Create a new product in the catalog
+   */
+  server.post(
+    '/instances/:id/products',
+    {
+      schema: {
+        description: 'Create a new product in the catalog (WhatsApp Business only)',
+        tags: ['Business'],
+        summary: 'Create product',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        body: { $ref: 'createProduct' },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  productId: { type: 'string' },
+                },
+              },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              error: {
+                type: 'object',
+                properties: {
+                  code: { type: 'string' },
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = request.body as {
+        name: string;
+        description: string;
+        price: number;
+        currency: string;
+        imageUrls?: string[];
+        isHidden?: boolean;
+        retailerId?: string;
+        url?: string;
+        originCountryCode?: string;
+      };
+
+      const instanceManager = (server as any).instanceManager;
+      const client = instanceManager.getClient(params.id);
+      const instance = instanceManager.getInstance(params.id);
+
+      if (!client || !instance) {
+        throw new NotFoundError('Instance');
+      }
+
+      if (instance.status !== 'connected') {
+        throw new ServiceUnavailableError('Instance is not connected');
+      }
+
+      try {
+        const result = await client.createProduct({
+          name: body.name,
+          description: body.description,
+          price: body.price,
+          currency: body.currency,
+          imageUrls: body.imageUrls,
+          isHidden: body.isHidden,
+          retailerId: body.retailerId,
+          url: body.url,
+          originCountryCode: body.originCountryCode,
+        });
+
+        if (!result.success) {
+          throw new BadRequestError('Failed to create product', { error: result.error });
+        }
+
+        reply.send({
+          success: true,
+          data: {
+            success: result.success,
+            productId: result.productId,
+          },
+        });
+      } catch (err: any) {
+        if (err instanceof BadRequestError) throw err;
+        throw new BadRequestError('Failed to create product', { error: err.message });
       }
     }
   );
