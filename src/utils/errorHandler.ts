@@ -3,8 +3,11 @@
  */
 
 import { FastifyReply } from 'fastify';
+import crypto from 'crypto';
 
 export class ApiError extends Error {
+  public readonly correlationId: string;
+
   constructor(
     public statusCode: number,
     public code: string,
@@ -13,6 +16,7 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = 'ApiError';
+    this.correlationId = crypto.randomUUID();
   }
 }
 
@@ -46,6 +50,12 @@ export class ServiceUnavailableError extends ApiError {
   }
 }
 
+export class ValidationError extends ApiError {
+  constructor(message: string, details?: any) {
+    super(400, 'VALIDATION_ERROR', message, details);
+  }
+}
+
 /**
  * Global error handler
  */
@@ -54,26 +64,31 @@ export function errorHandler(
   request: any,
   reply: FastifyReply
 ): void {
-  request.log.error(error);
-
   if (error instanceof ApiError) {
+    request.log.error({ correlationId: error.correlationId, error });
+
     reply.status(error.statusCode).send({
       success: false,
       error: {
         code: error.code,
         message: error.message,
         details: error.details,
+        correlationId: error.correlationId,
       },
     });
     return;
   }
 
-  // Handle unknown errors
+  // Handle unknown errors with a generated correlation ID for tracking
+  const correlationId = crypto.randomUUID();
+  request.log.error({ correlationId, error });
+
   reply.status(500).send({
     success: false,
     error: {
       code: 'INTERNAL_ERROR',
       message: 'An unexpected error occurred',
+      correlationId,
     },
   });
 }

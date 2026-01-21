@@ -4,8 +4,20 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import crypto from 'crypto';
 import { config } from '../config';
 import { UnauthorizedError } from '../utils/errorHandler';
+
+/**
+ * Timing-safe string comparison to prevent timing attacks
+ * Returns false if lengths differ, then uses constant-time comparison
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 /**
  * Extract API key from request
@@ -37,10 +49,26 @@ export function createAuthMiddleware() {
     const apiKey = extractApiKey(request);
 
     if (!apiKey) {
+      // Log auth failure for security auditing
+      request.log.warn({
+        event: 'auth_failure',
+        reason: 'missing_api_key',
+        ip: request.ip,
+        method: request.method,
+        url: request.url,
+      }, 'Authentication failed: Missing API key');
       throw new UnauthorizedError('Missing API key');
     }
 
-    if (apiKey !== config.apiKey) {
+    if (!timingSafeEqual(apiKey, config.apiKey)) {
+      // Log auth failure for security auditing (don't log the invalid key itself)
+      request.log.warn({
+        event: 'auth_failure',
+        reason: 'invalid_api_key',
+        ip: request.ip,
+        method: request.method,
+        url: request.url,
+      }, 'Authentication failed: Invalid API key');
       throw new UnauthorizedError('Invalid API key');
     }
 
