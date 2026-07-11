@@ -6,6 +6,7 @@ interface HttpRequestOptions {
   method?: string;
   headers?: Record<string, string>;
   body?: any;
+  data?: any;
   timeout?: number;
 }
 
@@ -39,12 +40,17 @@ export class HttpClient {
     const {
       method = 'GET',
       headers = {},
-      body,
+      body: requestBody,
+      data,
       timeout = this.defaultTimeout,
     } = options;
 
     const url = `${this.baseUrl}${path}`;
+    const body = requestBody !== undefined ? requestBody : data;
     const requestHeaders = { ...this.defaultHeaders, ...headers };
+    if (body !== undefined && !requestHeaders['Content-Type']) {
+      requestHeaders['Content-Type'] = 'application/json';
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -53,7 +59,7 @@ export class HttpClient {
       const response = await fetch(url, {
         method,
         headers: requestHeaders,
-        body: body ? JSON.stringify(body) : undefined,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
 
@@ -86,12 +92,16 @@ export class HttpClient {
     return this.request(path, { ...options, method: 'GET' });
   }
 
-  async post(path: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse> {
+  async post(path: string, body: any = {}, options?: HttpRequestOptions): Promise<HttpResponse> {
     return this.request(path, { ...options, method: 'POST', body });
   }
 
   async put(path: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse> {
     return this.request(path, { ...options, method: 'PUT', body });
+  }
+
+  async patch(path: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse> {
+    return this.request(path, { ...options, method: 'PATCH', body });
   }
 
   async delete(path: string, options?: HttpRequestOptions): Promise<HttpResponse> {

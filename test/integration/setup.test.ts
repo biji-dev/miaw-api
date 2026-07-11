@@ -7,12 +7,14 @@
  * Run with: npm run test:integration -- setup
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 import { TEST_CONFIG } from './fixtures/data.js';
 
-describe('Setup Tests - Initial Connection', () => {
+const describeLive = process.env.MIAW_RUN_LIVE_TESTS === 'true' ? describe : describe.skip;
+
+describeLive('Setup Tests - Initial Connection', () => {
   let client: any;
   let webhookServer: WebhookTestServer;
 

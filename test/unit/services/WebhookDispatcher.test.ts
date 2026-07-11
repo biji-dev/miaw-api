@@ -12,7 +12,7 @@ import {
   beforeAll,
   afterAll,
 } from 'vitest';
-import { WebhookDispatcher } from '../../../src/services/WebhookDispatcher';
+import { WebhookDispatcher } from '../../../src/services/WebhookDispatcher.js';
 
 // Mock fetch globally
 const mockFetch = vi.fn();

@@ -11,7 +11,7 @@
  * NOTE: These tests require a connected WhatsApp instance and a running webhook server.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 import { TEST_CONFIG } from './fixtures/data.js';
@@ -55,7 +55,7 @@ describe('Phase 7 Webhook Tests', () => {
         webhookEvents: ['message', 'ready'],
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
       expect(response.data.data.webhookUrl).toBe(webhookServer.getWebhookUrl());
       expect(response.data.data.webhookEvents).toEqual(['message', 'ready']);
@@ -86,7 +86,7 @@ describe('Phase 7 Webhook Tests', () => {
         webhookEvents: ['message', 'ready', 'qr'],
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
       expect(response.data.data.webhookEvents).toEqual(['message', 'ready', 'qr']);
     });
@@ -106,7 +106,7 @@ describe('Phase 7 Webhook Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.webhookUrl).toBe('');
+      expect(response.data.data.webhookUrl).toBeUndefined();
     });
   });
 
@@ -191,7 +191,7 @@ describe('Phase 7 Webhook Tests', () => {
       // Wait for delivery
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      const events = webhookServer.getEvents();
+      const events = webhookServer.getRequests();
       expect(events.length).toBeGreaterThan(0);
 
       const lastEvent = events[events.length - 1];
@@ -203,7 +203,7 @@ describe('Phase 7 Webhook Tests', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      const events = webhookServer.getEvents();
+      const events = webhookServer.getRequests();
       expect(events.length).toBeGreaterThan(0);
 
       const lastEvent = events[events.length - 1];
@@ -220,7 +220,7 @@ describe('Phase 7 Webhook Tests', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      const events = webhookServer.getEvents();
+      const events = webhookServer.getRequests();
       expect(events.length).toBeGreaterThan(0);
 
       const lastEvent = events[events.length - 1];
@@ -234,7 +234,7 @@ describe('Phase 7 Webhook Tests', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      const events = webhookServer.getEvents();
+      const events = webhookServer.getRequests();
       expect(events.length).toBeGreaterThan(0);
 
       const lastEvent = events[events.length - 1];

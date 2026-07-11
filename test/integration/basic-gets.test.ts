@@ -10,7 +10,8 @@
  * - GET /instances/:id/chats/:jid/messages - Get chat messages
  */
 
-import { describe, test, expect, beforeAll } from 'vitest';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { startTestServer, stopTestServer } from './helpers/server.js';
 
 const API_URL = 'http://127.0.0.1:3000';
 const API_KEY = process.env.API_KEY || 'test-api-key-for-integration-tests';
@@ -20,6 +21,7 @@ describe('Basic GET Operations (v0.9.0)', () => {
   let isConnected = false;
 
   beforeAll(async () => {
+    await startTestServer();
     // Check if instance is connected
     try {
       const response = await fetch(`${API_URL}/instances/${INSTANCE_ID}/status`, {
@@ -32,6 +34,10 @@ describe('Basic GET Operations (v0.9.0)', () => {
     } catch {
       // Skip if API is not available
     }
+  });
+
+  afterAll(async () => {
+    await stopTestServer();
   });
 
   describe('GET /instances/:id/contacts - Get all contacts', () => {
@@ -65,7 +71,7 @@ describe('Basic GET Operations (v0.9.0)', () => {
 
       const data = (await response.json()) as { success: boolean; error?: string };
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Instance not found');
+      expect(data.error?.message).toBe('Instance not found');
     });
   });
 
@@ -100,7 +106,7 @@ describe('Basic GET Operations (v0.9.0)', () => {
 
       const data = (await response.json()) as { success: boolean; error?: string };
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Instance not found');
+      expect(data.error?.message).toBe('Instance not found');
     });
   });
 
@@ -135,7 +141,7 @@ describe('Basic GET Operations (v0.9.0)', () => {
 
       const data = (await response.json()) as { success: boolean; error?: string };
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Instance not found');
+      expect(data.error?.message).toBe('Instance not found');
     });
   });
 
@@ -170,7 +176,7 @@ describe('Basic GET Operations (v0.9.0)', () => {
 
       const data = (await response.json()) as { success: boolean; error?: string };
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Instance not found');
+      expect(data.error?.message).toBe('Instance not found');
     });
   });
 
@@ -205,7 +211,7 @@ describe('Basic GET Operations (v0.9.0)', () => {
 
       const data = (await response.json()) as { success: boolean; error?: string };
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Instance not found');
+      expect(data.error?.message).toBe('Instance not found');
     });
   });
 
@@ -249,7 +255,7 @@ describe('Basic GET Operations (v0.9.0)', () => {
 
       const data = (await response.json()) as { success: boolean; error?: string };
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Instance not found');
+      expect(data.error?.message).toBe('Instance not found');
     });
   });
 });

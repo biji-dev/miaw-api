@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createAuthMiddleware } from '../../../src/middleware/auth';
-import { UnauthorizedError } from '../../../src/utils/errorHandler';
+import { createAuthMiddleware } from '../../../src/middleware/auth.js';
+import { UnauthorizedError } from '../../../src/utils/errorHandler.js';
 
 // Mock the config module
 vi.mock('../../../src/config', () => ({

@@ -32,15 +32,25 @@ export class WebhookTestServer {
   }
 
   start(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       this.server = createServer((req, res) => {
         this.handleRequest(req, res);
       });
 
-      this.server.listen(this.port, () => {
+      this.server.once('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'EADDRINUSE') {
+          this.server?.listen(0, '127.0.0.1');
+        } else {
+          reject(error);
+        }
+      });
+      this.server.on('listening', () => {
+        const address = this.server?.address();
+        if (address && typeof address === 'object') this.port = address.port;
         this.isRunning = true;
         resolve();
       });
+      this.server.listen(this.port, '127.0.0.1');
     });
   }
 

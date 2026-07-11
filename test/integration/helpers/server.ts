@@ -3,10 +3,10 @@
  * Starts and stops the API server for testing
  */
 
-import { createServer as startApiServer } from '../../dist/server.js';
+import type { FastifyInstance } from 'fastify';
 import { HttpClient } from './http.js';
 
-let apiServer: any = null;
+let apiServer: FastifyInstance | null = null;
 
 export async function startTestServer(): Promise<void> {
   if (apiServer) {
@@ -21,10 +21,9 @@ export async function startTestServer(): Promise<void> {
   process.env.SESSION_PATH = './test-sessions';
   process.env.LOG_LEVEL = 'error'; // Reduce log noise during tests
 
-  apiServer = await startApiServer();
-
-  // Wait for server to be ready
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  const { createServer } = await import('../../../src/server.js');
+  apiServer = await createServer();
+  await apiServer.listen({ port: 3000, host: '127.0.0.1' });
 }
 
 export async function stopTestServer(): Promise<void> {
@@ -38,7 +37,6 @@ export function createTestClient(): HttpClient {
   return new HttpClient(
     'http://127.0.0.1:3000',
     {
-      'Content-Type': 'application/json',
       'Authorization': 'Bearer test-api-key-for-integration-tests',
     },
     30000

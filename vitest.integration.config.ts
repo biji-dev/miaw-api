@@ -9,6 +9,8 @@ export default defineConfig({
     hookTimeout: 120000,
     teardownTimeout: 30000,
     isolate: false,
+    fileParallelism: false,
+    pool: 'threads',
     poolOptions: {
       threads: {
         singleThread: true,
