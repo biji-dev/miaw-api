@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 1.1.0 · synchronized with `miaw-core` 1.9.1
+**Version:** 1.2.0 · synchronized with `miaw-core` 1.9.1
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -291,11 +291,15 @@ When events occur, POST requests are sent to your configured webhook URL:
 | `message_edit`      | A message was edited                          |
 | `message_delete`    | A message was deleted/revoked                 |
 | `message_reaction`  | A message received an emoji reaction          |
+| `message_receipt`   | Sent message delivery/read/played receipt     |
+| `poll_vote`         | Aggregated poll vote changed                  |
+| `pairing_code`      | Pairing code generated for phone-number auth  |
 | `presence`          | Subscribed contact's presence changed         |
 | `connection`        | Connection state changed                      |
 | `disconnected`      | Instance disconnected                         |
 | `reconnecting`      | Reconnection attempt in progress              |
 | `error`             | Error occurred                                |
+| `session_saved`     | Authentication session was persisted          |
 
 When creating an instance, `webhookEvents` acts as a whitelist: list specific
 events to receive only those, or omit it / pass `[]` to receive all events.
@@ -338,7 +342,7 @@ docker run -d \
 miaw-api/
 ├── src/
 │   ├── config/         # Configuration loader
-│   ├── middleware/     # Express middleware (auth)
+│   ├── middleware/     # Fastify authentication hooks
 │   ├── routes/         # API route handlers
 │   ├── schemas/        # JSON Schema definitions
 │   ├── services/       # Business logic (InstanceManager, WebhookDispatcher)
@@ -347,7 +351,7 @@ miaw-api/
 │   └── server.ts       # Server entry point
 ├── test/
 │   ├── integration/    # Integration tests
-│   └── unit/           # Unit tests (planned)
+│   └── unit/           # Unit and route-contract tests
 ├── sessions/           # WhatsApp session data (gitignored)
 └── dist/               # Compiled output (gitignored)
 ```
@@ -356,19 +360,19 @@ miaw-api/
 
 ```bash
 # Build
-npm run build
+pnpm build
 
 # Development (watch mode)
-npm run dev
+pnpm dev
 
 # Run tests
-npm test
-npm run test:unit
-npm run test:integration
+pnpm test
+pnpm test:unit
+pnpm test:integration
 
 # Lint
-npm run lint
-npm run lint:fix
+pnpm lint
+pnpm lint:fix
 ```
 
 ### Adding New Features
@@ -384,11 +388,11 @@ npm run lint:fix
 See [docs/TESTING.md](./docs/TESTING.md) for detailed testing guide.
 
 ```bash
-# Run integration tests (requires WhatsApp pairing)
-npm run test:integration
+# Run automated integration tests
+pnpm test:integration
 
-# Setup test instance (pair via QR)
-npm run test:integration -- setup
+# Opt in to the interactive live pairing suite
+MIAW_RUN_LIVE_TESTS=true pnpm test:integration -- setup
 ```
 
 ## API Endpoints
@@ -422,6 +426,22 @@ npm run test:integration -- setup
 | DELETE | `/instances/:id/messages/:messageId` | Delete message                 |
 | POST   | `/instances/:id/messages/reaction`   | React to message               |
 | POST   | `/instances/:id/messages/forward`    | Forward message                |
+| POST   | `/instances/:id/messages/location`   | Send location                  |
+| POST   | `/instances/:id/messages/contact`    | Send contact cards             |
+| POST   | `/instances/:id/messages/sticker`    | Send WebP sticker              |
+| POST   | `/instances/:id/messages/poll`       | Send poll                      |
+
+### Chats and Statuses
+
+| Method | Endpoint                                      | Description                    |
+| ------ | --------------------------------------------- | ------------------------------ |
+| POST/DELETE | `/instances/:id/chats/:jid/archive`    | Archive/unarchive chat         |
+| POST/DELETE | `/instances/:id/chats/:jid/pin`        | Pin/unpin chat                 |
+| POST/DELETE | `/instances/:id/chats/:jid/mute`       | Mute/unmute chat               |
+| POST/DELETE | `/instances/:id/chats/:jid/read`       | Mark chat read/unread          |
+| POST   | `/instances/:id/statuses/text`                | Post text status               |
+| POST   | `/instances/:id/statuses/image`               | Post image status              |
+| POST   | `/instances/:id/statuses/video`               | Post video status              |
 
 ### Contacts
 
@@ -448,6 +468,11 @@ npm run test:integration -- setup
 | POST   | `/instances/:id/groups/:groupJid/revoke-invite` | Revoke invite link            |
 | POST   | `/instances/:id/groups/join/:inviteCode`        | Join via invite code          |
 | DELETE | `/instances/:id/groups/:groupJid`               | Leave group                   |
+
+### Communities
+
+Community lifecycle, participants/admins, linked groups, nested group creation,
+and invite operations are available under `/instances/:id/communities`.
 
 ### Profile
 
@@ -491,6 +516,19 @@ npm run test:integration -- setup
 | GET    | `/instances/:id/newsletters/:newsletterId`           | Get newsletter metadata   |
 | GET    | `/instances/:id/newsletters/:newsletterId/messages`  | Get newsletter messages   |
 
+Business profile, cover-photo, order-detail, and quick-reply routes are under
+`/instances/:id/business`.
+
+### Runtime and LID Operations
+
+| Method | Endpoint                               | Description                    |
+| ------ | -------------------------------------- | ------------------------------ |
+| GET/PATCH | `/instances/:id/runtime`           | Inspect or update runtime flags|
+| GET/DELETE | `/instances/:id/lids`             | Inspect or clear LID cache     |
+| POST   | `/instances/:id/lids/register`         | Register mapping               |
+| POST   | `/instances/:id/lids/resolve`          | Resolve one LID                |
+| POST   | `/instances/:id/lids/resolve-batch`    | Resolve LIDs in bulk           |
+
 ### Basic GET Operations
 
 | Method | Endpoint                                | Description                |
@@ -510,6 +548,7 @@ npm run test:integration -- setup
 
 ## Documentation
 
+- [API Guide](./docs/API.md) - Authentication, route groups, media and webhook contracts
 - [Roadmap](./docs/ROADMAP.md) - Full development roadmap
 - [Integration Test Plan](./docs/INTEGRATION-TEST-PLAN.md) - Test strategy
 - [Testing Guide](./docs/TESTING.md) - How to run tests
@@ -532,7 +571,7 @@ npm run test:integration -- setup
 ## Limitations
 
 - One WhatsApp number per instance
-- Manual QR scanning required for initial connection
+- QR scan or phone-number pairing code required for initial connection
 - Sessions expire after inactivity (requires re-pairing)
 - Rate limiting by WhatsApp (may need delays between operations)
 
@@ -575,11 +614,11 @@ npm run test:integration -- setup
 
 This project follows Semantic Versioning (semver).
 
-Current version: `0.1.0`
+Current version: `1.2.0`
 
-- **Major version** (0): Initial development, API may change
-- **Minor version** (1): Phase 1 (MVP) features
-- **Patch version** (0): Initial release
+- **Major version**: breaking HTTP or configuration changes
+- **Minor version**: backward-compatible capabilities
+- **Patch version**: backward-compatible fixes
 
 ## License
 

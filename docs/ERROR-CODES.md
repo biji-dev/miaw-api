@@ -309,7 +309,7 @@ curl -X POST "http://localhost:3000/instances/my-instance/connect" \
   -H "Authorization: Bearer $API_KEY"
 
 # 3. If QR required, get QR code
-curl -X GET "http://localhost:3000/instances/my-instance/qr" \
+curl -X GET "http://localhost:3000/instances/my-instance/auth/qr" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -325,7 +325,7 @@ curl -X GET "http://localhost:3000/instances/my-instance/qr" \
 # Right: 12345678901
 
 # Use the validate endpoint
-curl -X POST "http://localhost:3000/instances/my-instance/contacts/check" \
+curl -X POST "http://localhost:3000/instances/my-instance/check-number" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"phones": ["12345678901"]}'

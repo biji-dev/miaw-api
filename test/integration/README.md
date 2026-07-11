@@ -1,6 +1,6 @@
 # Integration Tests
 
-Phase 1 integration tests for Miaw API.
+Automated HTTP and opt-in live WhatsApp integration tests for Miaw API.
 
 ## Prerequisites
 
@@ -14,11 +14,11 @@ Phase 1 integration tests for Miaw API.
    pnpm build
    ```
 
-3. A dedicated WhatsApp test number (not your personal number)
+3. For live tests only, a dedicated WhatsApp test number (not your personal number)
 
 ## Running Tests
 
-### Setup Test (Run First)
+### Live Setup Test
 
 The setup test connects to WhatsApp via QR code:
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-12
+
 ### Added
 
 - Full HTTP coverage for `miaw-core` 1.9.1 rich messages, chat operations,
@@ -30,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   products, newsletters, reactions, forwarding, editing, and deletion.
 - Prevented duplicate ready/disconnected webhooks and masked proxy credentials
   in operational responses.
+
+### Documentation
+
+- Replaced the legacy phase plan and test documents with current roadmap,
+  automated/live testing, and release-check guidance.
+- Added an API guide covering authentication, instance options, route groups,
+  media/message references, webhooks, and error envelopes.
+- Updated README, security examples, error-code examples, Docker, and Compose
+  configuration for ESM, pnpm, and the current endpoint/environment contracts.
 
 ## [1.1.0] - 2026-07-09
 

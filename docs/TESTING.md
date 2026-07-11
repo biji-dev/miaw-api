@@ -1,307 +1,99 @@
-# Miaw API - Testing Guide
+# Miaw API Testing Guide
 
-This guide covers testing the Miaw API, including unit tests and integration tests.
+**Last updated:** 2026-07-12
 
-## Table of Contents
-
-1. [Test Overview](#test-overview)
-2. [Prerequisites](#prerequisites)
-3. [Unit Tests](#unit-tests)
-4. [Integration Tests](#integration-tests)
-5. [Test Data](#test-data)
-6. [Troubleshooting](#troubleshooting)
-
----
-
-## Test Overview
-
-Miaw API uses **Vitest** as the testing framework.
-
-| Test Type | Location | Purpose | Requirements |
-|-----------|----------|---------|--------------|
-| Unit Tests | `test/unit/` | Test individual functions/classes in isolation | No external dependencies |
-| Integration Tests | `test/integration/` | Test full API with real WhatsApp connection | Requires WhatsApp pairing |
-
----
+Miaw API uses Vitest. Automated tests do not require a WhatsApp account; live
+protocol scenarios are opt-in.
 
 ## Prerequisites
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+```
 
-2. **Build the project:**
-   ```bash
-   npm run build
-   ```
-
-3. **For integration tests only:**
-   - Dedicated WhatsApp test number
-   - Test contacts with WhatsApp accounts
-   - `.env.test` configured (see [Test Data](#test-data))
-
----
-
-## Unit Tests
-
-Unit tests test individual components in isolation without external dependencies.
-
-### Running Unit Tests
+## Unit and contract tests
 
 ```bash
-# Run all unit tests
-npm run test:unit
-
-# Run in watch mode
-npm run test:watch
-
-# Run with coverage
-npm run test:coverage
+pnpm test:unit
+pnpm test:watch
+pnpm test:coverage
 ```
 
-### Writing Unit Tests
+Unit tests cover configuration, authentication, error handling, webhook
+delivery, instance lifecycle/event forwarding, and route-to-core contracts.
+Route tests mock `miaw-core` and use Fastify injection.
 
-```typescript
-import { describe, it, expect } from '@jest/globals';
+Use Vitest imports in new tests:
 
-describe('MyComponent', () => {
-  it('should do something', () => {
-    const result = myFunction();
-    expect(result).toBe('expected');
-  });
-});
+```ts
+import { describe, expect, it, vi } from 'vitest';
 ```
 
----
-
-## Integration Tests
-
-Integration tests test the full API stack with real WhatsApp connection.
-
-### First-Time Setup
-
-1. **Create test environment file:**
-   ```bash
-   cp .env.example .env.test
-   ```
-
-2. **Edit `.env.test`:**
-   ```bash
-   API_KEY=test-api-key-for-integration-tests
-   WEBHOOK_SECRET=test-webhook-secret
-   TEST_CONTACT_A=6281234567890  # Replace with real number
-   TEST_CONTACT_B=6280987654321  # Replace with real number
-   ```
-
-3. **Run setup test (pair via QR):**
-   ```bash
-   npm run test:integration -- setup
-   ```
-
-   This will:
-   - Start the API server on port 3000
-   - Create a test instance
-   - Generate QR code
-   - Wait for you to scan with WhatsApp
-   - Save session for future tests
-
-### Running Integration Tests
+## Automated integration tests
 
 ```bash
-# Run all integration tests
-npm run test:integration
-
-# Run specific test file
-npm run test:integration -- instance
-npm run test:integration -- connection
-npm run test:integration -- messaging
-
-# Run with verbose output
-npm run test:integration -- --reporter=verbose
+pnpm test:integration
+pnpm test:integration -- instance-management
+pnpm test:integration -- messaging
 ```
 
-### Test Files
+The integration helper starts and stops the Fastify server itself. Test files
+run serially to avoid sharing ports and session state. WhatsApp-dependent cases
+are marked skipped; the remaining HTTP, validation, authentication, webhook,
+and lifecycle scenarios are suitable for CI.
 
-| File | Tests | Description | WhatsApp Required |
-|------|-------|-------------|-------------------|
-| `setup.test.ts` | 4 | Initial QR pairing and connection | Yes (manual) |
-| `instance-management.test.ts` | 15 | Create, list, get, delete instances | No |
-| `connection.test.ts` | 10 | Connect, disconnect, restart, status | Optional |
-| `messaging.test.ts` | 8 | Send text messages | Yes |
-| `messaging-phase2.test.ts` | 35 | Media, edit, delete, reaction, forward | Yes |
-| `contacts.test.ts` | 12 | Number validation, contact info | Yes |
-| `groups.test.ts` | 25 | Create, manage groups, participants | Yes |
-| `profile.test.ts` | 8 | Update profile picture, name, status | Yes |
-| `presence.test.ts` | 33 | Presence, typing, read receipts, subscribe | Yes |
-| `webhooks.test.ts` | 26 | Webhook config, delivery, signature, retry | Yes |
-| `business.test.ts` | 27 | Labels, products, newsletters (Business only) | Yes |
-| `basic-gets.test.ts` | 12 | Basic GET operations (contacts, groups, profile, labels, chats, messages) | Yes |
+Current baseline:
 
-### Skipping Connection-Required Tests
+- 127 unit/contract tests.
+- 93 automated integration tests.
+- 265 explicitly skipped live scenarios.
 
-Tests that require WhatsApp connection are marked with `it.skip()`. These will be skipped automatically unless:
+## Live WhatsApp tests
 
-1. Instance is connected (check via `GET /instances/:id/status`)
-2. Test contacts are configured
-
----
-
-## Test Data
-
-### Environment Variables (.env.test)
+Use a dedicated WhatsApp account, never a personal production account.
 
 ```bash
-# API Configuration
-PORT=3000
-HOST=127.0.0.1
-API_KEY=test-api-key-for-integration-tests
-WEBHOOK_SECRET=test-webhook-secret
-
-# Test Instance
-TEST_INSTANCE_ID=integration-test-bot
-TEST_SESSION_PATH=./test-sessions
-
-# Test Contacts (REAL WhatsApp numbers)
-TEST_CONTACT_A=6281234567890
-TEST_CONTACT_B=6280987654321
-TEST_GROUP_JID=123456789@g.us
-TEST_GROUP_INVITE=ABC123Def456
-
-# Timeouts
-TEST_CONNECT_TIMEOUT=120000
-TEST_MESSAGE_TIMEOUT=30000
-TEST_WEBHOOK_TIMEOUT=5000
-
-# Test Webhook Server
-TEST_WEBHOOK_PORT=3001
+MIAW_RUN_LIVE_TESTS=true pnpm test:integration -- setup
 ```
 
-### Test Contacts
+The setup suite creates `integration-test-bot`, starts a local webhook receiver,
+and waits for QR pairing. Pairing-code authentication can instead be exercised
+through instance `clientOptions.usePairingCode` and the protected
+`GET /instances/:id/auth/pairing-code` endpoint.
 
-**Required:**
-- **Contact A**: Standard WhatsApp user (for messaging tests)
-- **Contact B**: Standard WhatsApp user (for group tests)
+Configure real test contacts in `test/integration/fixtures/data.ts`. Sessions
+are stored under `./test-sessions` and are ignored by Git.
 
-Both contacts should have added the test number.
+## Recommended CI checks
 
----
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+pnpm lint
+pnpm test:unit
+pnpm test:integration
+```
+
+Do not enable `MIAW_RUN_LIVE_TESTS` in ordinary CI. Live tests depend on manual
+pairing, WhatsApp availability, network conditions, and rate limits.
 
 ## Troubleshooting
 
-### Common Issues
+| Problem | Resolution |
+| --- | --- |
+| Port 3000 is occupied | Stop the other API process; integration tests need the port |
+| Webhook test port is occupied | The test helper automatically falls back to an ephemeral port |
+| Pairing challenge expires | Restart the instance connection and request the protected challenge endpoint again |
+| Session is invalid | Remove `./test-sessions` and repeat the live setup |
+| WhatsApp throttles requests | Stop the test run and retry later with fewer live operations |
+| Frozen install fails | Run `pnpm install`, inspect the lockfile diff, and commit it with the dependency change |
 
-| Issue | Symptom | Solution |
-|-------|---------|----------|
-| QR timeout | Setup test fails at QR step | Scan QR faster (< 30 sec) |
-| Session expired | Auth errors in tests | Delete `./test-sessions/` and re-run setup |
-| Webhook not received | Test fails waiting for event | Check webhook server is running |
-| Rate limited | Messages fail with 429 | Add delays, wait before retry |
-| Port already in use | Server fails to start | Kill process on port 3000 |
+## Adding tests for a core upgrade
 
-### Session Management
-
-**Session location:** `./test-sessions/`
-
-**Refresh session:**
-```bash
-# Delete old session
-rm -rf ./test-sessions/
-
-# Re-run setup
-npm run test:integration -- setup
-```
-
-**Check session status:**
-```bash
-# Get instance status
-curl http://localhost:3000/instances/integration-test-bot/status \
-  -H "Authorization: Bearer test-api-key-for-integration-tests"
-```
-
-### Manual API Testing
-
-```bash
-# Health check
-curl http://localhost:3000/health
-
-# Create instance
-curl -X POST http://localhost:3000/instances \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer test-api-key-for-integration-tests" \
-  -d '{"instanceId": "test-bot"}'
-
-# List instances
-curl http://localhost:3000/instances \
-  -H "Authorization: Bearer test-api-key-for-integration-tests"
-
-# Connect instance
-curl -X POST http://localhost:3000/instances/test-bot/connect \
-  -H "Authorization: Bearer test-api-key-for-integration-tests"
-```
-
----
-
-## CI/CD Considerations
-
-Integration tests are **NOT suitable** for automated CI/CD pipelines:
-
-- Requires manual QR scanning
-- Requires real WhatsApp connection
-- Tests may fail due to network issues
-- Rate limiting from WhatsApp
-- Session expiration
-
-**Recommended approach:**
-1. Run unit tests in CI/CD (fast, no dependencies)
-2. Run integration tests locally before releases
-3. Run integration tests in staging with manual pairing
-
----
-
-## Best Practices
-
-1. **Before running tests:**
-   - Ensure test contacts are available
-   - Verify network connection
-   - Check test instance is connected
-
-2. **During tests:**
-   - Don't use the test phone for other activities
-   - Let tests complete fully
-   - Monitor webhook server logs
-
-3. **After tests:**
-   - Review test results
-   - Clean up test groups if needed
-   - Update test documentation
-
-4. **Maintenance:**
-   - Rotate test contacts periodically
-   - Re-pair if session expires (monthly)
-   - Update test data if contacts change
-
----
-
-## Appendix: Test Checklist
-
-### Pre-Test
-
-- [ ] Dependencies installed (`npm install`)
-- [ ] Project built (`npm run build`)
-- [ ] Test contacts have added test number
-- [ ] `.env.test` configured
-- [ ] Network connection stable
-
-### Post-Test
-
-- [ ] All tests passed
-- [ ] Test contacts not spammed
-- [ ] Test groups cleaned up
-- [ ] Session saved for next run
-- [ ] Failures investigated
-
----
-
-**Last Updated:** 2025-12-25
-**Version:** 0.8.0
+1. Add or update a mocked method on the route-contract client.
+2. Assert the HTTP handler sends the exact argument shape required by core.
+3. Test request validation and missing-instance/not-connected behavior.
+4. Add event-forwarding coverage for every new core event.
+5. Add a live scenario only when a mocked contract cannot verify protocol behavior.

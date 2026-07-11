@@ -119,17 +119,20 @@ function verifyWebhookSignature(payload, signature, timestamp, secret, maxAgeMs 
   );
 }
 
-// Express middleware example
-app.post('/webhook', express.json(), (req, res) => {
-  const signature = req.headers['x-miaw-signature'];
-  const timestamp = parseInt(req.headers['x-miaw-timestamp'], 10);
+// Fastify webhook receiver example
+import Fastify from 'fastify';
 
-  if (!verifyWebhookSignature(req.body, signature, timestamp, process.env.WEBHOOK_SECRET)) {
-    return res.status(401).json({ error: 'Invalid signature' });
+const app = Fastify();
+app.post('/webhook', async (request, reply) => {
+  const signature = request.headers['x-miaw-signature'];
+  const timestamp = Number(request.headers['x-miaw-timestamp']);
+
+  if (!verifyWebhookSignature(request.body, signature, timestamp, process.env.WEBHOOK_SECRET)) {
+    return reply.status(401).send({ error: 'Invalid signature' });
   }
 
   // Process webhook...
-  res.status(200).json({ received: true });
+  return { received: true };
 });
 ```
 

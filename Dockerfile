@@ -13,7 +13,7 @@ RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 
 # Build TypeScript
-RUN npm run build
+RUN pnpm build
 
 # Production stage
 FROM node:20-alpine
