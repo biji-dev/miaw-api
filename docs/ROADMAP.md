@@ -1,7 +1,7 @@
 # Miaw API - Project Plan
 
 **Date:** 2026-01-21
-**Status:** v1.0.0 Released (Phase 15 Complete)
+**Status:** v1.1.0 Released; miaw-core 1.9.1 synchronization in progress
 
 ---
 
@@ -23,7 +23,11 @@
 ## Implementation Status
 
 **Current Version:** v1.0.0 (Phase 15 Complete)
-**miaw-core Version:** v1.2.1 (Production-ready)
+**miaw-core Version:** v1.9.1 (latest npm release)
+
+The current synchronization adds rich messages, chat/status operations,
+business extras, communities, pairing-code/proxy options, LID operations, and
+the latest core webhook events while preserving the existing HTTP API.
 
 | Phase | Name                       | Status         | Version |
 | ----- | -------------------------- | -------------- | ------- |

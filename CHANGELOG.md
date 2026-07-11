@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Full HTTP coverage for `miaw-core` 1.9.1 rich messages, chat operations,
+  statuses, business extras, communities, LID operations, and runtime controls.
+- Pairing-code and per-instance proxy/client configuration, with protected QR
+  and pairing-code challenge endpoints.
+- Webhooks for `pairing_code`, `poll_vote`, `message_receipt`, and
+  `session_saved`, including disconnect status codes.
+
+### Changed
+
+- Migrated the API runtime and TypeScript build to native ESM/NodeNext.
+- Corrected the dependency to npm-published `miaw-core ^1.9.1`, removed the
+  unused direct Baileys dependency, and regenerated the pnpm lockfile.
+- Existing message operations now resolve stored `MiawMessage` objects before
+  invoking core; legacy generic media requests dispatch to typed media methods.
+
+### Fixed
+
+- Replaced obsolete core calls for group participants/admins, profiles,
+  products, newsletters, reactions, forwarding, editing, and deletion.
+- Prevented duplicate ready/disconnected webhooks and masked proxy credentials
+  in operational responses.
+
 ## [1.1.0] - 2026-07-09
 
 ### Added
@@ -23,7 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conventions.
 - Renamed webhook config env vars to match the code: `WEBHOOK_TIMEOUT` →
   `WEBHOOK_TIMEOUT_MS`, `WEBHOOK_RETRY_DELAY` → `WEBHOOK_RETRY_DELAY_MS`.
-- Bumped `miaw-core` dependency to `^1.9.2`.
+- Intended to bump `miaw-core`; the published synchronization is completed in
+  the Unreleased section with `^1.9.1`.
 
 ### Fixed
 
@@ -121,7 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- **miaw-core** v1.2.1 - WhatsApp Web API wrapper
+- **miaw-core** v1.9.1 - WhatsApp Web API wrapper
 - **fastify** v5.2.0 - Web framework
 - **@fastify/swagger** v9.0.0 - OpenAPI documentation
 - **@scalar/fastify-api-reference** v1.40.9 - API reference UI

@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.9.0 (Phase 9 - Basic GET Operations)
+**Version:** 1.1.0 · synchronized with `miaw-core` 1.9.1
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -10,15 +10,32 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 
 - **Multi-Instance Management** - Create and manage multiple WhatsApp instances
 - **Full Messaging** - Text, media, edit, delete, reactions, forward
+- **Rich Messaging** - Locations, contact cards, stickers, polls, mentions, and replies
+- **Chat & Status Management** - Archive, pin, mute, star, read state, and status stories
 - **Contact Validation** - Check numbers, get contact info, profile pictures
 - **Group Management** - Create groups, manage participants, admin operations
+- **Community Management** - Communities, linked groups, members, admins, and invites
+- **Business Extras** - Business profile, cover photo, orders, and quick replies
+- **Operations** - Pairing-code auth, per-instance proxies, runtime controls, and LID resolution
 - **Profile Management** - Update profile name, status, picture
 - **RESTful API** - Clean JSON API with OpenAPI/Swagger documentation
 - **Real-Time Webhooks** - Receive events (messages, edits, reactions, etc.) via webhooks
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 9 - Basic GET Operations)
+## Current Status
+
+The API exposes the HTTP-serializable `miaw-core` 1.9.1 surface. Existing endpoint
+contracts remain available, while their internal calls now use the current core
+method names and message-object semantics.
+
+### miaw-core 1.9.1 synchronization
+
+- QR or pairing-code authentication with protected challenge retrieval
+- Rich messaging, chat operations, statuses, business extras, and communities
+- LID mapping/resolution and masked proxy/runtime inspection
+- Webhooks for pairing codes, poll votes, message receipts, and session saves
+- ESM runtime compatible with the ESM-only `miaw-core`
 
 ### Implemented (Phase 1-9)
 
@@ -98,12 +115,6 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Get all chats
 - Get chat messages
 
-### Planned (Phase 10+)
-
-- Polish & Testing
-- Performance optimization
-- Security audit
-
 See [docs/ROADMAP.md](./docs/ROADMAP.md) for the full roadmap.
 
 ## Quick Start
@@ -111,7 +122,7 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for the full roadmap.
 ### Prerequisites
 
 - Node.js >= 18.0.0
-- npm or yarn
+- pnpm 10 (via Corepack)
 
 ### Installation
 
@@ -121,10 +132,11 @@ git clone <repository-url>
 cd miaw-api
 
 # Install dependencies
-npm install
+corepack enable
+pnpm install --frozen-lockfile
 
 # Build the project
-npm run build
+pnpm build
 ```
 
 ### Configuration
@@ -162,10 +174,10 @@ LOG_LEVEL=info
 
 ```bash
 # Start the server
-npm start
+pnpm start
 
 # Or in development mode
-npm run dev:start
+pnpm dev:start
 ```
 
 The API will be available at `http://localhost:3000`
