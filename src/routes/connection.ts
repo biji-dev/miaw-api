@@ -7,8 +7,8 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { createAuthMiddleware } from '../middleware/auth';
-import { NotFoundError, ServiceUnavailableError } from '../utils/errorHandler';
+import { createAuthMiddleware } from '../middleware/auth.js';
+import { NotFoundError, ServiceUnavailableError } from '../utils/errorHandler.js';
 
 /**
  * Register connection routes
@@ -90,7 +90,7 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
 
       if (!client) {
@@ -175,7 +175,7 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
 
       if (!client) {
@@ -235,7 +235,7 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
 
       if (!client) {
@@ -321,7 +321,7 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const instance = instanceManager.getInstance(params.id);
 
       if (!instance) {

@@ -5,13 +5,13 @@
 
 import { EventEmitter } from 'events';
 import { MiawClient, MiawClientOptions, ConnectionState } from 'miaw-core';
-import pino from 'pino';
+import { pino } from 'pino';
 import {
   InstanceConfig,
   InstanceState,
   WebhookEvent,
   WebhookPayload,
-} from '../types';
+} from '../types/index.js';
 
 interface InstanceManagerOptions {
   sessionPath: string;
@@ -26,6 +26,8 @@ interface ManagedInstance {
   client: MiawClient;
   state: InstanceState;
   disconnectTimeout?: NodeJS.Timeout;
+  qrCode?: string;
+  pairingCode?: string;
 }
 
 /**
@@ -56,9 +58,10 @@ export class InstanceManager extends EventEmitter {
 
     // Create MiawClient
     const clientOptions: MiawClientOptions = {
+      ...config.clientOptions,
       instanceId,
       sessionPath: this.options.sessionPath,
-      debug: false,
+      debug: config.clientOptions?.debug ?? false,
     };
 
     const client = new MiawClient(clientOptions);
@@ -73,6 +76,7 @@ export class InstanceManager extends EventEmitter {
       webhookEvents: config.webhookEvents || [],
       webhookUrl: config.webhookUrl,
       webhookEnabled: !!config.webhookUrl,
+      authMode: config.clientOptions?.usePairingCode ? 'pairing_code' : 'qr',
       createdAt: new Date(),
       lastActivity: new Date(),
     };
@@ -172,6 +176,12 @@ export class InstanceManager extends EventEmitter {
     return managed ? managed.client : null;
   }
 
+  getAuthChallenge(instanceId: string, type: 'qr' | 'pairing_code'): string | null {
+    const managed = this.instances.get(instanceId);
+    if (!managed) throw new Error(`Instance ${instanceId} not found`);
+    return type === 'qr' ? managed.qrCode || null : managed.pairingCode || null;
+  }
+
   /**
    * Update instance state
    */
@@ -195,29 +205,40 @@ export class InstanceManager extends EventEmitter {
       this.emitWebhook(instanceId, 'connection', { state });
 
       if (state === 'connected') {
-        const user = (client as any).socket?.user;
-        if (user) {
-          this.updateState(instanceId, {
-            connectedAt: new Date(),
-            phoneNumber: user.id?.split('@')[0],
-          });
-        }
-        this.emitWebhook(instanceId, 'ready', {
-          instanceId,
-          connectedAt: Date.now(),
-        });
-      } else if (state === 'disconnected') {
-        this.emitWebhook(instanceId, 'disconnected', {
-          reason: 'Disconnected',
+        this.updateState(instanceId, { connectedAt: new Date() });
+        void client.getOwnProfile().then((profile) => {
+          if (profile?.phone) this.updateState(instanceId, { phoneNumber: profile.phone });
+        }).catch((error: unknown) => {
+          this.logger.debug({ instanceId, error }, 'Unable to read own profile after connect');
         });
       }
+    });
+
+    client.on('ready', () => {
+      const managed = this.instances.get(instanceId);
+      if (managed) {
+        managed.qrCode = undefined;
+        managed.pairingCode = undefined;
+      }
+      this.emitWebhook(instanceId, 'ready', {
+        instanceId,
+        connectedAt: Date.now(),
+      });
     });
 
     // QR code
     client.on('qr', (qr: string) => {
       this.logger.info({ instanceId }, 'QR code received');
       this.updateState(instanceId, { status: 'qr_required' });
+      const managed = this.instances.get(instanceId);
+      if (managed) managed.qrCode = qr;
       this.emitWebhook(instanceId, 'qr', { qr });
+    });
+
+    client.on('pairing_code', (code: string) => {
+      const managed = this.instances.get(instanceId);
+      if (managed) managed.pairingCode = code;
+      this.emitWebhook(instanceId, 'pairing_code', { code });
     });
 
     // Reconnecting
@@ -228,10 +249,10 @@ export class InstanceManager extends EventEmitter {
     });
 
     // Disconnected
-    client.on('disconnected', (reason?: string) => {
-      this.logger.info({ instanceId, reason }, 'Disconnected');
+    client.on('disconnected', (reason?: string, statusCode?: number) => {
+      this.logger.info({ instanceId, reason, statusCode }, 'Disconnected');
       this.updateState(instanceId, { status: 'disconnected' });
-      this.emitWebhook(instanceId, 'disconnected', { reason });
+      this.emitWebhook(instanceId, 'disconnected', { reason, statusCode });
     });
 
     // Error
@@ -264,6 +285,14 @@ export class InstanceManager extends EventEmitter {
       this.emitWebhook(instanceId, 'message_reaction', reaction);
     });
 
+    client.on('message_receipt', (receipt) => {
+      this.emitWebhook(instanceId, 'message_receipt', receipt);
+    });
+
+    client.on('poll_vote', (vote) => {
+      this.emitWebhook(instanceId, 'poll_vote', vote);
+    });
+
     // Presence update
     client.on('presence', (update: any) => {
       this.logger.debug({ instanceId, jid: update.jid }, 'Presence update');
@@ -273,6 +302,7 @@ export class InstanceManager extends EventEmitter {
     // Session saved
     client.on('session_saved', () => {
       this.logger.debug({ instanceId }, 'Session saved');
+      this.emitWebhook(instanceId, 'session_saved', {});
     });
   }
 

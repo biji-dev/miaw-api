@@ -3,7 +3,7 @@
  * Handles delivery of webhook events with retry mechanism
  */
 
-import pino from 'pino';
+import { pino } from 'pino';
 import crypto from 'crypto';
 
 interface WebhookDispatcherOptions {

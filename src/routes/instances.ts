@@ -7,8 +7,9 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { createAuthMiddleware } from '../middleware/auth';
-import { ConflictError, NotFoundError } from '../utils/errorHandler';
+import { createAuthMiddleware } from '../middleware/auth.js';
+import { ConflictError, NotFoundError } from '../utils/errorHandler.js';
+import type { InstanceClientOptions, WebhookEvent } from '../types/index.js';
 
 /**
  * Register instance routes
@@ -44,6 +45,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
                   webhookUrl: { type: 'string', nullable: true },
                   webhookEvents: { type: 'array', items: { type: 'string' } },
                   webhookEnabled: { type: 'boolean' },
+                  authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
                   createdAt: { type: 'string', format: 'date-time' },
                   lastActivity: { type: 'string', format: 'date-time' },
                 },
@@ -70,10 +72,11 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
       const body = request.body as {
         instanceId: string;
         webhookUrl?: string;
-        webhookEvents?: string[];
+        webhookEvents?: WebhookEvent[];
+        clientOptions?: InstanceClientOptions;
       };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
 
       try {
         const state = await instanceManager.createInstance(body);
@@ -116,6 +119,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
                     webhookUrl: { type: 'string', nullable: true },
                     webhookEvents: { type: 'array', items: { type: 'string' } },
                     webhookEnabled: { type: 'boolean' },
+                    authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
                     createdAt: { type: 'string', format: 'date-time' },
                     lastActivity: { type: 'string', format: 'date-time' },
                   },
@@ -127,7 +131,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
       },
     },
     async (_request, reply) => {
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const instances = instanceManager.listInstances();
 
       reply.send({
@@ -168,6 +172,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
                   webhookUrl: { type: 'string', nullable: true },
                   webhookEvents: { type: 'array', items: { type: 'string' } },
                   webhookEnabled: { type: 'boolean' },
+                  authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
                   createdAt: { type: 'string', format: 'date-time' },
                   lastActivity: { type: 'string', format: 'date-time' },
                   connectedAt: { type: 'string', format: 'date-time', nullable: true },
@@ -194,7 +199,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const instance = instanceManager.getInstance(params.id);
 
       if (!instance) {
@@ -242,6 +247,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
                   webhookUrl: { type: 'string', nullable: true },
                   webhookEvents: { type: 'array', items: { type: 'string' } },
                   webhookEnabled: { type: 'boolean' },
+                  authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
                   createdAt: { type: 'string', format: 'date-time' },
                   lastActivity: { type: 'string', format: 'date-time' },
                   connectedAt: { type: 'string', format: 'date-time', nullable: true },
@@ -270,9 +276,9 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string };
       const body = request.body as {
         webhookUrl?: string | null;
-        webhookEvents?: string[];
+        webhookEvents?: WebhookEvent[];
       };
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
 
       try {
         const state = instanceManager.updateWebhook(params.id, body);
@@ -333,7 +339,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
 
       try {
         await instanceManager.deleteInstance(params.id);
@@ -349,4 +355,29 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  for (const challengeType of ['qr', 'pairing_code'] as const) {
+    const pathType = challengeType === 'qr' ? 'qr' : 'pairing-code';
+    server.get(`/instances/:id/auth/${pathType}`, {
+      schema: {
+        tags: ['Instances'],
+        summary: `Get current ${pathType}`,
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string' } },
+        },
+      },
+    }, async (request, reply) => {
+      const { id } = request.params as { id: string };
+      let value: string | null;
+      try {
+        value = server.instanceManager.getAuthChallenge(id, challengeType);
+      } catch {
+        throw new NotFoundError('Instance');
+      }
+      if (!value) throw new NotFoundError(pathType === 'qr' ? 'QR code' : 'Pairing code');
+      reply.send({ success: true, data: { [challengeType === 'qr' ? 'qr' : 'code']: value } });
+    });
+  }
 }

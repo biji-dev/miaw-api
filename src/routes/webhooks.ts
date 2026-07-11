@@ -5,8 +5,8 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { createAuthMiddleware } from '../middleware/auth';
-import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler';
+import { createAuthMiddleware } from '../middleware/auth.js';
+import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler.js';
 
 /**
  * Register webhook management routes
@@ -52,8 +52,8 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
                 type: 'object',
                 properties: {
                   sent: { type: 'boolean' },
-                  webhookUrl: { type: 'string' },
-                  testEvent: { type: 'object' },
+                  webhookUrl: { type: 'string', nullable: true },
+                  testEvent: { type: 'object', additionalProperties: true },
                 },
               },
             },
@@ -102,9 +102,9 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const body = request.body as { event?: string };
+      const body = (request.body || {}) as { event?: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const instance = instanceManager.getInstance(params.id);
 
       if (!instance) {
@@ -128,7 +128,7 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
 
       try {
         // Get webhook dispatcher and queue test event
-        const webhookDispatcher = (server as any).webhookDispatcher;
+        const webhookDispatcher = server.webhookDispatcher;
         if (!webhookDispatcher) {
           throw new ServiceUnavailableError('Webhook dispatcher not available');
         }
@@ -181,7 +181,7 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
                 type: 'object',
                 properties: {
                   instanceId: { type: 'string' },
-                  webhookUrl: { type: 'string' },
+                  webhookUrl: { type: 'string', nullable: true },
                   webhookEvents: {
                     type: 'array',
                     items: { type: 'string' },
@@ -219,7 +219,7 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const instance = instanceManager.getInstance(params.id);
 
       if (!instance) {
@@ -227,7 +227,7 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const webhookDispatcher = (server as any).webhookDispatcher;
+        const webhookDispatcher = server.webhookDispatcher;
         if (!webhookDispatcher) {
           throw new ServiceUnavailableError('Webhook dispatcher not available');
         }

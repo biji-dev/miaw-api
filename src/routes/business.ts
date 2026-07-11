@@ -15,8 +15,8 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { createAuthMiddleware } from '../middleware/auth';
-import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler';
+import { createAuthMiddleware } from '../middleware/auth.js';
+import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler.js';
 
 /**
  * Register business features routes
@@ -120,7 +120,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
         predefinedId?: string;
       };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -133,13 +133,14 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const result = await client.addLabel({
+        const label = {
           id: body.id || '',
           name: body.name,
           color: body.color,
           deleted: false,
           predefinedId: body.predefinedId,
-        });
+        } as Parameters<typeof client.addLabel>[0];
+        const result = await client.addLabel(label);
 
         reply.send({
           success: true,
@@ -231,7 +232,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; labelId: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -342,7 +343,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; jid: string; labelId: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -447,7 +448,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; jid: string; labelId: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -562,7 +563,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string; messageId: string; labelId: string };
       const body = request.body as { jid: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -677,7 +678,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string; messageId: string; labelId: string };
       const body = request.body as { jid: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -799,7 +800,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; labelId: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -931,7 +932,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string };
       const query = request.query as { businessJid?: string; limit?: number };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -944,7 +945,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const catalog = await client.getProductCatalog(query.businessJid, query.limit);
+        const catalog = await client.getCatalog(query.businessJid, query.limit);
 
         reply.send({
           success: true,
@@ -1049,7 +1050,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string };
       const query = request.query as { businessJid?: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -1062,7 +1063,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const collections = await client.getProductCollections(query.businessJid);
+        const collections = await client.getCollections(query.businessJid);
 
         reply.send({
           success: true,
@@ -1165,7 +1166,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
         originCountryCode?: string;
       };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -1298,7 +1299,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
         originCountryCode?: string;
       };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -1422,7 +1423,7 @@ export async function businessRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string };
       const body = request.body as { productIds: string[] };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 

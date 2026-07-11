@@ -6,8 +6,8 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { InstanceManager } from '../services/InstanceManager';
-import { NotFoundError, BadRequestError } from '../utils/errorHandler';
+import { InstanceManager } from '../services/InstanceManager.js';
+import { NotFoundError, BadRequestError } from '../utils/errorHandler.js';
 
 /**
  * Register basic GET operation routes

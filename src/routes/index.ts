@@ -4,19 +4,23 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { InstanceManager } from '../services/InstanceManager';
-import { instanceRoutes } from './instances';
-import { connectionRoutes } from './connection';
-import { messagingRoutes } from './messaging';
-import { contactRoutes } from './contacts';
-import { groupRoutes } from './groups';
-import { profileRoutes } from './profile';
-import { presenceRoutes } from './presence';
-import { webhookRoutes } from './webhooks';
-import { businessRoutes } from './business';
-import { newsletterRoutes } from './newsletters';
-import { basicGetsRoutes } from './basic-gets';
-import { sessionRoutes } from './session';
+import { InstanceManager } from '../services/InstanceManager.js';
+import { instanceRoutes } from './instances.js';
+import { connectionRoutes } from './connection.js';
+import { messagingRoutes } from './messaging.js';
+import { contactRoutes } from './contacts.js';
+import { groupRoutes } from './groups.js';
+import { profileRoutes } from './profile.js';
+import { presenceRoutes } from './presence.js';
+import { webhookRoutes } from './webhooks.js';
+import { businessRoutes } from './business.js';
+import { newsletterRoutes } from './newsletters.js';
+import { basicGetsRoutes } from './basic-gets.js';
+import { sessionRoutes } from './session.js';
+import { advancedMessagingRoutes } from './advanced-messaging.js';
+import { businessExtraRoutes } from './business-extras.js';
+import { communityRoutes } from './communities.js';
+import { operationRoutes } from './operations.js';
 
 /**
  * Register all routes
@@ -59,4 +63,9 @@ export async function registerRoutes(server: FastifyInstance, instanceManager: I
 
   // Session lifecycle & stats routes (v0.15.0)
   await server.register(sessionRoutes);
+
+  await server.register(advancedMessagingRoutes);
+  await server.register(businessExtraRoutes);
+  await server.register(communityRoutes);
+  await server.register(operationRoutes);
 }

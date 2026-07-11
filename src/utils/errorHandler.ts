@@ -79,6 +79,26 @@ export function errorHandler(
     return;
   }
 
+  const httpError = error as Error & {
+    statusCode?: number;
+    code?: string;
+    validation?: unknown;
+  };
+  if (httpError.statusCode && httpError.statusCode >= 400 && httpError.statusCode < 500) {
+    const correlationId = crypto.randomUUID();
+    request.log.warn({ correlationId, error });
+    reply.status(httpError.statusCode).send({
+      success: false,
+      error: {
+        code: httpError.validation ? 'INVALID_REQUEST' : (httpError.code || 'HTTP_ERROR'),
+        message: httpError.message,
+        details: httpError.validation,
+        correlationId,
+      },
+    });
+    return;
+  }
+
   // Handle unknown errors with a generated correlation ID for tracking
   const correlationId = crypto.randomUUID();
   request.log.error({ correlationId, error });

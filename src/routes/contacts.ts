@@ -11,8 +11,8 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { createAuthMiddleware } from '../middleware/auth';
-import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler';
+import { createAuthMiddleware } from '../middleware/auth.js';
+import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler.js';
 
 /**
  * Register contact routes
@@ -102,7 +102,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string };
       const body = request.body as { phone: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -215,7 +215,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
       const params = request.params as { id: string };
       const body = request.body as { phones: string[] };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -320,7 +320,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; jid: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -439,7 +439,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; jid: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -541,7 +541,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; jid: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -554,7 +554,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const pictureUrl = await client.getProfilePictureUrl(params.jid);
+        const pictureUrl = await client.getProfilePicture(params.jid);
 
         reply.send({
           success: true,
@@ -650,7 +650,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; jid: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -763,7 +763,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
         lastName?: string;
       };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
@@ -883,7 +883,7 @@ export async function contactRoutes(server: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const params = request.params as { id: string; phone: string };
 
-      const instanceManager = (server as any).instanceManager;
+      const instanceManager = server.instanceManager;
       const client = instanceManager.getClient(params.id);
       const instance = instanceManager.getInstance(params.id);
 
