@@ -1,6 +1,6 @@
 {
   "name": "miaw-api",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "REST API wrapper for miaw-core - Multiple Instance of App WhatsApp",
   "main": "dist/server.js",
@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "pnpm build",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "dev:start": "node --env-file-if-exists=.env --loader ts-node/esm src/server.ts",
     "test": "vitest run",
