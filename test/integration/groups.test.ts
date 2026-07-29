@@ -41,7 +41,7 @@ describe('Phase 4 Group Management Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: [],
@@ -52,7 +52,7 @@ describe('Phase 4 Group Management Tests', () => {
     // Cleanup: Leave test group and delete instance
     if (testGroupJid) {
       try {
-        await client.delete(`/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`);
+        await client.delete(`/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`);
       } catch {
         // Ignore if already left or group doesn't exist
       }
@@ -60,7 +60,7 @@ describe('Phase 4 Group Management Tests', () => {
     }
 
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -68,21 +68,21 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Create Group', () => {
     it.skip('should create a new group with participants', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/groups`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
       expect(response.data.data.groupJid).toBeDefined();
       expect(response.data.data.groupJid).toContain('@g.us');
 
@@ -91,14 +91,14 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should reject group creation with empty name', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/groups`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: '',
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
@@ -109,14 +109,14 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should reject group creation without participants', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/groups`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [],
       });
@@ -127,7 +127,7 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/groups`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
@@ -140,7 +140,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Get Group Info', () => {
     it.skip('should return group metadata', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -148,12 +148,12 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       // First create a group
-      const createResponse = await client.post(`/instances/${testInstanceId}/groups`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (!createResponse.data.data.success) {
+      if (!createResponse.data.data.groupJid) {
         console.log('Skipping test - failed to create group');
         return;
       }
@@ -161,7 +161,7 @@ describe('Phase 4 Group Management Tests', () => {
       testGroupJid = createResponse.data.data.groupJid;
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`
       );
 
       expect(response.status).toBe(200);
@@ -174,7 +174,7 @@ describe('Phase 4 Group Management Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/123456789@g.us`
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us`
       );
 
       expect(response.status).toBe(503);
@@ -182,7 +182,7 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should return error for invalid group JID', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -190,7 +190,7 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/invalid-group-jid`
+        `/api/v1/instances/${testInstanceId}/groups/invalid-group-jid`
       );
 
       expect(response.status).toBe(400);
@@ -200,7 +200,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Update Group', () => {
     it.skip('should update group name', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -208,12 +208,12 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       // Create a group first
-      const createResponse = await client.post(`/instances/${testInstanceId}/groups`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (!createResponse.data.data.success) {
+      if (!createResponse.data.data.groupJid) {
         console.log('Skipping test - failed to create group');
         return;
       }
@@ -221,7 +221,7 @@ describe('Phase 4 Group Management Tests', () => {
       testGroupJid = createResponse.data.data.groupJid;
 
       const response = await client.patch(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`,
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`,
         {
           name: `Updated Group ${Date.now()}`,
         }
@@ -229,11 +229,11 @@ describe('Phase 4 Group Management Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.name).toBeDefined();
     });
 
     it.skip('should update group description', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -244,7 +244,7 @@ describe('Phase 4 Group Management Tests', () => {
       const groupJid = TEST_CONFIG.TEST_GROUP_JID || '123456789@g.us';
 
       const response = await client.patch(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}`,
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}`,
         {
           description: 'Test group description',
         }
@@ -255,7 +255,7 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should update both name and description', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -263,12 +263,12 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       // Create a group first
-      const createResponse = await client.post(`/instances/${testInstanceId}/groups`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (!createResponse.data.data.success) {
+      if (!createResponse.data.data.groupJid) {
         console.log('Skipping test - failed to create group');
         return;
       }
@@ -276,7 +276,7 @@ describe('Phase 4 Group Management Tests', () => {
       testGroupJid = createResponse.data.data.groupJid;
 
       const response = await client.patch(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`,
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`,
         {
           name: `Updated ${Date.now()}`,
           description: 'Updated description',
@@ -289,7 +289,7 @@ describe('Phase 4 Group Management Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.patch(
-        `/instances/${testInstanceId}/groups/123456789@g.us`,
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us`,
         {
           name: 'New Name',
         }
@@ -302,7 +302,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Participant Management', () => {
     it.skip('should add participants to group', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -312,9 +312,10 @@ describe('Phase 4 Group Management Tests', () => {
       // Use existing test group
       const groupJid = TEST_CONFIG.TEST_GROUP_JID || '123456789@g.us';
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/participants`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/participants`,
         {
+          operation: 'add',
           participants: [TEST_CONFIG.TEST_CONTACT_B],
         }
       );
@@ -326,7 +327,7 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should remove participants from group', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -334,21 +335,22 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       // Create a group first with participant
-      const createResponse = await client.post(`/instances/${testInstanceId}/groups`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A, TEST_CONFIG.TEST_CONTACT_B],
       });
 
-      if (!createResponse.data.data.success) {
+      if (!createResponse.data.data.groupJid) {
         console.log('Skipping test - failed to create group');
         return;
       }
 
       testGroupJid = createResponse.data.data.groupJid;
 
-      const response = await client.delete(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}/participants`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}/participants`,
         {
+          operation: 'remove',
           participants: [TEST_CONFIG.TEST_CONTACT_B],
         }
       );
@@ -360,9 +362,10 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/123456789@g.us/participants`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us/participants`,
         {
+          operation: 'add',
           participants: [TEST_CONFIG.TEST_CONTACT_A],
         }
       );
@@ -372,9 +375,10 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should reject empty participants array', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/123456789@g.us/participants`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us/participants`,
         {
+          operation: 'add',
           participants: [],
         }
       );
@@ -386,7 +390,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Admin Management', () => {
     it.skip('should promote participant to admin', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -396,9 +400,10 @@ describe('Phase 4 Group Management Tests', () => {
       // Use existing test group where bot is admin
       const groupJid = TEST_CONFIG.TEST_GROUP_JID || '123456789@g.us';
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/admins`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/participants`,
         {
+          operation: 'promote',
           participants: [TEST_CONFIG.TEST_CONTACT_A],
         }
       );
@@ -410,7 +415,7 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should demote admin to participant', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -420,9 +425,10 @@ describe('Phase 4 Group Management Tests', () => {
       // Use existing test group where bot is admin
       const groupJid = TEST_CONFIG.TEST_GROUP_JID || '123456789@g.us';
 
-      const response = await client.delete(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/admins`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/participants`,
         {
+          operation: 'demote',
           participants: [TEST_CONFIG.TEST_CONTACT_A],
         }
       );
@@ -434,9 +440,10 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/123456789@g.us/admins`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us/participants`,
         {
+          operation: 'promote',
           participants: [TEST_CONFIG.TEST_CONTACT_A],
         }
       );
@@ -448,7 +455,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Group Picture', () => {
     it.skip('should update group picture from URL', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -456,20 +463,20 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       // Create a group first
-      const createResponse = await client.post(`/instances/${testInstanceId}/groups`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (!createResponse.data.data.success) {
+      if (!createResponse.data.data.groupJid) {
         console.log('Skipping test - failed to create group');
         return;
       }
 
       testGroupJid = createResponse.data.data.groupJid;
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}/picture`,
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}/picture`,
         {
           url: 'https://picsum.photos/500',
         }
@@ -477,19 +484,19 @@ describe('Phase 4 Group Management Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
     });
 
     it.skip('should reject invalid URL', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/123456789@g.us/picture`,
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us/picture`,
         {
           url: 'not-a-valid-url',
         }
@@ -500,8 +507,8 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/123456789@g.us/picture`,
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us/picture`,
         {
           url: 'https://example.com/image.jpg',
         }
@@ -514,7 +521,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Invite Link Management', () => {
     it.skip('should get group invite link', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -525,17 +532,17 @@ describe('Phase 4 Group Management Tests', () => {
       const groupJid = TEST_CONFIG.TEST_GROUP_JID || '123456789@g.us';
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/invite`
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/invite`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.url).toBeDefined();
-      expect(typeof response.data.data.url).toBe('string');
+      expect(response.data.data.inviteUrl).toBeDefined();
+      expect(typeof response.data.data.inviteUrl).toBe('string');
     });
 
     it.skip('should revoke and generate new invite link', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -543,30 +550,30 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       // Create a group first
-      const createResponse = await client.post(`/instances/${testInstanceId}/groups`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (!createResponse.data.data.success) {
+      if (!createResponse.data.data.groupJid) {
         console.log('Skipping test - failed to create group');
         return;
       }
 
       testGroupJid = createResponse.data.data.groupJid;
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}/revoke-invite`
+      const response = await client.delete(
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}/invite`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.url).toBeDefined();
-      expect(typeof response.data.data.url).toBe('string');
+      expect(response.data.data.inviteUrl).toBeDefined();
+      expect(typeof response.data.data.inviteUrl).toBe('string');
     });
 
     it.skip('should join group via invite code', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -577,7 +584,8 @@ describe('Phase 4 Group Management Tests', () => {
       const inviteCode = TEST_CONFIG.TEST_GROUP_INVITE || 'ABC123';
 
       const response = await client.post(
-        `/instances/${testInstanceId}/groups/join/${inviteCode}`
+        `/api/v1/instances/${testInstanceId}/group-memberships`,
+        { inviteCode }
       );
 
       // May fail if invite code is invalid, but endpoint should work
@@ -587,7 +595,7 @@ describe('Phase 4 Group Management Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/123456789@g.us/invite`
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us/invite`
       );
 
       expect(response.status).toBe(503);
@@ -597,7 +605,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Leave Group', () => {
     it.skip('should leave a group', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -605,12 +613,12 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       // Create a group first
-      const createResponse = await client.post(`/instances/${testInstanceId}/groups`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/groups`, {
         name: `Test Group ${Date.now()}`,
         participants: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (!createResponse.data.data.success) {
+      if (!createResponse.data.data.groupJid) {
         console.log('Skipping test - failed to create group');
         return;
       }
@@ -618,12 +626,12 @@ describe('Phase 4 Group Management Tests', () => {
       testGroupJid = createResponse.data.data.groupJid;
 
       const response = await client.delete(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(testGroupJid)}`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.removed).toBe(true);
 
       // Group left, clear for cleanup
       testGroupJid = null;
@@ -631,7 +639,7 @@ describe('Phase 4 Group Management Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.delete(
-        `/instances/${testInstanceId}/groups/123456789@g.us`
+        `/api/v1/instances/${testInstanceId}/groups/123456789@g.us`
       );
 
       expect(response.status).toBe(503);
@@ -641,7 +649,7 @@ describe('Phase 4 Group Management Tests', () => {
 
   describe('Error Handling', () => {
     it.skip('should handle invalid group JID format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -649,7 +657,7 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/invalid-jid-format`
+        `/api/v1/instances/${testInstanceId}/groups/invalid-jid-format`
       );
 
       expect(response.status).toBe(400);
@@ -657,7 +665,7 @@ describe('Phase 4 Group Management Tests', () => {
     });
 
     it.skip('should handle non-existent group', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -665,7 +673,7 @@ describe('Phase 4 Group Management Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/999999999@g.us`
+        `/api/v1/instances/${testInstanceId}/groups/999999999@g.us`
       );
 
       // Should return error or not found

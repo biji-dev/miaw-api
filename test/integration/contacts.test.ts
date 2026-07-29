@@ -37,7 +37,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: [],
@@ -47,7 +47,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
   afterEach(async () => {
     // Cleanup: Delete test instance
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -55,61 +55,61 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
   describe('Check Phone Number', () => {
     it.skip('should return exists=true for valid WhatsApp number', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/check-number`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
+        phones: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.exists).toBeDefined();
-      expect(typeof response.data.data.exists).toBe('boolean');
+      expect(response.data.data.items[0].exists).toBeDefined();
+      expect(typeof response.data.data.items[0].exists).toBe('boolean');
     });
 
     it.skip('should return exists=false for invalid WhatsApp number', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/check-number`, {
-        phone: '999999999999', // Invalid number
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
+        phones: ['999999999999'], // Invalid number
       });
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.exists).toBe(false);
+      expect(response.data.data.items[0].exists).toBe(false);
     });
 
     it.skip('should return JID when number exists', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/check-number`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
+        phones: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (response.data.data.exists) {
-        expect(response.data.data.jid).toBeDefined();
-        expect(response.data.data.jid).toContain('@s.whatsapp.net');
+      if (response.data.data.items[0].exists) {
+        expect(response.data.data.items[0].jid).toBeDefined();
+        expect(response.data.data.items[0].jid).toContain('@s.whatsapp.net');
       }
     });
 
     it.skip('should reject check when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/check-number`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
+        phones: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
       expect(response.status).toBe(503);
@@ -118,15 +118,15 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should reject invalid phone format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/check-number`, {
-        phone: 'invalid-phone-with-letters',
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
+        phones: ['invalid-phone-with-letters'],
       });
 
       // Schema validation should catch this
@@ -135,8 +135,8 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should reject phone number that is too short', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/check-number`, {
-        phone: '12345', // Too short
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
+        phones: ['12345'], // Too short
       });
 
       // Schema validation should catch this
@@ -147,14 +147,14 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
   describe('Batch Check Numbers', () => {
     it.skip('should check multiple numbers in one request', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/check-batch`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
         phones: [
           TEST_CONFIG.TEST_CONTACT_A,
           TEST_CONFIG.TEST_CONTACT_B,
@@ -164,13 +164,13 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data).toHaveLength(3);
-      expect(response.data.data[0].phone).toBeDefined();
-      expect(response.data.data[0].exists).toBeDefined();
+      expect(response.data.data.items).toHaveLength(3);
+      expect(response.data.data.items[0].phone).toBeDefined();
+      expect(response.data.data.items[0].exists).toBeDefined();
     });
 
     it.skip('should reject empty array', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/check-batch`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
         phones: [],
       });
 
@@ -182,7 +182,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     it.skip('should reject more than 50 numbers', async () => {
       const tooManyPhones = Array.from({ length: 51 }, (_, i) => `62812345678${i}`);
 
-      const response = await client.post(`/instances/${testInstanceId}/check-batch`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
         phones: tooManyPhones,
       });
 
@@ -192,7 +192,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/check-batch`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
         phones: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
@@ -201,14 +201,14 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should handle mix of valid and invalid numbers', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/check-batch`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
         phones: [
           TEST_CONFIG.TEST_CONTACT_A,
           '999999999999',
@@ -218,17 +218,17 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data).toHaveLength(3);
+      expect(response.data.data.items).toHaveLength(3);
 
       // At least one should exist (real contacts)
-      const validContacts = response.data.data.filter((r: any) => r.exists);
+      const validContacts = response.data.data.items.filter((r: any) => r.exists);
       expect(validContacts.length).toBeGreaterThan(0);
     });
   });
 
   describe('Get Contact Info', () => {
     it.skip('should return contact info for valid JID', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -237,28 +237,28 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
       // First check number to get JID
       const checkResponse = await client.post(
-        `/instances/${testInstanceId}/check-number`,
+        `/api/v1/instances/${testInstanceId}/contacts/checks`,
         {
-          phone: TEST_CONFIG.TEST_CONTACT_A,
+          phones: [TEST_CONFIG.TEST_CONTACT_A],
         }
       );
 
-      if (!checkResponse.data.data.exists) {
+      if (!checkResponse.data.data.items[0].exists) {
         console.log('Skipping test - no valid contact');
         return;
       }
 
-      const jid = checkResponse.data.data.jid;
-      const response = await client.get(`/instances/${testInstanceId}/contacts/${jid}`);
+      const jid = checkResponse.data.data.items[0].jid;
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/contacts/${jid}`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.jid).toBe(jid);
+      expect(response.data.data.items[0].jid).toBe(jid);
       expect(response.data.data.name).toBeDefined();
     });
 
     it.skip('should return contact info with phone number', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -268,7 +268,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       // Use phone directly (should auto-convert to JID)
       const phoneJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(phoneJid)}`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(phoneJid)}`
       );
 
       expect(response.status).toBe(200);
@@ -277,7 +277,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/6281234567890@s.whatsapp.net`
+        `/api/v1/instances/${testInstanceId}/contacts/6281234567890@s.whatsapp.net`
       );
 
       expect(response.status).toBe(503);
@@ -287,7 +287,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
   describe('Get Profile Picture', () => {
     it.skip('should return picture URL for contact with picture', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -297,7 +297,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       // Use test contact
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/picture`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile-picture`
       );
 
       expect(response.status).toBe(200);
@@ -308,7 +308,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should return null URL for contact without picture', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -318,7 +318,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       // Use a number that might not have picture
       const jid = '999999999999@s.whatsapp.net';
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/picture`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile-picture`
       );
 
       expect(response.status).toBe(200);
@@ -329,7 +329,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/6281234567890@s.whatsapp.net/picture`
+        `/api/v1/instances/${testInstanceId}/contacts/6281234567890@s.whatsapp.net/profile-picture`
       );
 
       expect(response.status).toBe(503);
@@ -337,7 +337,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should handle group JID for profile picture', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -347,7 +347,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       // Use a test group JID if available
       const groupJid = TEST_CONFIG.TEST_GROUP_JID || '123456789@g.us';
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(groupJid)}/picture`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(groupJid)}/profile-picture`
       );
 
       expect(response.status).toBe(200);
@@ -358,7 +358,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
   describe('Number Format Handling', () => {
     it.skip('should handle phone number with various formats', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -373,7 +373,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
       for (const phone of formats) {
         const response = await client.post(
-          `/instances/${testInstanceId}/check-number`,
+          `/api/v1/instances/${testInstanceId}/contacts/checks`,
           {
             phone,
           }
@@ -385,35 +385,34 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should normalize phone number correctly', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/check-number`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/contacts/checks`, {
+        phones: [TEST_CONFIG.TEST_CONTACT_A],
       });
 
-      if (response.data.data.exists) {
+      if (response.data.data.items[0].exists) {
         // JID should be in correct format
-        expect(response.data.data.jid).toMatch(/@s\.whatsapp\.net$/);
+        expect(response.data.data.items[0].jid).toMatch(/@s\.whatsapp\.net$/);
       }
     });
   });
 
   describe('Add/Edit Contact', () => {
     it.skip('should add a new contact', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`, {
         name: 'Test Contact',
         firstName: 'Test',
         lastName: 'Contact',
@@ -421,13 +420,13 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
       expect(response.data.data.phone).toBe(TEST_CONFIG.TEST_CONTACT_A);
       expect(response.data.data.name).toBe('Test Contact');
     });
 
     it.skip('should edit an existing contact', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -435,14 +434,12 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       }
 
       // First add
-      await client.post(`/instances/${testInstanceId}/contacts`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      await client.put(`/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`, {
         name: 'Original Name',
       });
 
       // Then edit
-      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`, {
         name: 'Updated Name',
         firstName: 'Updated',
       });
@@ -453,8 +450,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should reject add contact when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`, {
         name: 'Test Contact',
       });
 
@@ -464,15 +460,14 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should reject invalid phone format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
-        phone: 'invalid-phone',
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/contacts/invalid-phone`, {
         name: 'Test Contact',
       });
 
@@ -481,7 +476,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
     });
 
     it.skip('should reject missing required fields', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -489,9 +484,10 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       }
 
       // Missing name
-      const response = await client.post(`/instances/${testInstanceId}/contacts`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
-      });
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`,
+        {}
+      );
 
       expect(response.status).toBe(400);
       expect(response.data.success).toBe(false);
@@ -500,7 +496,7 @@ describe('Phase 3 Contacts & Validation Tests', () => {
 
   describe('Remove Contact', () => {
     it.skip('should remove a contact', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -508,25 +504,24 @@ describe('Phase 3 Contacts & Validation Tests', () => {
       }
 
       // First add the contact
-      await client.post(`/instances/${testInstanceId}/contacts`, {
-        phone: TEST_CONFIG.TEST_CONTACT_A,
+      await client.put(`/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`, {
         name: 'Contact To Remove',
       });
 
       // Then remove
       const response = await client.delete(
-        `/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`
+        `/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.removed).toBe(true);
       expect(response.data.data.phone).toBe(TEST_CONFIG.TEST_CONTACT_A);
     });
 
     it.skip('should reject remove when instance is not connected', async () => {
       const response = await client.delete(
-        `/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`
+        `/api/v1/instances/${testInstanceId}/contacts/${TEST_CONFIG.TEST_CONTACT_A}`
       );
 
       expect(response.status).toBe(503);

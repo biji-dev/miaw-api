@@ -1,507 +1,119 @@
 /**
- * Phase 6 Presence & UX Integration Tests
+ * Canonical v2 presence integration tests.
  *
- * Tests presence and UX features:
- * - Set presence (available/unavailable)
- * - Send typing indicator
- * - Send recording indicator
- * - Stop typing/recording
- * - Mark message as read
- * - Subscribe to presence updates
- *
- * NOTE: These tests require a connected WhatsApp instance and a test contact.
+ * Mutating presence operations are intentionally skipped unless a connected
+ * WhatsApp account is supplied by the isolated live-test configuration.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
-import { WebhookTestServer } from './helpers/webhook.js';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TEST_CONFIG } from './fixtures/data.js';
+import { createTestClient, startTestServer, stopTestServer } from './helpers/server.js';
 
-describe('Phase 6 Presence & UX Tests', () => {
-  let client: any;
-  let webhookServer: WebhookTestServer;
-  let testInstanceId: string;
-  let testContactJid: string;
+describe('Presence and read-state operations', () => {
+  let client: ReturnType<typeof createTestClient>;
+  let instanceId: string;
+  const contactJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-  beforeAll(async () => {
-    await startTestServer();
-    webhookServer = new WebhookTestServer(3001);
-    await webhookServer.start();
-  }, 30000);
-
-  afterAll(async () => {
-    await webhookServer.stop();
-    await stopTestServer();
-  }, 10000);
+  beforeAll(async () => startTestServer(), 30000);
+  afterAll(async () => stopTestServer(), 10000);
 
   beforeEach(async () => {
     client = createTestClient();
-    testInstanceId = `test-${Date.now()}`;
-    testContactJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
-    webhookServer.clearEvents();
-
-    // Create instance
-    await client.post('/instances', {
-      instanceId: testInstanceId,
-      webhookUrl: webhookServer.getWebhookUrl(),
-      webhookEvents: [],
-    });
+    instanceId = `presence-${Date.now()}`;
+    await client.post('/api/v1/instances', { instanceId });
   });
 
   afterEach(async () => {
-    try {
-      await client.delete(`/instances/${testInstanceId}`);
-    } catch {
-      // Ignore if instance doesn't exist
+    await client.delete(`/api/v1/instances/${instanceId}`).catch(() => undefined);
+  });
+
+  it('rejects account presence changes while disconnected', async () => {
+    const response = await client.put(`/api/v1/instances/${instanceId}/presence`, {
+      status: 'available',
+    });
+    expect(response.status).toBe(503);
+    expect(response.data.success).toBe(false);
+  });
+
+  it('validates account presence state', async () => {
+    const response = await client.put(`/api/v1/instances/${instanceId}/presence`, {
+      status: 'invalid',
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it('requires account presence state', async () => {
+    const response = await client.put(`/api/v1/instances/${instanceId}/presence`, {});
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects chat presence changes while disconnected', async () => {
+    const response = await client.put(
+      `/api/v1/instances/${instanceId}/chats/${encodeURIComponent(contactJid)}/presence`,
+      { state: 'typing' }
+    );
+    expect(response.status).toBe(503);
+  });
+
+  it('validates chat presence state', async () => {
+    const response = await client.put(
+      `/api/v1/instances/${instanceId}/chats/${encodeURIComponent(contactJid)}/presence`,
+      { state: 'invalid' }
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects read receipts while disconnected', async () => {
+    const response = await client.put(
+      `/api/v1/instances/${instanceId}/messages/test-message/read-receipt?chatJid=${encodeURIComponent(contactJid)}`
+    );
+    expect(response.status).toBe(503);
+  });
+
+  it('allows message lookup without a chat hint', async () => {
+    const response = await client.put(
+      `/api/v1/instances/${instanceId}/messages/test-message/read-receipt`
+    );
+    expect(response.status).toBe(503);
+  });
+
+  it('rejects presence subscriptions while disconnected', async () => {
+    const response = await client.put(
+      `/api/v1/instances/${instanceId}/contacts/${encodeURIComponent(contactJid)}/presence-subscription`
+    );
+    expect(response.status).toBe(503);
+  });
+
+  it.skip('sets account availability on an isolated connected account', async () => {
+    const available = await client.put(`/api/v1/instances/${instanceId}/presence`, {
+      status: 'available',
+    });
+    const unavailable = await client.put(`/api/v1/instances/${instanceId}/presence`, {
+      status: 'unavailable',
+    });
+    expect(available.status).toBe(200);
+    expect(unavailable.status).toBe(200);
+  });
+
+  it.skip('sets typing, recording, and paused chat presence', async () => {
+    const url =
+      `/api/v1/instances/${instanceId}/chats/${encodeURIComponent(contactJid)}/presence`;
+    for (const state of ['typing', 'recording', 'paused']) {
+      const response = await client.put(url, { state });
+      expect(response.status).toBe(200);
+      expect(response.data.success).toBe(true);
+      expect(response.data.data.state).toBe(state);
     }
   });
 
-  describe('Set Presence', () => {
-    it.skip('should set presence to available (online)', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(`/instances/${testInstanceId}/presence`, {
-        status: 'available',
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
-    });
-
-    it.skip('should set presence to unavailable (offline)', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(`/instances/${testInstanceId}/presence`, {
-        status: 'unavailable',
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
-    });
-
-    it.skip('should reject invalid presence status', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(`/instances/${testInstanceId}/presence`, {
-        status: 'invalid',
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/presence`, {
-        status: 'available',
-      });
-
-      expect(response.status).toBe(503);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should reject missing status in request body', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/presence`, {});
-
-      expect(response.status).toBe(400);
-      expect(response.data.success).toBe(false);
-    });
-  });
-
-  describe('Send Typing Indicator', () => {
-    it.skip('should send typing indicator to contact', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(
-        `/instances/${testInstanceId}/typing/${testContactJid}`
-      );
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
-    });
-
-    it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/typing/${testContactJid}`
-      );
-
-      expect(response.status).toBe(503);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should handle invalid JID format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(`/instances/${testInstanceId}/typing/invalid-jid`);
-
-      // Should either work or return error, depending on baileys behavior
-      expect([200, 400, 500]).toContain(response.status);
-    });
-  });
-
-  describe('Send Recording Indicator', () => {
-    it.skip('should send recording indicator to contact', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(
-        `/instances/${testInstanceId}/recording/${testContactJid}`
-      );
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
-    });
-
-    it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/recording/${testContactJid}`
-      );
-
-      expect(response.status).toBe(503);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should handle invalid JID format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(
-        `/instances/${testInstanceId}/recording/invalid-jid`
-      );
-
-      // Should either work or return error, depending on baileys behavior
-      expect([200, 400, 500]).toContain(response.status);
-    });
-  });
-
-  describe('Stop Typing/Recording Indicator', () => {
-    it.skip('should stop typing indicator', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      // First send typing indicator
-      await client.post(`/instances/${testInstanceId}/typing/${testContactJid}`);
-
-      // Wait a bit
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Then stop it
-      const response = await client.post(
-        `/instances/${testInstanceId}/stop-typing/${testContactJid}`
-      );
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
-    });
-
-    it.skip('should stop recording indicator', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      // First send recording indicator
-      await client.post(`/instances/${testInstanceId}/recording/${testContactJid}`);
-
-      // Wait a bit
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Then stop it
-      const response = await client.post(
-        `/instances/${testInstanceId}/stop-typing/${testContactJid}`
-      );
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
-    });
-
-    it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/stop-typing/${testContactJid}`
-      );
-
-      expect(response.status).toBe(503);
-      expect(response.data.success).toBe(false);
-    });
-  });
-
-  describe('Mark Message as Read', () => {
-    it.skip('should mark message as read', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      // Create a minimal message object for testing
-      const testMessageId = `test-message-${Date.now()}`;
-      const response = await client.post(`/instances/${testInstanceId}/read`, {
-        messageId: testMessageId,
-        fromJid: testContactJid,
-      });
-
-      // Baileys may return success or error depending on if message exists
-      expect([200, 400, 500]).toContain(response.status);
-      if (response.status === 200) {
-        expect(response.data.success).toBe(true);
-      }
-    });
-
-    it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/read`, {
-        messageId: 'test-message-id',
-        fromJid: testContactJid,
-      });
-
-      expect(response.status).toBe(503);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should reject missing messageId', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(`/instances/${testInstanceId}/read`, {
-        fromJid: testContactJid,
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should reject missing fromJid', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(`/instances/${testInstanceId}/read`, {
-        messageId: 'test-message-id',
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.data.success).toBe(false);
-    });
-  });
-
-  describe('Subscribe to Presence', () => {
-    it.skip('should subscribe to presence updates for a contact', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(
-        `/instances/${testInstanceId}/subscribe/${testContactJid}`
-      );
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
-    });
-
-    it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/subscribe/${testContactJid}`
-      );
-
-      expect(response.status).toBe(503);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should handle invalid JID format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const response = await client.post(
-        `/instances/${testInstanceId}/subscribe/invalid-jid`
-      );
-
-      // Should either work or return error, depending on baileys behavior
-      expect([200, 400, 500]).toContain(response.status);
-    });
-
-    it.skip('should allow subscribing to multiple contacts', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const contactB = `${TEST_CONFIG.TEST_CONTACT_B}@s.whatsapp.net`;
-
-      // Subscribe to first contact
-      const response1 = await client.post(
-        `/instances/${testInstanceId}/subscribe/${testContactJid}`
-      );
-      expect(response1.status).toBe(200);
-
-      // Subscribe to second contact
-      const response2 = await client.post(
-        `/instances/${testInstanceId}/subscribe/${contactB}`
-      );
-      expect(response2.status).toBe(200);
-    });
-  });
-
-  describe('Combined Presence Operations', () => {
-    it.skip('should send typing and then stop', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      // Send typing
-      const typingResponse = await client.post(
-        `/instances/${testInstanceId}/typing/${testContactJid}`
-      );
-      expect(typingResponse.status).toBe(200);
-
-      // Wait a moment
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Stop typing
-      const stopResponse = await client.post(
-        `/instances/${testInstanceId}/stop-typing/${testContactJid}`
-      );
-      expect(stopResponse.status).toBe(200);
-    });
-
-    it.skip('should toggle presence between available and unavailable', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      // Set available
-      const availableResponse = await client.post(`/instances/${testInstanceId}/presence`, {
-        status: 'available',
-      });
-      expect(availableResponse.status).toBe(200);
-
-      // Wait a moment
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Set unavailable
-      const unavailableResponse = await client.post(
-        `/instances/${testInstanceId}/presence`,
-        {
-          status: 'unavailable',
-        }
-      );
-      expect(unavailableResponse.status).toBe(200);
-
-      // Wait a moment
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Set available again
-      const availableAgainResponse = await client.post(
-        `/instances/${testInstanceId}/presence`,
-        {
-          status: 'available',
-        }
-      );
-      expect(availableAgainResponse.status).toBe(200);
-    });
-
-    it.skip('should handle rapid presence changes', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
-
-      if (statusResponse.data.data.status !== 'connected') {
-        console.log('Skipping test - instance not connected');
-        return;
-      }
-
-      const statuses = ['available', 'unavailable', 'available', 'unavailable'];
-
-      for (const status of statuses) {
-        const response = await client.post(`/instances/${testInstanceId}/presence`, {
-          status,
-        });
-        expect(response.status).toBe(200);
-      }
-    });
-  });
-
-  describe('Error Handling', () => {
-    it.skip('should handle invalid instance ID', async () => {
-      const response = await client.post(`/instances/non-existent/presence`, {
-        status: 'available',
-      });
-
-      expect(response.status).toBe(404);
-      expect(response.data.success).toBe(false);
-    });
-
-    it.skip('should handle malformed request', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/presence`, {
-        invalid: 'field',
-      });
-
-      expect(response.status).toBe(400);
-      expect(response.data.success).toBe(false);
-    });
+  it.skip('sends a read receipt and subscribes to contact presence', async () => {
+    const receipt = await client.put(
+      `/api/v1/instances/${instanceId}/messages/test-message/read-receipt?chatJid=${encodeURIComponent(contactJid)}`
+    );
+    const subscription = await client.put(
+      `/api/v1/instances/${instanceId}/contacts/${encodeURIComponent(contactJid)}/presence-subscription`
+    );
+    expect(receipt.status).toBe(200);
+    expect(subscription.status).toBe(200);
   });
 });

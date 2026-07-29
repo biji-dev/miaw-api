@@ -2,9 +2,9 @@
  * Phase 13 Product Management Integration Tests
  *
  * Tests product catalog management (WhatsApp Business only):
- * - Create product (POST /products)
- * - Update product (PATCH /products/:productId)
- * - Delete products (DELETE /products)
+ * - Create product (POST /catalog/products)
+ * - Update product (PATCH /catalog/products/:productId)
+ * - Delete products (DELETE /catalog/products)
  * - Get chats by label (GET /labels/:labelId/chats)
  *
  * NOTE: These tests require a connected WhatsApp Business account.
@@ -36,7 +36,7 @@ describe('Phase 13 Product Management Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: [],
@@ -45,7 +45,7 @@ describe('Phase 13 Product Management Tests', () => {
 
   afterEach(async () => {
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -53,35 +53,35 @@ describe('Phase 13 Product Management Tests', () => {
 
   describe('Product Creation', () => {
     it.skip('should create a new product', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/products`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: `Test Product ${Date.now()}`,
         description: 'A test product created via API',
         price: 1999, // $19.99 in cents
         currency: 'USD',
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
       expect(response.data.data.productId).toBeDefined();
     });
 
     it.skip('should create a product with all optional fields', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/products`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: `Full Product ${Date.now()}`,
         description: 'A product with all fields',
         price: 4999,
@@ -93,13 +93,14 @@ describe('Phase 13 Product Management Tests', () => {
         originCountryCode: 'US',
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
       expect(response.data.data.productId).toBeDefined();
     });
 
     it.skip('should reject product creation when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/products`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: 'Test Product',
         description: 'Test description',
         price: 1000,
@@ -111,7 +112,7 @@ describe('Phase 13 Product Management Tests', () => {
     });
 
     it('should reject product with missing required fields', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/products`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: 'Test Product',
         // Missing description, price, currency
       });
@@ -121,7 +122,7 @@ describe('Phase 13 Product Management Tests', () => {
     });
 
     it('should reject product with invalid currency code', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/products`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: 'Test Product',
         description: 'Test description',
         price: 1000,
@@ -133,7 +134,7 @@ describe('Phase 13 Product Management Tests', () => {
     });
 
     it('should reject product with negative price', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/products`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: 'Test Product',
         description: 'Test description',
         price: -100,
@@ -149,7 +150,7 @@ describe('Phase 13 Product Management Tests', () => {
     let testProductId: string | null = null;
 
     it.skip('should update an existing product', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -157,7 +158,7 @@ describe('Phase 13 Product Management Tests', () => {
       }
 
       // First create a product
-      const createResponse = await client.post(`/instances/${testInstanceId}/products`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: `Product to Update ${Date.now()}`,
         description: 'Original description',
         price: 1000,
@@ -173,7 +174,7 @@ describe('Phase 13 Product Management Tests', () => {
 
       // Update the product
       const updateResponse = await client.patch(
-        `/instances/${testInstanceId}/products/${testProductId}`,
+        `/api/v1/instances/${testInstanceId}/catalog/products/${testProductId}`,
         {
           name: `Updated Product ${Date.now()}`,
           description: 'Updated description',
@@ -187,7 +188,7 @@ describe('Phase 13 Product Management Tests', () => {
     });
 
     it.skip('should update only specified fields', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -195,7 +196,7 @@ describe('Phase 13 Product Management Tests', () => {
       }
 
       // First create a product
-      const createResponse = await client.post(`/instances/${testInstanceId}/products`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: `Partial Update Test ${Date.now()}`,
         description: 'Original description',
         price: 1500,
@@ -211,7 +212,7 @@ describe('Phase 13 Product Management Tests', () => {
 
       // Update only price
       const updateResponse = await client.patch(
-        `/instances/${testInstanceId}/products/${productId}`,
+        `/api/v1/instances/${testInstanceId}/catalog/products/${productId}`,
         {
           price: 2500,
         }
@@ -223,7 +224,7 @@ describe('Phase 13 Product Management Tests', () => {
 
     it.skip('should reject update when instance is not connected', async () => {
       const response = await client.patch(
-        `/instances/${testInstanceId}/products/test-product-id`,
+        `/api/v1/instances/${testInstanceId}/catalog/products/test-product-id`,
         {
           price: 3000,
         }
@@ -234,7 +235,7 @@ describe('Phase 13 Product Management Tests', () => {
     });
 
     it('should handle non-existent instance', async () => {
-      const response = await client.patch(`/instances/non-existent/products/test-product-id`, {
+      const response = await client.patch(`/api/v1/instances/non-existent/catalog/products/test-product-id`, {
         price: 3000,
       });
 
@@ -245,7 +246,7 @@ describe('Phase 13 Product Management Tests', () => {
 
   describe('Product Deletion', () => {
     it.skip('should delete a single product', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -253,7 +254,7 @@ describe('Phase 13 Product Management Tests', () => {
       }
 
       // First create a product
-      const createResponse = await client.post(`/instances/${testInstanceId}/products`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
         name: `Product to Delete ${Date.now()}`,
         description: 'This will be deleted',
         price: 500,
@@ -268,19 +269,17 @@ describe('Phase 13 Product Management Tests', () => {
       const productId = createResponse.data.data.productId;
 
       // Delete the product
-      const deleteResponse = await client.delete(`/instances/${testInstanceId}/products`, {
-        data: {
-          productIds: [productId],
-        },
-      });
+      const deleteResponse = await client.delete(
+        `/api/v1/instances/${testInstanceId}/catalog/products/${productId}`
+      );
 
       expect(deleteResponse.status).toBe(200);
       expect(deleteResponse.data.success).toBe(true);
-      expect(deleteResponse.data.data.deletedCount).toBe(1);
+      expect(deleteResponse.data.data.removed).toBe(true);
     });
 
     it.skip('should delete multiple products', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -291,7 +290,7 @@ describe('Phase 13 Product Management Tests', () => {
       const productIds: string[] = [];
 
       for (let i = 0; i < 3; i++) {
-        const createResponse = await client.post(`/instances/${testInstanceId}/products`, {
+        const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/catalog/products`, {
           name: `Bulk Delete Product ${i} - ${Date.now()}`,
           description: 'This will be deleted in bulk',
           price: 100 * (i + 1),
@@ -311,43 +310,41 @@ describe('Phase 13 Product Management Tests', () => {
       }
 
       // Delete all products
-      const deleteResponse = await client.delete(`/instances/${testInstanceId}/products`, {
-        data: {
-          productIds,
-        },
-      });
+      const deleteResponse = await client.post(
+        `/api/v1/instances/${testInstanceId}/catalog/product-deletions`,
+        { productIds }
+      );
 
       expect(deleteResponse.status).toBe(200);
       expect(deleteResponse.data.success).toBe(true);
-      expect(deleteResponse.data.data.deletedCount).toBeGreaterThan(0);
+      expect(deleteResponse.data.data.removed).toBeGreaterThan(0);
     });
 
     it.skip('should reject deletion when instance is not connected', async () => {
-      const response = await client.delete(`/instances/${testInstanceId}/products`, {
-        data: {
-          productIds: ['test-product-id'],
-        },
-      });
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/catalog/product-deletions`,
+        { productIds: ['test-product-id'] }
+      );
 
       expect(response.status).toBe(503);
       expect(response.data.success).toBe(false);
     });
 
     it('should reject deletion with empty productIds array', async () => {
-      const response = await client.delete(`/instances/${testInstanceId}/products`, {
-        data: {
-          productIds: [],
-        },
-      });
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/catalog/product-deletions`,
+        { productIds: [] }
+      );
 
       expect(response.status).toBe(400);
       expect(response.data.success).toBe(false);
     });
 
     it('should reject deletion without productIds', async () => {
-      const response = await client.delete(`/instances/${testInstanceId}/products`, {
-        data: {},
-      });
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/catalog/product-deletions`,
+        {}
+      );
 
       expect(response.status).toBe(400);
       expect(response.data.success).toBe(false);
@@ -356,7 +353,7 @@ describe('Phase 13 Product Management Tests', () => {
 
   describe('Get Chats by Label', () => {
     it.skip('should get chats by label', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -364,7 +361,7 @@ describe('Phase 13 Product Management Tests', () => {
       }
 
       // First create a label
-      const createLabelResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createLabelResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Test Label ${Date.now()}`,
         color: 5,
       });
@@ -378,19 +375,19 @@ describe('Phase 13 Product Management Tests', () => {
 
       // Get chats by this label
       const response = await client.get(
-        `/instances/${testInstanceId}/labels/${labelId}/chats`
+        `/api/v1/instances/${testInstanceId}/labels/${labelId}/chats`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data).toHaveProperty('chats');
-      expect(response.data.data).toHaveProperty('count');
-      expect(Array.isArray(response.data.data.chats)).toBe(true);
-      expect(typeof response.data.data.count).toBe('number');
+      expect(response.data.data).toHaveProperty('items');
+      expect(response.data.data).toHaveProperty('total');
+      expect(Array.isArray(response.data.data.items)).toBe(true);
+      expect(typeof response.data.data.total).toBe('number');
     });
 
     it.skip('should return empty array for label with no chats', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -398,7 +395,7 @@ describe('Phase 13 Product Management Tests', () => {
       }
 
       // Create a new label that has no chats
-      const createLabelResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createLabelResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Empty Label ${Date.now()}`,
         color: 10,
       });
@@ -412,17 +409,17 @@ describe('Phase 13 Product Management Tests', () => {
 
       // Get chats - should be empty
       const response = await client.get(
-        `/instances/${testInstanceId}/labels/${labelId}/chats`
+        `/api/v1/instances/${testInstanceId}/labels/${labelId}/chats`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.chats).toEqual([]);
-      expect(response.data.data.count).toBe(0);
+      expect(response.data.data.items).toEqual([]);
+      expect(response.data.data.total).toBe(0);
     });
 
     it.skip('should return empty array for non-existent label', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -430,18 +427,18 @@ describe('Phase 13 Product Management Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/labels/non-existent-label-id/chats`
+        `/api/v1/instances/${testInstanceId}/labels/non-existent-label-id/chats`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.chats).toEqual([]);
-      expect(response.data.data.count).toBe(0);
+      expect(response.data.data.items).toEqual([]);
+      expect(response.data.data.total).toBe(0);
     });
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.get(
-        `/instances/${testInstanceId}/labels/test-label-id/chats`
+        `/api/v1/instances/${testInstanceId}/labels/test-label-id/chats`
       );
 
       expect(response.status).toBe(503);
@@ -449,7 +446,7 @@ describe('Phase 13 Product Management Tests', () => {
     });
 
     it('should handle non-existent instance', async () => {
-      const response = await client.get(`/instances/non-existent/labels/test-label-id/chats`);
+      const response = await client.get(`/api/v1/instances/non-existent/labels/test-label-id/chats`);
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -459,7 +456,7 @@ describe('Phase 13 Product Management Tests', () => {
   describe('Error Handling', () => {
     it('should handle invalid instance ID for all product endpoints', async () => {
       // Create product
-      const createResponse = await client.post(`/instances/non-existent/products`, {
+      const createResponse = await client.post(`/api/v1/instances/non-existent/catalog/products`, {
         name: 'Test',
         description: 'Test',
         price: 1000,
@@ -469,7 +466,7 @@ describe('Phase 13 Product Management Tests', () => {
 
       // Update product
       const updateResponse = await client.patch(
-        `/instances/non-existent/products/test-product-id`,
+        `/api/v1/instances/non-existent/catalog/products/test-product-id`,
         {
           price: 2000,
         }
@@ -477,11 +474,10 @@ describe('Phase 13 Product Management Tests', () => {
       expect(updateResponse.status).toBe(404);
 
       // Delete products
-      const deleteResponse = await client.delete(`/instances/non-existent/products`, {
-        data: {
-          productIds: ['test-product-id'],
-        },
-      });
+      const deleteResponse = await client.post(
+        `/api/v1/instances/non-existent/catalog/product-deletions`,
+        { productIds: ['test-product-id'] }
+      );
       expect(deleteResponse.status).toBe(404);
     });
   });

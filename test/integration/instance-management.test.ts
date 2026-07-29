@@ -33,15 +33,15 @@ describe('Instance Management Tests', () => {
   afterEach(async () => {
     // Cleanup: Delete test instance if it exists
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
   });
 
-  describe('POST /instances - Create Instance', () => {
+  describe('POST /api/v1/instances - Create Instance', () => {
     it('should create instance with minimal config (instanceId only)', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
       });
 
@@ -54,7 +54,7 @@ describe('Instance Management Tests', () => {
     });
 
     it('should create instance with webhook configuration', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: 'http://example.com/webhook',
         webhookEvents: ['message', 'qr', 'ready'],
@@ -67,7 +67,7 @@ describe('Instance Management Tests', () => {
     });
 
     it('should reject invalid instance ID (special characters)', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: 'invalid@id!',
       });
 
@@ -77,7 +77,7 @@ describe('Instance Management Tests', () => {
     });
 
     it('should reject empty instance ID', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: '',
       });
 
@@ -87,10 +87,10 @@ describe('Instance Management Tests', () => {
 
     it('should reject duplicate instance ID', async () => {
       // Create first instance
-      await client.post('/instances', { instanceId: testInstanceId });
+      await client.post('/api/v1/instances', { instanceId: testInstanceId });
 
       // Try to create duplicate
-      const response = await client.post('/instances', { instanceId: testInstanceId });
+      const response = await client.post('/api/v1/instances', { instanceId: testInstanceId });
 
       expect(response.status).toBe(409);
       expect(response.data.success).toBe(false);
@@ -98,7 +98,7 @@ describe('Instance Management Tests', () => {
     });
 
     it('should reject invalid webhook URL', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: 'not-a-valid-url',
       });
@@ -108,7 +108,7 @@ describe('Instance Management Tests', () => {
     });
 
     it('should reject invalid webhook event', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: 'http://example.com/webhook',
         webhookEvents: ['invalid_event'],
@@ -119,38 +119,39 @@ describe('Instance Management Tests', () => {
     });
   });
 
-  describe('GET /instances - List Instances', () => {
+  describe('GET /api/v1/instances - List Instances', () => {
     it('should return empty array when no instances exist', async () => {
-      const response = await client.get('/instances');
+      const response = await client.get('/api/v1/instances');
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(Array.isArray(response.data.data)).toBe(true);
+      expect(response.data.data).toEqual({ items: [], total: 0 });
     });
 
     it('should return all instances', async () => {
       // Create multiple instances
-      await client.post('/instances', { instanceId: `${testInstanceId}-1` });
-      await client.post('/instances', { instanceId: `${testInstanceId}-2` });
+      await client.post('/api/v1/instances', { instanceId: `${testInstanceId}-1` });
+      await client.post('/api/v1/instances', { instanceId: `${testInstanceId}-2` });
 
-      const response = await client.get('/instances');
+      const response = await client.get('/api/v1/instances');
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.length).toBeGreaterThanOrEqual(2);
+      expect(response.data.data.total).toBeGreaterThanOrEqual(2);
+      expect(response.data.data.items.length).toBe(response.data.data.total);
 
       // Cleanup
-      await client.delete(`/instances/${testInstanceId}-1`);
-      await client.delete(`/instances/${testInstanceId}-2`);
+      await client.delete(`/api/v1/instances/${testInstanceId}-1`);
+      await client.delete(`/api/v1/instances/${testInstanceId}-2`);
     });
   });
 
-  describe('GET /instances/:id - Get Instance', () => {
+  describe('GET /api/v1/instances/:instanceId - Get Instance', () => {
     it('should return instance details for valid ID', async () => {
       // Create instance
-      await client.post('/instances', { instanceId: testInstanceId });
+      await client.post('/api/v1/instances', { instanceId: testInstanceId });
 
-      const response = await client.get(`/instances/${testInstanceId}`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
@@ -159,7 +160,7 @@ describe('Instance Management Tests', () => {
     });
 
     it('should return 404 for non-existent instance', async () => {
-      const response = await client.get('/instances/non-existent');
+      const response = await client.get('/api/v1/instances/non-existent');
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -167,25 +168,25 @@ describe('Instance Management Tests', () => {
     });
   });
 
-  describe('DELETE /instances/:id - Delete Instance', () => {
+  describe('DELETE /api/v1/instances/:instanceId - Delete Instance', () => {
     it('should delete existing instance', async () => {
       // Create instance
-      await client.post('/instances', { instanceId: testInstanceId });
+      await client.post('/api/v1/instances', { instanceId: testInstanceId });
 
       // Delete instance
-      const response = await client.delete(`/instances/${testInstanceId}`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.message).toBe('Instance deleted successfully');
+      expect(response.data.data).toEqual({ deleted: true });
 
       // Verify it's deleted
-      const getResponse = await client.get(`/instances/${testInstanceId}`);
+      const getResponse = await client.get(`/api/v1/instances/${testInstanceId}`);
       expect(getResponse.status).toBe(404);
     });
 
     it('should return 404 when deleting non-existent instance', async () => {
-      const response = await client.delete('/instances/non-existent');
+      const response = await client.delete('/api/v1/instances/non-existent');
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -197,7 +198,7 @@ describe('Instance Management Tests', () => {
     it('should reject request without API key', async () => {
       const clientNoAuth = createTestClient().withoutAuth();
 
-      const response = await clientNoAuth.get('/instances');
+      const response = await clientNoAuth.get('/api/v1/instances');
 
       expect(response.status).toBe(401);
       expect(response.data.success).toBe(false);
@@ -207,7 +208,7 @@ describe('Instance Management Tests', () => {
     it('should reject request with invalid API key', async () => {
       const clientInvalidKey = createTestClient().withApiKey('invalid-key');
 
-      const response = await clientInvalidKey.get('/instances');
+      const response = await clientInvalidKey.get('/api/v1/instances');
 
       expect(response.status).toBe(401);
       expect(response.data.success).toBe(false);
@@ -215,7 +216,7 @@ describe('Instance Management Tests', () => {
     });
 
     it('should accept request with valid API key in Authorization header', async () => {
-      const response = await client.get('/instances');
+      const response = await client.get('/api/v1/instances');
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);

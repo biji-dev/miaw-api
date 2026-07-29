@@ -2,11 +2,11 @@
  * Session & Lifecycle Integration Tests (Phase 14)
  *
  * Tests session lifecycle and stats endpoints:
- * - POST /instances/:id/logout - Logout and clear session
- * - POST /instances/:id/dispose - Dispose and cleanup resources
- * - DELETE /instances/:id/session - Clear session files
- * - GET /instances/:id/stats/messages - Get message counts
- * - GET /instances/:id/stats/labels - Get labels store info
+ * - DELETE /api/v1/instances/:instanceId/session - Logout and clear session
+ * - DELETE /api/v1/instances/:instanceId/runtime - Dispose and cleanup resources
+ * - DELETE /api/v1/instances/:instanceId/authentication - Clear authentication files
+ * - GET /api/v1/instances/:instanceId/stats/messages - Get message counts
+ * - GET /api/v1/instances/:instanceId/stats/labels - Get labels store info
  *
  * NOTE: Some tests require a connected WhatsApp instance.
  */
@@ -38,7 +38,7 @@ describe('Session Lifecycle Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance with webhook
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: ['qr', 'ready', 'connection', 'disconnected'],
@@ -48,15 +48,15 @@ describe('Session Lifecycle Tests', () => {
   afterEach(async () => {
     // Cleanup: Delete test instance
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
   });
 
-  describe('POST /instances/:id/logout - Logout', () => {
+  describe('DELETE /api/v1/instances/:instanceId/session - Logout', () => {
     it('should return 404 for non-existent instance', async () => {
-      const response = await client.post('/instances/non-existent/logout');
+      const response = await client.delete('/api/v1/instances/non-existent/session');
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -65,7 +65,7 @@ describe('Session Lifecycle Tests', () => {
 
     it('should handle logout for disconnected instance', async () => {
       // Logout should work even for disconnected instance
-      const response = await client.post(`/instances/${testInstanceId}/logout`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/session`);
 
       // May return 200 (graceful) or 503 (if logout requires connection)
       // Accept both as valid behaviors
@@ -75,27 +75,27 @@ describe('Session Lifecycle Tests', () => {
     it.skip('should logout connected instance and clear session', async () => {
       // This test requires a connected instance
       // First verify connected
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/logout`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/session`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.message).toContain('Logged out');
+      expect(response.data.data).toEqual({ loggedOut: true });
 
       // Verify status changed to disconnected
-      const statusAfter = await client.get(`/instances/${testInstanceId}/status`);
+      const statusAfter = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
       expect(statusAfter.data.data.status).toBe('disconnected');
     });
   });
 
-  describe('POST /instances/:id/dispose - Dispose', () => {
+  describe('DELETE /api/v1/instances/:instanceId/runtime - Dispose', () => {
     it('should return 404 for non-existent instance', async () => {
-      const response = await client.post('/instances/non-existent/dispose');
+      const response = await client.delete('/api/v1/instances/non-existent/runtime');
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -103,36 +103,36 @@ describe('Session Lifecycle Tests', () => {
     });
 
     it('should dispose disconnected instance', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/dispose`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/runtime`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.message).toContain('disposed');
+      expect(response.data.data).toEqual({ disposed: true });
     });
 
     it.skip('should dispose connected instance and cleanup resources', async () => {
       // This test requires a connected instance
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/dispose`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/runtime`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.message).toContain('disposed');
+      expect(response.data.data).toEqual({ disposed: true });
 
       // Verify status changed to disconnected
-      const statusAfter = await client.get(`/instances/${testInstanceId}/status`);
+      const statusAfter = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
       expect(statusAfter.data.data.status).toBe('disconnected');
     });
   });
 
-  describe('DELETE /instances/:id/session - Clear Session', () => {
+  describe('DELETE /api/v1/instances/:instanceId/authentication - Clear Authentication', () => {
     it('should return 404 for non-existent instance', async () => {
-      const response = await client.delete('/instances/non-existent/session');
+      const response = await client.delete('/api/v1/instances/non-existent/authentication');
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -140,7 +140,7 @@ describe('Session Lifecycle Tests', () => {
     });
 
     it('should clear session for instance', async () => {
-      const response = await client.delete(`/instances/${testInstanceId}/session`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/authentication`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
@@ -150,17 +150,17 @@ describe('Session Lifecycle Tests', () => {
 
     it('should handle clearing already empty session', async () => {
       // Clear twice should be idempotent
-      await client.delete(`/instances/${testInstanceId}/session`);
-      const response = await client.delete(`/instances/${testInstanceId}/session`);
+      await client.delete(`/api/v1/instances/${testInstanceId}/authentication`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/authentication`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
     });
   });
 
-  describe('GET /instances/:id/stats/messages - Message Counts', () => {
+  describe('GET /api/v1/instances/:instanceId/stats/messages - Message Counts', () => {
     it('should return 404 for non-existent instance', async () => {
-      const response = await client.get('/instances/non-existent/stats/messages');
+      const response = await client.get('/api/v1/instances/non-existent/stats/messages');
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -168,7 +168,7 @@ describe('Session Lifecycle Tests', () => {
     });
 
     it('should return empty counts for new instance', async () => {
-      const response = await client.get(`/instances/${testInstanceId}/stats/messages`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/stats/messages`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
@@ -182,13 +182,13 @@ describe('Session Lifecycle Tests', () => {
 
     it.skip('should return message counts for connected instance', async () => {
       // This test requires a connected instance with messages
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping - instance not connected');
         return;
       }
 
-      const response = await client.get(`/instances/${testInstanceId}/stats/messages`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/stats/messages`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
@@ -200,9 +200,9 @@ describe('Session Lifecycle Tests', () => {
     });
   });
 
-  describe('GET /instances/:id/stats/labels - Labels Store Info', () => {
+  describe('GET /api/v1/instances/:instanceId/stats/labels - Labels Store Info', () => {
     it('should return 404 for non-existent instance', async () => {
-      const response = await client.get('/instances/non-existent/stats/labels');
+      const response = await client.get('/api/v1/instances/non-existent/stats/labels');
 
       expect(response.status).toBe(404);
       expect(response.data.success).toBe(false);
@@ -210,7 +210,7 @@ describe('Session Lifecycle Tests', () => {
     });
 
     it('should return labels store info for new instance', async () => {
-      const response = await client.get(`/instances/${testInstanceId}/stats/labels`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/stats/labels`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
@@ -222,7 +222,7 @@ describe('Session Lifecycle Tests', () => {
     });
 
     it('should return zero counts for disconnected instance', async () => {
-      const response = await client.get(`/instances/${testInstanceId}/stats/labels`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/stats/labels`);
 
       expect(response.status).toBe(200);
       expect(response.data.data.size).toBe(0);
@@ -231,13 +231,13 @@ describe('Session Lifecycle Tests', () => {
 
     it.skip('should return labels info for connected business account', async () => {
       // This test requires a connected WhatsApp Business instance
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping - instance not connected');
         return;
       }
 
-      const response = await client.get(`/instances/${testInstanceId}/stats/labels`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/stats/labels`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
@@ -249,35 +249,35 @@ describe('Session Lifecycle Tests', () => {
   describe('Authentication', () => {
     it('should reject logout request without API key', async () => {
       const noAuthClient = client.withoutAuth();
-      const response = await noAuthClient.post(`/instances/${testInstanceId}/logout`);
+      const response = await noAuthClient.delete(`/api/v1/instances/${testInstanceId}/session`);
 
       expect(response.status).toBe(401);
     });
 
     it('should reject dispose request without API key', async () => {
       const noAuthClient = client.withoutAuth();
-      const response = await noAuthClient.post(`/instances/${testInstanceId}/dispose`);
+      const response = await noAuthClient.delete(`/api/v1/instances/${testInstanceId}/runtime`);
 
       expect(response.status).toBe(401);
     });
 
     it('should reject clear session request without API key', async () => {
       const noAuthClient = client.withoutAuth();
-      const response = await noAuthClient.delete(`/instances/${testInstanceId}/session`);
+      const response = await noAuthClient.delete(`/api/v1/instances/${testInstanceId}/authentication`);
 
       expect(response.status).toBe(401);
     });
 
     it('should reject stats/messages request without API key', async () => {
       const noAuthClient = client.withoutAuth();
-      const response = await noAuthClient.get(`/instances/${testInstanceId}/stats/messages`);
+      const response = await noAuthClient.get(`/api/v1/instances/${testInstanceId}/stats/messages`);
 
       expect(response.status).toBe(401);
     });
 
     it('should reject stats/labels request without API key', async () => {
       const noAuthClient = client.withoutAuth();
-      const response = await noAuthClient.get(`/instances/${testInstanceId}/stats/labels`);
+      const response = await noAuthClient.get(`/api/v1/instances/${testInstanceId}/stats/labels`);
 
       expect(response.status).toBe(401);
     });

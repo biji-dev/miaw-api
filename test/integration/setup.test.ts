@@ -42,12 +42,12 @@ describeLive('Setup Tests - Initial Connection', () => {
   it('should create test instance with webhook configuration', async () => {
     // Delete instance if it exists from previous run
     try {
-      await client.delete(`/instances/${TEST_CONFIG.INSTANCE_ID}`);
+      await client.delete(`/api/v1/instances/${TEST_CONFIG.INSTANCE_ID}`);
     } catch {
       // Ignore if doesn't exist
     }
 
-    const response = await client.post('/instances', {
+    const response = await client.post('/api/v1/instances', {
       instanceId: TEST_CONFIG.INSTANCE_ID,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: ['qr', 'ready', 'connection', 'disconnected', 'message', 'error'],
@@ -63,7 +63,7 @@ describeLive('Setup Tests - Initial Connection', () => {
     webhookServer.clearEvents();
 
     // Initiate connection
-    const connectResponse = await client.post(`/instances/${TEST_CONFIG.INSTANCE_ID}/connect`);
+    const connectResponse = await client.put(`/api/v1/instances/${TEST_CONFIG.INSTANCE_ID}/connection`);
     expect(connectResponse.status).toBe(200);
 
     console.log('\n========================================');
@@ -106,7 +106,7 @@ describeLive('Setup Tests - Initial Connection', () => {
     console.log('========================================\n');
 
     // Verify status
-    const statusResponse = await client.get(`/instances/${TEST_CONFIG.INSTANCE_ID}/status`);
+    const statusResponse = await client.get(`/api/v1/instances/${TEST_CONFIG.INSTANCE_ID}/connection`);
 
     expect(statusResponse.data.data.status).toBe('connected');
     expect(statusResponse.data.data.phoneNumber).toBeDefined();
@@ -116,14 +116,14 @@ describeLive('Setup Tests - Initial Connection', () => {
 
   it('should persist session for subsequent runs', async () => {
     // Disconnect
-    await client.delete(`/instances/${TEST_CONFIG.INSTANCE_ID}/disconnect`);
+    await client.delete(`/api/v1/instances/${TEST_CONFIG.INSTANCE_ID}/connection`);
 
     // Wait a moment
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Reconnect - should not require QR
     webhookServer.clearEvents();
-    await client.post(`/instances/${TEST_CONFIG.INSTANCE_ID}/connect`);
+    await client.put(`/api/v1/instances/${TEST_CONFIG.INSTANCE_ID}/connection`);
 
     // Should get ready event quickly without QR
     const readyEvent = await webhookServer.waitForEvent('ready', 30000);
@@ -138,7 +138,7 @@ describeLive('Setup Tests - Initial Connection', () => {
   });
 
   it('should cleanup test instance', async () => {
-    const response = await client.delete(`/instances/${TEST_CONFIG.INSTANCE_ID}`);
+    const response = await client.delete(`/api/v1/instances/${TEST_CONFIG.INSTANCE_ID}`);
 
     expect(response.status).toBe(200);
     expect(response.data.success).toBe(true);

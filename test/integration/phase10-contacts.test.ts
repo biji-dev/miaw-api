@@ -37,7 +37,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: [],
@@ -47,7 +47,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
   afterEach(async () => {
     // Cleanup: Delete test instance
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -55,7 +55,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
   describe('GET Contact Profile', () => {
     it.skip('should return full contact profile for valid JID', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -64,7 +64,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
       );
 
       expect(response.status).toBe(200);
@@ -76,7 +76,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should include business details if contact is a business account', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -85,7 +85,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
       );
 
       expect(response.status).toBe(200);
@@ -99,7 +99,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     it.skip('should reject when instance is not connected', async () => {
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
       );
 
       expect(response.status).toBe(503);
@@ -110,7 +110,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     it.skip('should return 404 for non-existent instance', async () => {
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/non-existent-instance/contacts/${encodeURIComponent(jid)}/profile`
+        `/api/v1/instances/non-existent-instance/contacts/${encodeURIComponent(jid)}/profile`
       );
 
       expect(response.status).toBe(404);
@@ -120,7 +120,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
   describe('GET Business Profile', () => {
     it.skip('should return business profile for WhatsApp Business account', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -129,7 +129,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business-profile`
       );
 
       expect(response.status).toBe(200);
@@ -138,7 +138,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should return null for non-business account', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -148,7 +148,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
       // Use a number that's likely not a business account
       const jid = '999999999999@s.whatsapp.net';
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business-profile`
       );
 
       expect(response.status).toBe(200);
@@ -159,7 +159,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     it.skip('should reject when instance is not connected', async () => {
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business-profile`
       );
 
       expect(response.status).toBe(503);
@@ -168,7 +168,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should return business profile fields when available', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -177,7 +177,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await client.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/business-profile`
       );
 
       expect(response.status).toBe(200);
@@ -195,7 +195,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
   describe('GET Group Participants', () => {
     it.skip('should return participants list for valid group', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -208,7 +208,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(TEST_CONFIG.TEST_GROUP_JID)}/participants`
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(TEST_CONFIG.TEST_GROUP_JID)}/participants`
       );
 
       expect(response.status).toBe(200);
@@ -219,7 +219,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should include participant roles', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -232,7 +232,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(TEST_CONFIG.TEST_GROUP_JID)}/participants`
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(TEST_CONFIG.TEST_GROUP_JID)}/participants`
       );
 
       expect(response.status).toBe(200);
@@ -249,7 +249,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     it.skip('should reject when instance is not connected', async () => {
       const groupJid = TEST_CONFIG.TEST_GROUP_JID || '123456789@g.us';
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/participants`
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(groupJid)}/participants`
       );
 
       expect(response.status).toBe(503);
@@ -258,7 +258,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should return 404 for non-existent group', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -267,7 +267,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
       const fakeGroupJid = '999999999999999999@g.us';
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/${encodeURIComponent(fakeGroupJid)}/participants`
+        `/api/v1/instances/${testInstanceId}/groups/${encodeURIComponent(fakeGroupJid)}/participants`
       );
 
       // Should return 404 or error for non-existent group
@@ -278,7 +278,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
   describe('GET Group Invite Info', () => {
     it.skip('should return group info for valid invite code', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -291,7 +291,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/invite/${TEST_CONFIG.TEST_GROUP_INVITE}/info`
+        `/api/v1/instances/${testInstanceId}/group-invites/${TEST_CONFIG.TEST_GROUP_INVITE}`
       );
 
       expect(response.status).toBe(200);
@@ -302,7 +302,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should include group name and participant count', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -315,7 +315,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/invite/${TEST_CONFIG.TEST_GROUP_INVITE}/info`
+        `/api/v1/instances/${testInstanceId}/group-invites/${TEST_CONFIG.TEST_GROUP_INVITE}`
       );
 
       expect(response.status).toBe(200);
@@ -327,7 +327,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     it.skip('should reject when instance is not connected', async () => {
       const inviteCode = TEST_CONFIG.TEST_GROUP_INVITE || 'ABC123Def456';
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/invite/${inviteCode}/info`
+        `/api/v1/instances/${testInstanceId}/group-invites/${inviteCode}`
       );
 
       expect(response.status).toBe(503);
@@ -336,7 +336,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should return error for invalid invite code', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -344,7 +344,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/invite/invalid-invite-code-12345/info`
+        `/api/v1/instances/${testInstanceId}/group-invites/invalid-invite-code-12345`
       );
 
       // Should return 400 or 404 for invalid invite
@@ -353,7 +353,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
     });
 
     it.skip('should handle full invite URL', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -368,7 +368,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
       // miaw-core should handle full URLs by extracting the code
       const fullUrl = `https://chat.whatsapp.com/${TEST_CONFIG.TEST_GROUP_INVITE}`;
       const response = await client.get(
-        `/instances/${testInstanceId}/groups/invite/${encodeURIComponent(fullUrl)}/info`
+        `/api/v1/instances/${testInstanceId}/group-invites/${encodeURIComponent(fullUrl)}`
       );
 
       // This test depends on whether miaw-core extracts the code from URL
@@ -379,10 +379,10 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
   describe('Error Handling', () => {
     it('should return 404 for non-existent instance on all endpoints', async () => {
       const endpoints = [
-        '/instances/non-existent/contacts/123@s.whatsapp.net/profile',
-        '/instances/non-existent/contacts/123@s.whatsapp.net/business',
-        '/instances/non-existent/groups/123@g.us/participants',
-        '/instances/non-existent/groups/invite/ABC123/info',
+        '/api/v1/instances/non-existent/contacts/123@s.whatsapp.net/profile',
+        '/api/v1/instances/non-existent/contacts/123@s.whatsapp.net/business-profile',
+        '/api/v1/instances/non-existent/groups/123@g.us/participants',
+        '/api/v1/instances/non-existent/group-invites/ABC123',
       ];
 
       for (const endpoint of endpoints) {
@@ -398,7 +398,7 @@ describe('Phase 10 Enhanced Contact Operations Tests', () => {
 
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const response = await unauthClient.get(
-        `/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
+        `/api/v1/instances/${testInstanceId}/contacts/${encodeURIComponent(jid)}/profile`
       );
 
       expect(response.status).toBe(401);

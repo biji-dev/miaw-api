@@ -42,7 +42,7 @@ describe('Phase 5 Profile Management Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: [],
@@ -53,7 +53,7 @@ describe('Phase 5 Profile Management Tests', () => {
     // Cleanup: Restore original profile if changed, then delete instance
     if (originalName !== null) {
       try {
-        await client.patch(`/instances/${testInstanceId}/profile/name`, {
+        await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
           name: originalName,
         });
       } catch {
@@ -63,8 +63,8 @@ describe('Phase 5 Profile Management Tests', () => {
 
     if (originalStatus !== null) {
       try {
-        await client.patch(`/instances/${testInstanceId}/profile/status`, {
-          status: originalStatus,
+        await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
+          about: originalStatus,
         });
       } catch {
         // Ignore restore failure
@@ -74,7 +74,7 @@ describe('Phase 5 Profile Management Tests', () => {
     if (originalPicture === true) {
       try {
         // Try to restore picture if we removed it
-        await client.post(`/instances/${testInstanceId}/profile/picture`, {
+        await client.put(`/api/v1/instances/${testInstanceId}/profile/picture`, {
           url: 'https://picsum.photos/500',
         });
       } catch {
@@ -88,7 +88,7 @@ describe('Phase 5 Profile Management Tests', () => {
     originalPicture = null;
 
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -96,31 +96,31 @@ describe('Phase 5 Profile Management Tests', () => {
 
   describe('Update Profile Picture', () => {
     it.skip('should update profile picture from URL', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/profile/picture`, {
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/profile/picture`, {
         url: 'https://picsum.photos/500',
       });
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.updated).toBe(true);
     });
 
     it.skip('should reject invalid URL format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/profile/picture`, {
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/profile/picture`, {
         url: 'not-a-valid-url',
       });
 
@@ -129,7 +129,7 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/profile/picture`, {
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/profile/picture`, {
         url: 'https://example.com/image.jpg',
       });
 
@@ -138,7 +138,7 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject missing URL in request body', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/profile/picture`, {});
+      const response = await client.put(`/api/v1/instances/${testInstanceId}/profile/picture`, {});
 
       expect(response.status).toBe(400);
       expect(response.data.success).toBe(false);
@@ -147,7 +147,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
   describe('Remove Profile Picture', () => {
     it.skip('should remove profile picture', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -156,7 +156,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
       // First set a picture so we can remove it
       try {
-        await client.post(`/instances/${testInstanceId}/profile/picture`, {
+        await client.put(`/api/v1/instances/${testInstanceId}/profile/picture`, {
           url: 'https://picsum.photos/500',
         });
       } catch {
@@ -166,15 +166,15 @@ describe('Phase 5 Profile Management Tests', () => {
       // Mark that we had a picture for restoration
       originalPicture = true;
 
-      const response = await client.delete(`/instances/${testInstanceId}/profile/picture`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/profile/picture`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.removed).toBe(true);
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.delete(`/instances/${testInstanceId}/profile/picture`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/profile/picture`);
 
       expect(response.status).toBe(503);
       expect(response.data.success).toBe(false);
@@ -183,7 +183,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
   describe('Update Profile Name', () => {
     it.skip('should update profile name', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -192,7 +192,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
       // Store original name for restoration
       try {
-        const currentProfile = await client.get(`/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
+        const currentProfile = await client.get(`/api/v1/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
         if (currentProfile.data.data?.name) {
           originalName = currentProfile.data.data.name;
         }
@@ -201,24 +201,24 @@ describe('Phase 5 Profile Management Tests', () => {
       }
 
       const newName = `Test Bot ${Date.now()}`;
-      const response = await client.patch(`/instances/${testInstanceId}/profile/name`, {
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
         name: newName,
       });
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.name).toBe(newName);
     });
 
     it.skip('should reject empty name', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.patch(`/instances/${testInstanceId}/profile/name`, {
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
         name: '',
       });
 
@@ -227,14 +227,14 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject name exceeding max length', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.patch(`/instances/${testInstanceId}/profile/name`, {
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
         name: 'A'.repeat(26), // Max is 25
       });
 
@@ -243,7 +243,7 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.patch(`/instances/${testInstanceId}/profile/name`, {
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
         name: 'Test Name',
       });
 
@@ -252,7 +252,7 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject missing name in request body', async () => {
-      const response = await client.patch(`/instances/${testInstanceId}/profile/name`, {});
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {});
 
       expect(response.status).toBe(400);
       expect(response.data.success).toBe(false);
@@ -261,7 +261,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
   describe('Update Profile Status', () => {
     it.skip('should update profile status (About)', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -270,7 +270,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
       // Store original status for restoration
       try {
-        const currentProfile = await client.get(`/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
+        const currentProfile = await client.get(`/api/v1/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
         if (currentProfile.data.data?.status) {
           originalStatus = currentProfile.data.data.status;
         }
@@ -279,17 +279,17 @@ describe('Phase 5 Profile Management Tests', () => {
       }
 
       const newStatus = `Testing Miaw API ${Date.now()}`;
-      const response = await client.patch(`/instances/${testInstanceId}/profile/status`, {
-        status: newStatus,
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
+        about: newStatus,
       });
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.about).toBe(newStatus);
     });
 
     it.skip('should accept empty status', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -298,7 +298,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
       // Store original status
       try {
-        const currentProfile = await client.get(`/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
+        const currentProfile = await client.get(`/api/v1/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
         if (currentProfile.data.data?.status) {
           originalStatus = currentProfile.data.data.status;
         }
@@ -306,8 +306,8 @@ describe('Phase 5 Profile Management Tests', () => {
         // Ignore if getting current profile fails
       }
 
-      const response = await client.patch(`/instances/${testInstanceId}/profile/status`, {
-        status: '',
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
+        about: '',
       });
 
       expect(response.status).toBe(200);
@@ -315,15 +315,15 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject status exceeding max length', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.patch(`/instances/${testInstanceId}/profile/status`, {
-        status: 'A'.repeat(140), // Max is 139
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
+        about: 'A'.repeat(140), // Max is 139
       });
 
       expect(response.status).toBe(400);
@@ -331,8 +331,8 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.patch(`/instances/${testInstanceId}/profile/status`, {
-        status: 'Available',
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
+        about: 'Available',
       });
 
       expect(response.status).toBe(503);
@@ -340,7 +340,7 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should reject missing status in request body', async () => {
-      const response = await client.patch(`/instances/${testInstanceId}/profile/status`, {});
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {});
 
       expect(response.status).toBe(400);
       expect(response.data.success).toBe(false);
@@ -349,7 +349,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
   describe('Combined Profile Updates', () => {
     it.skip('should update name and status in sequence', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -358,7 +358,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
       // Store original values
       try {
-        const currentProfile = await client.get(`/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
+        const currentProfile = await client.get(`/api/v1/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
         if (currentProfile.data.data?.name) {
           originalName = currentProfile.data.data.name;
         }
@@ -370,7 +370,7 @@ describe('Phase 5 Profile Management Tests', () => {
       }
 
       const newName = `Sequential Test ${Date.now()}`;
-      const nameResponse = await client.patch(`/instances/${testInstanceId}/profile/name`, {
+      const nameResponse = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
         name: newName,
       });
 
@@ -379,9 +379,9 @@ describe('Phase 5 Profile Management Tests', () => {
 
       const newStatus = `Running automated tests ${Date.now()}`;
       const statusResponse2 = await client.patch(
-        `/instances/${testInstanceId}/profile/status`,
+        `/api/v1/instances/${testInstanceId}/profile`,
         {
-          status: newStatus,
+          about: newStatus,
         }
       );
 
@@ -390,7 +390,7 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should handle rapid profile updates', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -399,7 +399,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
       // Store original status
       try {
-        const currentProfile = await client.get(`/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
+        const currentProfile = await client.get(`/api/v1/instances/${testInstanceId}/contacts/self@s.whatsapp.net`);
         if (currentProfile.data.data?.status) {
           originalStatus = currentProfile.data.data.status;
         }
@@ -411,9 +411,9 @@ describe('Phase 5 Profile Management Tests', () => {
       const updates = ['Test 1', 'Test 2', 'Test 3'];
       for (const status of updates) {
         const response = await client.patch(
-          `/instances/${testInstanceId}/profile/status`,
+          `/api/v1/instances/${testInstanceId}/profile`,
           {
-            status: status,
+            about: status,
           }
         );
 
@@ -425,7 +425,7 @@ describe('Phase 5 Profile Management Tests', () => {
 
   describe('Error Handling', () => {
     it.skip('should handle invalid instance ID', async () => {
-      const response = await client.patch(`/instances/non-existent/profile/name`, {
+      const response = await client.patch(`/api/v1/instances/non-existent/profile`, {
         name: 'Test',
       });
 
@@ -434,7 +434,7 @@ describe('Phase 5 Profile Management Tests', () => {
     });
 
     it.skip('should handle malformed request', async () => {
-      const response = await client.patch(`/instances/${testInstanceId}/profile/name`, {
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/profile`, {
         invalid: 'field',
       });
 

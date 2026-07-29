@@ -41,7 +41,7 @@ describe('Phase 7 Webhook Tests', () => {
 
   afterEach(async () => {
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -49,7 +49,7 @@ describe('Phase 7 Webhook Tests', () => {
 
   describe('Webhook Configuration', () => {
     it('should set webhook URL on instance creation', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: ['message', 'ready'],
@@ -63,14 +63,14 @@ describe('Phase 7 Webhook Tests', () => {
 
     it('should update webhook URL', async () => {
       // Create instance with initial webhook
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: 'https://example.com/webhook',
         webhookEvents: [],
       });
 
       // Update webhook URL
-      const response = await client.patch(`/instances/${testInstanceId}`, {
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/webhook`, {
         webhookUrl: webhookServer.getWebhookUrl(),
       });
 
@@ -80,7 +80,7 @@ describe('Phase 7 Webhook Tests', () => {
     });
 
     it('should configure webhook events filter', async () => {
-      const response = await client.post('/instances', {
+      const response = await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: ['message', 'ready', 'qr'],
@@ -93,14 +93,14 @@ describe('Phase 7 Webhook Tests', () => {
 
     it('should disable webhook with empty URL', async () => {
       // Create with webhook
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: ['message'],
       });
 
       // Disable webhook
-      const response = await client.patch(`/instances/${testInstanceId}`, {
+      const response = await client.patch(`/api/v1/instances/${testInstanceId}/webhook`, {
         webhookUrl: '',
       });
 
@@ -112,7 +112,7 @@ describe('Phase 7 Webhook Tests', () => {
 
   describe('Event Delivery', () => {
     beforeEach(async () => {
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: ['message', 'ready', 'qr', 'connection', 'disconnected', 'error'],
@@ -121,7 +121,7 @@ describe('Phase 7 Webhook Tests', () => {
 
     it.skip('should deliver QR event', async () => {
       // Trigger QR generation by connecting
-      await client.post(`/instances/${testInstanceId}/connect`);
+      await client.put(`/api/v1/instances/${testInstanceId}/connection`);
 
       // Wait for webhook
       await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -135,7 +135,7 @@ describe('Phase 7 Webhook Tests', () => {
 
     it.skip('should deliver ready event when connected', async () => {
       // This requires actual WhatsApp connection
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -144,7 +144,7 @@ describe('Phase 7 Webhook Tests', () => {
 
       // Ready event would have been sent during connection
       // We can verify by checking webhook status
-      const status = await client.get(`/instances/${testInstanceId}/webhook/status`);
+      const status = await client.get(`/api/v1/instances/${testInstanceId}/webhook/stats`);
 
       expect(status.status).toBe(200);
       expect(status.data.data.stats.delivered).toBeGreaterThan(0);
@@ -152,7 +152,7 @@ describe('Phase 7 Webhook Tests', () => {
 
     it.skip('should deliver message event', async () => {
       // This requires receiving an actual message
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -177,7 +177,7 @@ describe('Phase 7 Webhook Tests', () => {
 
   describe('Webhook Signature', () => {
     beforeEach(async () => {
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: [],
@@ -186,7 +186,7 @@ describe('Phase 7 Webhook Tests', () => {
 
     it('should include X-Miaw-Signature header', async () => {
       // Send test webhook
-      await client.post(`/instances/${testInstanceId}/webhook/test`);
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
       // Wait for delivery
       await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -199,7 +199,7 @@ describe('Phase 7 Webhook Tests', () => {
     });
 
     it('should include X-Miaw-Timestamp header', async () => {
-      await client.post(`/instances/${testInstanceId}/webhook/test`);
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
@@ -216,7 +216,7 @@ describe('Phase 7 Webhook Tests', () => {
     });
 
     it('should use sha256= format for signature', async () => {
-      await client.post(`/instances/${testInstanceId}/webhook/test`);
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
@@ -230,7 +230,7 @@ describe('Phase 7 Webhook Tests', () => {
     });
 
     it('should verify valid signature', async () => {
-      await client.post(`/instances/${testInstanceId}/webhook/test`);
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
@@ -276,13 +276,13 @@ describe('Phase 7 Webhook Tests', () => {
       // Configure webhook to fail endpoint
       webhookServer.setFailMode(true);
 
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: [],
       });
 
-      await client.post(`/instances/${testInstanceId}/webhook/test`);
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
       // Wait for retries
       await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -297,13 +297,13 @@ describe('Phase 7 Webhook Tests', () => {
     it.skip('should stop retrying after max attempts', async () => {
       webhookServer.setFailMode(true);
 
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: [],
       });
 
-      await client.post(`/instances/${testInstanceId}/webhook/test`);
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
       // Wait for max retries (5 attempts)
       await new Promise((resolve) => setTimeout(resolve, 30000));
@@ -318,16 +318,16 @@ describe('Phase 7 Webhook Tests', () => {
 
   describe('Webhook Management Endpoints', () => {
     beforeEach(async () => {
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: ['message', 'ready'],
       });
     });
 
-    describe('POST /instances/:id/webhook/test', () => {
+    describe('POST /api/v1/instances/:instanceId/webhook-tests', () => {
       it('should send test webhook event', async () => {
-        const response = await client.post(`/instances/${testInstanceId}/webhook/test`);
+        const response = await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
         expect(response.status).toBe(200);
         expect(response.data.success).toBe(true);
@@ -337,7 +337,7 @@ describe('Phase 7 Webhook Tests', () => {
       });
 
       it('should send custom event type', async () => {
-        const response = await client.post(`/instances/${testInstanceId}/webhook/test`, {
+        const response = await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`, {
           event: 'message',
         });
 
@@ -348,22 +348,22 @@ describe('Phase 7 Webhook Tests', () => {
       it('should reject when no webhook URL configured', async () => {
         // Create instance without webhook
         const noWebhookId = `test-${Date.now()}`;
-        await client.post('/instances', {
+        await client.post('/api/v1/instances', {
           instanceId: noWebhookId,
           webhookUrl: '',
           webhookEvents: [],
         });
 
-        const response = await client.post(`/instances/${noWebhookId}/webhook/test`);
+        const response = await client.post(`/api/v1/instances/${noWebhookId}/webhook-tests`);
 
         expect(response.status).toBe(400);
         expect(response.data.success).toBe(false);
 
-        await client.delete(`/instances/${noWebhookId}`);
+        await client.delete(`/api/v1/instances/${noWebhookId}`);
       });
 
       it('should reject invalid event type', async () => {
-        const response = await client.post(`/instances/${testInstanceId}/webhook/test`, {
+        const response = await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`, {
           event: 'invalid-event',
         });
 
@@ -372,16 +372,16 @@ describe('Phase 7 Webhook Tests', () => {
       });
 
       it('should reject non-existent instance', async () => {
-        const response = await client.post(`/instances/non-existent/webhook/test`);
+        const response = await client.post(`/api/v1/instances/non-existent/webhook-tests`);
 
         expect(response.status).toBe(404);
         expect(response.data.success).toBe(false);
       });
     });
 
-    describe('GET /instances/:id/webhook/status', () => {
+    describe('GET /api/v1/instances/:instanceId/webhook/stats', () => {
       it('should return webhook statistics', async () => {
-        const response = await client.get(`/instances/${testInstanceId}/webhook/status`);
+        const response = await client.get(`/api/v1/instances/${testInstanceId}/webhook/stats`);
 
         expect(response.status).toBe(200);
         expect(response.data.success).toBe(true);
@@ -392,7 +392,7 @@ describe('Phase 7 Webhook Tests', () => {
       });
 
       it('should include stats fields', async () => {
-        const response = await client.get(`/instances/${testInstanceId}/webhook/status`);
+        const response = await client.get(`/api/v1/instances/${testInstanceId}/webhook/stats`);
 
         const stats = response.data.data.stats;
         expect(stats).toHaveProperty('queued');
@@ -403,18 +403,18 @@ describe('Phase 7 Webhook Tests', () => {
       it('should update stats after webhook delivery', async () => {
         // Get initial stats
         const beforeResponse = await client.get(
-          `/instances/${testInstanceId}/webhook/status`
+          `/api/v1/instances/${testInstanceId}/webhook/stats`
         );
         const beforeStats = beforeResponse.data.data.stats;
 
         // Send test webhook
-        await client.post(`/instances/${testInstanceId}/webhook/test`);
+        await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
 
         // Wait for delivery
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
         // Get updated stats
-        const afterResponse = await client.get(`/instances/${testInstanceId}/webhook/status`);
+        const afterResponse = await client.get(`/api/v1/instances/${testInstanceId}/webhook/stats`);
         const afterStats = afterResponse.data.data.stats;
 
         expect(afterStats.delivered).toBeGreaterThanOrEqual(beforeStats.delivered);
@@ -422,23 +422,23 @@ describe('Phase 7 Webhook Tests', () => {
 
       it('should return null webhook URL when not configured', async () => {
         const noWebhookId = `test-${Date.now()}`;
-        await client.post('/instances', {
+        await client.post('/api/v1/instances', {
           instanceId: noWebhookId,
           webhookUrl: '',
           webhookEvents: [],
         });
 
-        const response = await client.get(`/instances/${noWebhookId}/webhook/status`);
+        const response = await client.get(`/api/v1/instances/${noWebhookId}/webhook/stats`);
 
         expect(response.status).toBe(200);
         expect(response.data.data.webhookUrl).toBeNull();
         expect(response.data.data.webhookEvents).toEqual([]);
 
-        await client.delete(`/instances/${noWebhookId}`);
+        await client.delete(`/api/v1/instances/${noWebhookId}`);
       });
 
       it('should reject non-existent instance', async () => {
-        const response = await client.get(`/instances/non-existent/webhook/status`);
+        const response = await client.get(`/api/v1/instances/non-existent/webhook/stats`);
 
         expect(response.status).toBe(404);
         expect(response.data.success).toBe(false);
@@ -448,20 +448,20 @@ describe('Phase 7 Webhook Tests', () => {
 
   describe('Combined Webhook Operations', () => {
     it('should handle multiple webhook events', async () => {
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: ['test', 'message', 'ready'],
       });
 
       // Send multiple test webhooks
-      await client.post(`/instances/${testInstanceId}/webhook/test`, { event: 'test' });
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`, { event: 'test' });
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      await client.post(`/instances/${testInstanceId}/webhook/test`, { event: 'ready' });
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`, { event: 'ready' });
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      await client.post(`/instances/${testInstanceId}/webhook/test`, { event: 'message' });
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`, { event: 'message' });
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const events = webhookServer.getEvents();
@@ -470,7 +470,7 @@ describe('Phase 7 Webhook Tests', () => {
 
     it('should update webhook configuration dynamically', async () => {
       // Create with initial config
-      await client.post('/instances', {
+      await client.post('/api/v1/instances', {
         instanceId: testInstanceId,
         webhookUrl: webhookServer.getWebhookUrl(),
         webhookEvents: ['message'],
@@ -480,12 +480,12 @@ describe('Phase 7 Webhook Tests', () => {
       const newWebhookServer = new WebhookTestServer(3002);
       await newWebhookServer.start();
 
-      await client.patch(`/instances/${testInstanceId}`, {
+      await client.patch(`/api/v1/instances/${testInstanceId}/webhook`, {
         webhookUrl: newWebhookServer.getWebhookUrl(),
       });
 
       // Send test - should go to new URL
-      await client.post(`/instances/${testInstanceId}/webhook/test`);
+      await client.post(`/api/v1/instances/${testInstanceId}/webhook-tests`);
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const newEvents = newWebhookServer.getEvents();

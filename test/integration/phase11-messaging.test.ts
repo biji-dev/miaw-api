@@ -37,7 +37,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance with webhook
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: ['message', 'message_reaction'],
@@ -47,7 +47,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
   afterEach(async () => {
     // Cleanup: Delete test instance
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -55,7 +55,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
   describe('Remove Reaction', () => {
     it.skip('should remove reaction from message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -63,7 +63,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       }
 
       // First send a message
-      const sendResponse = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const sendResponse = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Remove reaction test',
       });
@@ -71,8 +71,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       const messageId = sendResponse.data.data.messageId;
 
       // Add a reaction first
-      await client.post(`/instances/${testInstanceId}/messages/reaction`, {
-        messageId,
+      await client.put(`/api/v1/instances/${testInstanceId}/messages/${messageId}/reaction`, {
         emoji: '👍',
       });
 
@@ -81,23 +80,23 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
       // Remove the reaction using the new endpoint
       const removeResponse = await client.delete(
-        `/instances/${testInstanceId}/messages/${messageId}/reaction`
+        `/api/v1/instances/${testInstanceId}/messages/${messageId}/reaction`
       );
 
       expect(removeResponse.status).toBe(200);
       expect(removeResponse.data.success).toBe(true);
-      expect(removeResponse.data.message).toContain('removed');
+      expect(removeResponse.data.data).toEqual({ messageId, removed: true });
     });
 
     it.skip('should accept optional chatJid for faster lookup', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const sendResponse = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const sendResponse = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Remove reaction with chatJid hint',
       });
@@ -105,15 +104,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       const messageId = sendResponse.data.data.messageId;
       const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      await client.post(`/instances/${testInstanceId}/messages/reaction`, {
-        messageId,
+      await client.put(`/api/v1/instances/${testInstanceId}/messages/${messageId}/reaction`, {
         emoji: '❤️',
       });
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const removeResponse = await client.delete(
-        `/instances/${testInstanceId}/messages/${messageId}/reaction?chatJid=${encodeURIComponent(chatJid)}`
+        `/api/v1/instances/${testInstanceId}/messages/${messageId}/reaction?chatJid=${encodeURIComponent(chatJid)}`
       );
 
       expect(removeResponse.status).toBe(200);
@@ -121,7 +119,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should return 404 for non-existent message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -129,7 +127,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       }
 
       const response = await client.delete(
-        `/instances/${testInstanceId}/messages/non-existent-message-id/reaction`
+        `/api/v1/instances/${testInstanceId}/messages/non-existent-message-id/reaction`
       );
 
       expect(response.status).toBe(404);
@@ -139,7 +137,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.delete(
-        `/instances/${testInstanceId}/messages/fake-message-id/reaction`
+        `/api/v1/instances/${testInstanceId}/messages/fake-message-id/reaction`
       );
 
       expect(response.status).toBe(503);
@@ -150,7 +148,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
   describe('Delete Message For Me (Local Deletion)', () => {
     it.skip('should delete message locally only', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -158,7 +156,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       }
 
       // First send a message
-      const sendResponse = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const sendResponse = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Local delete test',
       });
@@ -170,23 +168,26 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
       // Delete locally
       const deleteResponse = await client.delete(
-        `/instances/${testInstanceId}/messages/${messageId}/local`
+        `/api/v1/instances/${testInstanceId}/messages/${messageId}?scope=local`
       );
 
       expect(deleteResponse.status).toBe(200);
       expect(deleteResponse.data.success).toBe(true);
-      expect(deleteResponse.data.message).toContain('locally');
+      expect(deleteResponse.data.data).toEqual({
+        deleted: true,
+        scope: 'local',
+      });
     });
 
     it.skip('should accept chatJid for faster lookup', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const sendResponse = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const sendResponse = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Local delete with chatJid',
       });
@@ -197,7 +198,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const deleteResponse = await client.delete(
-        `/instances/${testInstanceId}/messages/${messageId}/local?chatJid=${encodeURIComponent(chatJid)}`
+        `/api/v1/instances/${testInstanceId}/messages/${messageId}?scope=local&chatJid=${encodeURIComponent(chatJid)}`
       );
 
       expect(deleteResponse.status).toBe(200);
@@ -205,7 +206,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should accept deleteMedia=false to keep media files', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -213,9 +214,9 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       }
 
       // Send a media message
-      const sendResponse = await client.post(`/instances/${testInstanceId}/send-media`, {
+      const sendResponse = await client.post(`/api/v1/instances/${testInstanceId}/messages/image`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
-        media: 'https://picsum.photos/100/100',
+        image: 'https://picsum.photos/100/100',
       });
 
       const messageId = sendResponse.data.data.messageId;
@@ -224,7 +225,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
       // Delete locally but keep media
       const deleteResponse = await client.delete(
-        `/instances/${testInstanceId}/messages/${messageId}/local?deleteMedia=false`
+        `/api/v1/instances/${testInstanceId}/messages/${messageId}?scope=local&deleteMedia=false`
       );
 
       expect(deleteResponse.status).toBe(200);
@@ -232,7 +233,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should return 404 for non-existent message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -240,7 +241,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
       }
 
       const response = await client.delete(
-        `/instances/${testInstanceId}/messages/non-existent-message-id/local`
+        `/api/v1/instances/${testInstanceId}/messages/non-existent-message-id?scope=local`
       );
 
       expect(response.status).toBe(404);
@@ -250,7 +251,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.delete(
-        `/instances/${testInstanceId}/messages/fake-message-id/local`
+        `/api/v1/instances/${testInstanceId}/messages/fake-message-id?scope=local`
       );
 
       expect(response.status).toBe(503);
@@ -261,7 +262,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
   describe('Load More Messages', () => {
     it.skip('should load more messages from chat history', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -270,8 +271,9 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
       const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      const response = await client.get(
-        `/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/messages/load`
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/message-history-loads`,
+        {}
       );
 
       expect(response.status).toBe(200);
@@ -283,7 +285,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should accept count parameter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -292,8 +294,9 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
       const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      const response = await client.get(
-        `/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/messages/load?count=10`
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/message-history-loads`,
+        { count: 10 }
       );
 
       expect(response.status).toBe(200);
@@ -301,7 +304,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should accept timeout parameter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -310,8 +313,9 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
       const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      const response = await client.get(
-        `/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/messages/load?count=5&timeout=10000`
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/message-history-loads`,
+        { count: 5, timeoutMs: 10000 }
       );
 
       expect(response.status).toBe(200);
@@ -321,8 +325,9 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     it.skip('should reject count > 50', async () => {
       const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      const response = await client.get(
-        `/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/messages/load?count=100`
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/message-history-loads`,
+        { count: 100 }
       );
 
       expect(response.status).toBe(400);
@@ -332,8 +337,9 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     it.skip('should reject when instance is not connected', async () => {
       const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      const response = await client.get(
-        `/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/messages/load`
+      const response = await client.post(
+        `/api/v1/instances/${testInstanceId}/chats/${encodeURIComponent(chatJid)}/message-history-loads`,
+        {}
       );
 
       expect(response.status).toBe(503);
@@ -344,8 +350,9 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     it.skip('should return 404 for non-existent instance', async () => {
       const chatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      const response = await client.get(
-        `/instances/non-existent-instance/chats/${encodeURIComponent(chatJid)}/messages/load`
+      const response = await client.post(
+        `/api/v1/instances/non-existent-instance/chats/${encodeURIComponent(chatJid)}/message-history-loads`,
+        {}
       );
 
       expect(response.status).toBe(404);
@@ -355,14 +362,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
   describe('Send Image (Direct Endpoint)', () => {
     it.skip('should send image via dedicated endpoint', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/image`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/image`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         image: 'https://picsum.photos/300/200',
         caption: 'Test image from direct endpoint',
@@ -374,14 +381,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should send image with viewOnce flag', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/image`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/image`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         image: 'https://picsum.photos/300/200',
         viewOnce: true,
@@ -392,7 +399,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/messages/image`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/image`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         image: 'https://example.com/image.jpg',
       });
@@ -402,7 +409,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should reject invalid image URL', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/messages/image`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/image`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         image: 'not-a-valid-url',
       });
@@ -414,14 +421,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
   describe('Send Video (Direct Endpoint)', () => {
     it.skip('should send video via dedicated endpoint', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/video`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/video`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         video: 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
         caption: 'Test video',
@@ -433,14 +440,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should send video as GIF', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/video`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/video`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         video: 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
         gifPlayback: true,
@@ -451,14 +458,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should send video as PTV (video note)', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/video`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/video`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         video: 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
         ptv: true,
@@ -469,7 +476,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/messages/video`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/video`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         video: 'https://example.com/video.mp4',
       });
@@ -481,14 +488,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
   describe('Send Audio (Direct Endpoint)', () => {
     it.skip('should send audio via dedicated endpoint', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/audio`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/audio`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         audio: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
       });
@@ -499,14 +506,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should send audio as voice note (PTT)', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/audio`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/audio`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         audio: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
         ptt: true,
@@ -517,14 +524,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should accept custom mimetype', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/audio`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/audio`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         audio: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
         mimetype: 'audio/mpeg',
@@ -535,7 +542,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/messages/audio`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/audio`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         audio: 'https://example.com/audio.mp3',
       });
@@ -547,14 +554,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
 
   describe('Send Document (Direct Endpoint)', () => {
     it.skip('should send document via dedicated endpoint', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/document`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/document`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         document: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
         fileName: 'test-document.pdf',
@@ -567,14 +574,14 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should send document with custom mimetype', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/messages/document`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/document`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         document: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
         fileName: 'document.pdf',
@@ -586,7 +593,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/messages/document`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/document`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         document: 'https://example.com/doc.pdf',
       });
@@ -596,7 +603,7 @@ describe('Phase 11 Advanced Messaging Tests', () => {
     });
 
     it.skip('should reject invalid document URL', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/messages/document`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/document`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         document: 'not-a-valid-url',
       });

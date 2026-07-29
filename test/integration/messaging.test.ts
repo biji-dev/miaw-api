@@ -39,7 +39,7 @@ describe('Messaging Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance with webhook
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: ['message'],
@@ -53,15 +53,15 @@ describe('Messaging Tests', () => {
   afterEach(async () => {
     // Cleanup: Delete test instance
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
   });
 
-  describe('POST /instances/:id/send-text - Send Text Message', () => {
+  describe('POST /api/v1/instances/:instanceId/messages/text - Send Text Message', () => {
     it('should reject request for non-existent instance', async () => {
-      const response = await client.post('/instances/non-existent/send-text', {
+      const response = await client.post('/api/v1/instances/non-existent/messages/text', {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Test message',
       });
@@ -72,7 +72,7 @@ describe('Messaging Tests', () => {
     });
 
     it('should reject when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Test message',
       });
@@ -84,7 +84,7 @@ describe('Messaging Tests', () => {
     });
 
     it('should reject empty text message', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: '',
       });
@@ -95,7 +95,7 @@ describe('Messaging Tests', () => {
     });
 
     it('should reject missing text field', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
       });
 
@@ -104,7 +104,7 @@ describe('Messaging Tests', () => {
     });
 
     it('should reject missing to field', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         text: 'Test message',
       });
 
@@ -114,14 +114,14 @@ describe('Messaging Tests', () => {
 
     it.skip('should send text message to phone number', async () => {
       // This test requires a connected instance
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping send test - instance not connected. Run connection tests first.');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Test message from integration test',
       });
@@ -134,7 +134,7 @@ describe('Messaging Tests', () => {
     });
 
     it.skip('should send text message with JID format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping send test - instance not connected.');
@@ -143,7 +143,7 @@ describe('Messaging Tests', () => {
 
       const jid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
-      const response = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: jid,
         text: 'Test message with JID',
       });
@@ -154,7 +154,7 @@ describe('Messaging Tests', () => {
     });
 
     it.skip('should send text message with quote/reply', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping send test - instance not connected.');
@@ -162,7 +162,7 @@ describe('Messaging Tests', () => {
       }
 
       // First send a message to get a messageId
-      const firstResponse = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const firstResponse = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'First message',
       });
@@ -170,7 +170,7 @@ describe('Messaging Tests', () => {
       const messageId = firstResponse.data.data.messageId;
 
       // Now send a reply
-      const replyResponse = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const replyResponse = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: 'Reply to first message',
         quoted: messageId,
@@ -182,7 +182,7 @@ describe('Messaging Tests', () => {
     });
 
     it.skip('should send very long text message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping send test - instance not connected.');
@@ -191,7 +191,7 @@ describe('Messaging Tests', () => {
 
       const longText = 'A'.repeat(10000);
 
-      const response = await client.post(`/instances/${testInstanceId}/send-text`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
         to: TEST_CONFIG.TEST_CONTACT_A,
         text: longText,
       });
@@ -202,7 +202,7 @@ describe('Messaging Tests', () => {
     });
 
     it.skip('should send multiple messages concurrently', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping send test - instance not connected.');
@@ -210,7 +210,7 @@ describe('Messaging Tests', () => {
       }
 
       const messagePromises = Array.from({ length: 10 }, (_, i) =>
-        client.post(`/instances/${testInstanceId}/send-text`, {
+        client.post(`/api/v1/instances/${testInstanceId}/messages/text`, {
           to: TEST_CONFIG.TEST_CONTACT_A,
           text: `Concurrent message ${i + 1}`,
         })
@@ -233,7 +233,7 @@ describe('Messaging Tests', () => {
       // 2. Sending a message to the test number from another phone
       // Manual verification needed
 
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping webhook test - instance not connected.');
