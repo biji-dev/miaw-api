@@ -12,6 +12,7 @@ import { config } from './config/index.js';
 import { registerRoutes } from './routes/index.js';
 import { registerSchemas } from './schemas/index.js';
 import { InstanceManager } from './services/InstanceManager.js';
+import { ProxyPoolService } from './services/ProxyService.js';
 import { WebhookDispatcher } from './services/WebhookDispatcher.js';
 import { errorHandler } from './utils/errorHandler.js';
 
@@ -70,6 +71,7 @@ export async function createServer(): Promise<FastifyInstance> {
         { name: 'Business', description: 'WhatsApp Business features (labels, catalog, newsletters)' },
         { name: 'Communities', description: 'Create and manage WhatsApp communities' },
         { name: 'Operations', description: 'Runtime, proxy, and LID management' },
+        { name: 'Proxies', description: 'Inspect, reload, and test outbound proxies' },
         { name: 'Health', description: 'API health check' },
       ],
       components: {
@@ -129,6 +131,12 @@ export async function createServer(): Promise<FastifyInstance> {
     return server.swagger();
   });
 
+  const proxyPool = await ProxyPoolService.create({
+    filePath: config.proxyFile,
+    strategy: config.proxyStrategy,
+    logger: server.log,
+  });
+
   // Create instance manager (shared across requests)
   const instanceManager = new InstanceManager({
     sessionPath: config.sessionPath,
@@ -136,6 +144,7 @@ export async function createServer(): Promise<FastifyInstance> {
     webhookTimeout: config.webhookTimeout,
     webhookMaxRetries: config.webhookMaxRetries,
     webhookRetryDelay: config.webhookRetryDelay,
+    proxyPool,
   });
 
   // Create webhook dispatcher
@@ -153,9 +162,11 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Decorate server with instance manager
   server.decorate('instanceManager', instanceManager);
+  server.decorate('proxyPool', proxyPool);
   server.decorate('webhookDispatcher', webhookDispatcher);
   server.addHook('onClose', async () => {
     await instanceManager.dispose();
+    proxyPool.close();
     webhookDispatcher.dispose();
   });
 
