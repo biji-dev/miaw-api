@@ -13,6 +13,61 @@ export function registerSchemas(server: FastifyInstance): void {
   const httpUrlPattern = '^https?://';
   const webhookEvents = ['test', 'qr', 'ready', 'message', 'message_edit', 'message_delete', 'message_reaction', 'message_receipt', 'poll_vote', 'pairing_code', 'presence', 'connection', 'disconnected', 'reconnecting', 'error', 'session_saved'];
 
+  server.addSchema({
+    $id: 'instanceParams',
+    type: 'object',
+    required: ['instanceId'],
+    properties: { instanceId: { type: 'string', pattern: instanceIdPattern } },
+  });
+
+  server.addSchema({
+    $id: 'paginationQuery',
+    type: 'object',
+    properties: {
+      limit: { type: 'integer', minimum: 1, maximum: 500 },
+      cursor: { type: 'string' },
+    },
+  });
+
+  server.addSchema({
+    $id: 'successEnvelope',
+    type: 'object',
+    required: ['success', 'data'],
+    properties: {
+      success: { const: true },
+      data: {},
+    },
+  });
+
+  server.addSchema({
+    $id: 'collectionData',
+    type: 'object',
+    required: ['items', 'total'],
+    properties: {
+      items: { type: 'array', items: {} },
+      total: { type: 'integer', minimum: 0 },
+    },
+  });
+
+  server.addSchema({
+    $id: 'coreOperationFailure',
+    type: 'object',
+    required: ['success', 'error'],
+    properties: {
+      success: { const: false },
+      error: {
+        type: 'object',
+        required: ['code', 'message'],
+        properties: {
+          code: { const: 'INVALID_REQUEST' },
+          message: { type: 'string' },
+          correlationId: { type: 'string' },
+          details: { type: 'object' },
+        },
+      },
+    },
+  });
+
   // ============================================================================
   // Instance Schemas
   // ============================================================================
@@ -131,92 +186,36 @@ export function registerSchemas(server: FastifyInstance): void {
   });
 
   server.addSchema({
-    $id: 'sendMedia',
-    type: 'object',
-    required: ['to', 'media'],
-    properties: {
-      to: {
-        type: 'string',
-        minLength: 1,
-        maxLength: 100,
-      },
-      media: {
-        type: 'string',
-        format: 'uri',
-        pattern: httpUrlPattern,
-      },
-      type: { type: 'string', enum: ['image', 'video', 'audio', 'document'] },
-      caption: {
-        type: 'string',
-        nullable: true,
-      },
-      fileName: {
-        type: 'string',
-        nullable: true,
-      },
-      mimetype: {
-        type: 'string',
-        nullable: true,
-      },
-      viewOnce: {
-        type: 'boolean',
-        nullable: true,
-      },
-      ptt: {
-        type: 'boolean',
-        nullable: true,
-      },
-      gifPlayback: {
-        type: 'boolean',
-        nullable: true,
-      },
-      quoted: {
-        type: 'string',
-        nullable: true,
-      },
-      quotedChatJid: { type: 'string', nullable: true },
-    },
-  });
-
-  server.addSchema({
     $id: 'editMessage',
     type: 'object',
-    required: ['messageId', 'text'],
+    additionalProperties: false,
+    required: ['text'],
     properties: {
-      messageId: {
-        type: 'string',
-      },
       text: {
         type: 'string',
         minLength: 1,
       },
-      chatJid: { type: 'string', nullable: true },
     },
   });
 
   server.addSchema({
     $id: 'reactionMessage',
     type: 'object',
-    required: ['messageId', 'emoji'],
+    additionalProperties: false,
+    required: ['emoji'],
     properties: {
-      messageId: {
-        type: 'string',
-      },
       emoji: {
         type: 'string',
       },
-      chatJid: { type: 'string', nullable: true },
     },
   });
 
   server.addSchema({
     $id: 'forwardMessage',
     type: 'object',
-    required: ['messageId', 'to'],
+    additionalProperties: false,
+    required: ['to'],
     properties: {
-      messageId: {
-        type: 'string',
-      },
       to: {
         type: 'array',
         items: {
@@ -225,7 +224,6 @@ export function registerSchemas(server: FastifyInstance): void {
         minItems: 1,
         maxItems: 50,
       },
-      chatJid: { type: 'string', nullable: true },
     },
   });
 

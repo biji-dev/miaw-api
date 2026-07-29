@@ -47,7 +47,7 @@ export async function createServer(): Promise<FastifyInstance> {
       info: {
         title: 'Miaw API',
         description: 'REST API wrapper for miaw-core - Multiple Instance of App WhatsApp',
-        version: '1.2.1',
+        version: '2.0.0',
       },
       servers: [
         {

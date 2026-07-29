@@ -1,5 +1,5 @@
 /**
- * Data & Fetch Routes (v0.9.0)
+ * Data & Fetch Routes (v2)
  *
  * GET endpoints for fetching contacts, groups, profile, labels, messages, and chats from in-memory store.
  * These endpoints return data from WhatsApp's history sync - they may return empty arrays if no history has been synced yet.
@@ -14,7 +14,7 @@ import { NotFoundError, BadRequestError } from '../utils/errorHandler.js';
  */
 export async function basicGetsRoutes(server: FastifyInstance, instanceManager: InstanceManager): Promise<void> {
   // ============================================================================
-  // GET /instances/:id/contacts - Get all contacts
+  // GET /instances/:instanceId/contacts - Get all contacts
   // ============================================================================
   server.get('/instances/:instanceId/contacts', {
     schema: {
@@ -53,11 +53,12 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
       throw new BadRequestError('Failed to fetch contacts', result);
     }
 
-    return reply.send(result);
+    const items = result.contacts ?? [];
+    return reply.send({ success: true, data: { items, total: items.length } });
   });
 
   // ============================================================================
-  // GET /instances/:id/groups - Get all groups
+  // GET /instances/:instanceId/groups - Get all groups
   // ============================================================================
   server.get('/instances/:instanceId/groups', {
     schema: {
@@ -91,11 +92,12 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
       throw new BadRequestError('Failed to fetch groups', result);
     }
 
-    return reply.send(result);
+    const items = result.groups ?? [];
+    return reply.send({ success: true, data: { items, total: items.length } });
   });
 
   // ============================================================================
-  // GET /instances/:id/profile - Get own profile
+  // GET /instances/:instanceId/profile - Get own profile
   // ============================================================================
   server.get('/instances/:instanceId/profile', {
     schema: {
@@ -131,11 +133,11 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
       throw new BadRequestError('Failed to get profile');
     }
 
-    return reply.send(profile);
+    return reply.send({ success: true, data: profile });
   });
 
   // ============================================================================
-  // GET /instances/:id/labels - Get all labels
+  // GET /instances/:instanceId/labels - Get all labels
   // ============================================================================
   server.get('/instances/:instanceId/labels', {
     schema: {
@@ -171,11 +173,12 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
       throw new BadRequestError('Failed to fetch labels', result);
     }
 
-    return reply.send(result);
+    const items = result.labels ?? [];
+    return reply.send({ success: true, data: { items, total: items.length } });
   });
 
   // ============================================================================
-  // GET /instances/:id/chats - Get all chats
+  // GET /instances/:instanceId/chats - Get all chats
   // ============================================================================
   server.get('/instances/:instanceId/chats', {
     schema: {
@@ -215,13 +218,14 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
       throw new BadRequestError('Failed to fetch chats', result);
     }
 
-    return reply.send(result);
+    const items = result.chats ?? [];
+    return reply.send({ success: true, data: { items, total: items.length } });
   });
 
   // ============================================================================
-  // GET /instances/:id/chats/:jid/messages - Get chat messages
+  // GET /instances/:instanceId/chats/:chatJid/messages - Get chat messages
   // ============================================================================
-  server.get('/instances/:instanceId/chats/:jid/messages', {
+  server.get('/instances/:instanceId/chats/:chatJid/messages', {
     schema: {
       tags: ['Data'],
       summary: 'Get chat messages',
@@ -247,10 +251,10 @@ WhatsApp uses LID (Limited ID) as a privacy measure for phone numbers. When What
 - \`fromMe\`: true if sent by authenticated user`,
       params: {
         type: 'object',
-        required: ['instanceId', 'jid'],
+        required: ['instanceId', 'chatJid'],
         properties: {
           instanceId: { type: 'string', minLength: 1, description: 'Instance ID' },
-          jid: {
+          chatJid: {
             type: 'string',
             minLength: 1,
             description: 'Chat JID (phone@s.whatsapp.net for individual, group@g.us for group, or @lid format)',
@@ -259,19 +263,20 @@ WhatsApp uses LID (Limited ID) as a privacy measure for phone numbers. When What
       },
     },
   }, async (request, reply) => {
-    const { instanceId, jid } = request.params as { instanceId: string; jid: string };
+    const { instanceId, chatJid } = request.params as { instanceId: string; chatJid: string };
 
     const client = instanceManager.getClient(instanceId);
     if (!client) {
       throw new NotFoundError('Instance');
     }
 
-    const result = await client.getChatMessages(jid);
+    const result = await client.getChatMessages(chatJid);
 
     if (!result.success) {
       throw new BadRequestError('Failed to fetch messages', result);
     }
 
-    return reply.send(result);
+    const items = result.messages ?? [];
+    return reply.send({ success: true, data: { items, total: items.length } });
   });
 }

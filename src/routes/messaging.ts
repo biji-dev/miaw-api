@@ -1,90 +1,21 @@
 /**
  * Messaging Routes
- * POST /instances/:id/send-text - Send text message
- * POST /instances/:id/send-media - Send media (image, video, audio, document)
- * PATCH /instances/:id/messages/edit - Edit message
- * DELETE /instances/:id/messages/:messageId - Delete message
- * POST /instances/:id/messages/reaction - React to message
- * DELETE /instances/:id/messages/:messageId/reaction - Remove reaction from message
- * DELETE /instances/:id/messages/:messageId/local - Delete message for self only
- * POST /instances/:id/messages/forward - Forward message
- * GET /instances/:id/messages/:messageId/media - Download media from message
- * GET /instances/:id/chats/:jid/messages/load - Load more messages from history
- * POST /instances/:id/messages/image - Send image message
- * POST /instances/:id/messages/video - Send video message
- * POST /instances/:id/messages/audio - Send audio message
- * POST /instances/:id/messages/document - Send document message
+ * POST /instances/:instanceId/messages/text - Send text message
+ * POST /instances/:instanceId/messages/:type - Send typed media
+ * PATCH /instances/:instanceId/messages/:messageId - Edit message
+ * DELETE /instances/:instanceId/messages/:messageId - Delete message
+ * PUT /instances/:instanceId/messages/:messageId/reaction - React to message
+ * DELETE /instances/:instanceId/messages/:messageId/reaction - Remove reaction from message
+ * POST /instances/:instanceId/messages/:messageId/forward - Forward message
+ * GET /instances/:instanceId/messages/:messageId/media - Download media from message
+ * POST /instances/:instanceId/chats/:chatJid/message-history-loads - Load chat history
  */
 
 import { FastifyInstance } from 'fastify';
-import type { MiawClient, MiawMessage, SendMessageResult } from 'miaw-core';
+import type { SendMessageResult } from 'miaw-core';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler.js';
-
-/**
- * Helper to find a message by ID across all chats or within a specific chat
- * @param client - MiawClient instance
- * @param messageId - Message ID to find
- * @param chatJid - Optional chat JID to search in (speeds up lookup)
- * @returns The message object or null if not found
- */
-async function findMessageById(
-  client: MiawClient,
-  messageId: string,
-  chatJid?: string
-): Promise<MiawMessage | null> {
-  if (chatJid) {
-    // If chatJid is provided, search only in that chat
-    const chatResult = await client.getChatMessages(chatJid);
-    if (chatResult.success && chatResult.messages) {
-      return chatResult.messages.find((m: any) => m.id === messageId) || null;
-    }
-  } else {
-    // Search through all chats (less efficient)
-    const messageCounts = client.getMessageCounts();
-    for (const jid of messageCounts.keys()) {
-      const chatResult = await client.getChatMessages(jid);
-      if (chatResult.success && chatResult.messages) {
-        const found = chatResult.messages.find((m: any) => m.id === messageId);
-        if (found) {
-          return found;
-        }
-      }
-    }
-  }
-  return null;
-}
-
-async function resolveQuotedMessage(
-  client: MiawClient,
-  messageId?: string,
-  chatJid?: string
-): Promise<MiawMessage | undefined> {
-  if (!messageId) return undefined;
-  const message = await findMessageById(client, messageId, chatJid);
-  if (!message) throw new NotFoundError('Quoted message');
-  return message;
-}
-
-function inferMediaType(body: {
-  type?: 'image' | 'video' | 'audio' | 'document';
-  media: string;
-  mimetype?: string;
-}): 'image' | 'video' | 'audio' | 'document' {
-  if (body.type) return body.type;
-  const mime = body.mimetype?.toLowerCase();
-  if (mime?.startsWith('image/')) return 'image';
-  if (mime?.startsWith('video/')) return 'video';
-  if (mime?.startsWith('audio/')) return 'audio';
-  if (mime) return 'document';
-
-  const pathname = new URL(body.media).pathname.toLowerCase();
-  if (/\.(jpe?g|png|gif|webp|avif)$/.test(pathname)) return 'image';
-  if (/\.(mp4|mov|mkv|webm|avi)$/.test(pathname)) return 'video';
-  if (/\.(mp3|ogg|opus|wav|m4a|aac)$/.test(pathname)) return 'audio';
-  if (/\.[a-z0-9]{1,8}$/.test(pathname)) return 'document';
-  throw new BadRequestError('Unable to infer media type; provide type or mimetype');
-}
+import { requireCoreSuccess, requireMessage, resolveQuote } from '../utils/client.js';
 
 function messageResponse(result: SendMessageResult, to: string) {
   if (!result.success) {
@@ -101,11 +32,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   server.addHook('onRequest', createAuthMiddleware());
 
   /**
-   * POST /instances/:id/send-text
+   * POST /instances/:instanceId/messages/text
    * Send text message
    */
   server.post(
-    '/instances/:id/send-text',
+    '/instances/:instanceId/messages/text',
     {
       schema: {
         description: 'Send a text message',
@@ -114,73 +45,17 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId'],
         },
         body: {
           $ref: 'sendText#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  to: { type: 'string' },
-                  timestamp: { type: 'number' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const body = request.body as {
         to: string;
         text: string;
@@ -190,8 +65,8 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -202,7 +77,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const quoted = await resolveQuotedMessage(client, body.quoted, body.quotedChatJid);
+        const quoted = await resolveQuote(client, body.quoted, body.quotedChatJid);
         const result = await client.sendText(body.to, body.text, {
           quoted,
           mentions: body.mentions,
@@ -221,165 +96,21 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
     }
   );
 
-  /**
-   * POST /instances/:id/send-media
-   * Send media message (image, video, audio, document)
-   */
-  server.post(
-    '/instances/:id/send-media',
-    {
-      schema: {
-        description: 'Send a media message (image, video, audio, document)',
-        tags: ['Messaging'],
-        summary: 'Send media message',
-        params: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-          },
-          required: ['id'],
-        },
-        body: {
-          $ref: 'sendMedia#',
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  to: { type: 'string' },
-                  timestamp: { type: 'number' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    async (request, reply) => {
-      const params = request.params as { id: string };
-      const body = request.body as {
-        to: string;
-        media: string;
-        caption?: string;
-        fileName?: string;
-        mimetype?: string;
-        viewOnce?: boolean;
-        ptt?: boolean;
-        gifPlayback?: boolean;
-        quoted?: string;
-        quotedChatJid?: string;
-        type?: 'image' | 'video' | 'audio' | 'document';
-      };
-
-      const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
-
-      if (!client || !instance) {
-        throw new NotFoundError('Instance');
-      }
-
-      if (instance.status !== 'connected') {
-        throw new ServiceUnavailableError('Instance is not connected');
-      }
-
-      try {
-        const quoted = await resolveQuotedMessage(client, body.quoted, body.quotedChatJid);
-        const type = inferMediaType(body);
-        let result: SendMessageResult;
-        if (type === 'image') {
-          result = await client.sendImage(body.to, body.media, {
-            caption: body.caption,
-            viewOnce: body.viewOnce,
-            quoted,
-          });
-        } else if (type === 'video') {
-          result = await client.sendVideo(body.to, body.media, {
-            caption: body.caption,
-            viewOnce: body.viewOnce,
-            gifPlayback: body.gifPlayback,
-            quoted,
-          });
-        } else if (type === 'audio') {
-          result = await client.sendAudio(body.to, body.media, {
-            ptt: body.ptt,
-            mimetype: body.mimetype,
-            quoted,
-          });
-        } else {
-          result = await client.sendDocument(body.to, body.media, {
-            caption: body.caption,
-            fileName: body.fileName,
-            mimetype: body.mimetype,
-            quoted,
-          });
-        }
-
-        reply.send({
-          success: true,
-          data: {
-            ...messageResponse(result, body.to),
-          },
-        });
-      } catch (err: any) {
-        if (err instanceof NotFoundError || err instanceof BadRequestError) throw err;
-        throw new BadRequestError('Failed to send media', { error: err.message });
-      }
-    }
-  );
 
   /**
-   * PATCH /instances/:id/messages/edit
+   * PATCH /instances/:instanceId/messages/:messageId
    * Edit a text message
    */
   server.patch(
-    '/instances/:id/messages/edit',
+    '/instances/:instanceId/messages/:messageId',
     {
+      onRequest: async (request) => {
+        // `/messages/edit` was a 1.x body-identified command. Keep that exact
+        // removed path from being interpreted as the v2 message ID "edit".
+        if ((request.params as { messageId?: string }).messageId === 'edit') {
+          throw new NotFoundError('Route');
+        }
+      },
       schema: {
         description: 'Edit a previously sent text message',
         tags: ['Messaging'],
@@ -387,80 +118,30 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
+            messageId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId', 'messageId'],
         },
         body: {
           $ref: 'editMessage#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  timestamp: { type: 'number' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+        querystring: {
+          type: 'object',
+          properties: { chatJid: { type: 'string' } },
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string; messageId: string };
       const body = request.body as {
-        messageId: string;
         text: string;
-        chatJid?: string;
       };
+      const query = request.query as { chatJid?: string };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -471,14 +152,17 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const message = await findMessageById(client, body.messageId, body.chatJid);
+        const message = await requireMessage(client, params.messageId, query.chatJid);
         if (!message) throw new NotFoundError('Message');
-        const result = await client.editMessage(message, body.text);
+        const result = requireCoreSuccess(
+          await client.editMessage(message, body.text),
+          'Edit message'
+        );
 
         reply.send({
           success: true,
           data: {
-            messageId: result.messageId || body.messageId,
+            messageId: result.messageId || params.messageId,
             timestamp: Date.now(),
           },
         });
@@ -490,11 +174,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * DELETE /instances/:id/messages/:messageId
+   * DELETE /instances/:instanceId/messages/:messageId
    * Delete a message
    */
   server.delete(
-    '/instances/:id/messages/:messageId',
+    '/instances/:instanceId/messages/:messageId',
     {
       schema: {
         description: 'Delete a message (for everyone or for me)',
@@ -503,78 +187,32 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
             messageId: { type: 'string' },
           },
-          required: ['id', 'messageId'],
+          required: ['instanceId', 'messageId'],
         },
         querystring: {
           type: 'object',
           properties: {
-            forMe: {
-              type: 'boolean',
-              default: false,
-              description: 'Delete only for me (true) or for everyone (false)',
-            },
-          },
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
+            scope: { type: 'string', enum: ['everyone', 'local'], default: 'everyone' },
+            chatJid: { type: 'string' },
+            deleteMedia: { type: 'boolean', default: true },
           },
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string; messageId: string };
-      const query = request.query as { forMe?: boolean; chatJid?: string };
+      const params = request.params as { instanceId: string; messageId: string };
+      const query = request.query as {
+        scope?: 'everyone' | 'local';
+        chatJid?: string;
+        deleteMedia?: boolean;
+      };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -585,19 +223,20 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const message = await findMessageById(client, params.messageId, query.chatJid);
+        const message = await requireMessage(client, params.messageId, query.chatJid);
         if (!message) throw new NotFoundError('Message');
-        if (query.forMe) {
-          await client.deleteMessageForMe(message);
+        if (query.scope === 'local') {
+          requireCoreSuccess(
+            await client.deleteMessageForMe(message, query.deleteMedia !== false),
+            'Delete message locally'
+          );
         } else {
-          await client.deleteMessage(message);
+          requireCoreSuccess(await client.deleteMessage(message), 'Delete message');
         }
 
         reply.send({
           success: true,
-          message: query.forMe
-            ? 'Message deleted for me'
-            : 'Message deleted for everyone',
+          data: { deleted: true, scope: query.scope ?? 'everyone' },
         });
       } catch (err: any) {
         if (err instanceof NotFoundError || err instanceof BadRequestError) throw err;
@@ -607,11 +246,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * POST /instances/:id/messages/reaction
+   * PUT /instances/:instanceId/messages/:messageId/reaction
    * React to a message with emoji
    */
-  server.post(
-    '/instances/:id/messages/reaction',
+  server.put(
+    '/instances/:instanceId/messages/:messageId/reaction',
     {
       schema: {
         description: 'React to a message with an emoji (send empty emoji to remove)',
@@ -620,80 +259,30 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
+            messageId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId', 'messageId'],
         },
         body: {
           $ref: 'reactionMessage#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  emoji: { type: 'string' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+        querystring: {
+          type: 'object',
+          properties: { chatJid: { type: 'string' } },
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string; messageId: string };
       const body = request.body as {
-        messageId: string;
         emoji: string;
-        chatJid?: string;
       };
+      const query = request.query as { chatJid?: string };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -704,15 +293,18 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const message = await findMessageById(client, body.messageId, body.chatJid);
+        const message = await requireMessage(client, params.messageId, query.chatJid);
         if (!message) throw new NotFoundError('Message');
-        if (body.emoji) await client.sendReaction(message, body.emoji);
-        else await client.removeReaction(message);
+        if (body.emoji) {
+          requireCoreSuccess(await client.sendReaction(message, body.emoji), 'Add reaction');
+        } else {
+          requireCoreSuccess(await client.removeReaction(message), 'Remove reaction');
+        }
 
         reply.send({
           success: true,
           data: {
-            messageId: body.messageId,
+            messageId: params.messageId,
             emoji: body.emoji || '(removed)',
           },
         });
@@ -724,11 +316,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * DELETE /instances/:id/messages/:messageId/reaction
+   * DELETE /instances/:instanceId/messages/:messageId/reaction
    * Remove reaction from a message
    */
   server.delete(
-    '/instances/:id/messages/:messageId/reaction',
+    '/instances/:instanceId/messages/:messageId/reaction',
     {
       schema: {
         description: 'Remove reaction from a message',
@@ -737,10 +329,10 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
             messageId: { type: 'string' },
           },
-          required: ['id', 'messageId'],
+          required: ['instanceId', 'messageId'],
         },
         querystring: {
           type: 'object',
@@ -751,64 +343,15 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
             },
           },
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string; messageId: string };
+      const params = request.params as { instanceId: string; messageId: string };
       const query = request.query as { chatJid?: string };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -820,7 +363,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
 
       try {
         // Find the message in the store
-        const message = await findMessageById(client, params.messageId, query.chatJid);
+        const message = await requireMessage(client, params.messageId, query.chatJid);
 
         if (!message) {
           throw new NotFoundError('Message');
@@ -834,7 +377,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
 
         reply.send({
           success: true,
-          message: 'Reaction removed',
+          data: { messageId: params.messageId, removed: true },
         });
       } catch (err: any) {
         if (err.code === 'NOT_FOUND' || err.code === 'BAD_REQUEST') {
@@ -845,140 +388,13 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
     }
   );
 
-  /**
-   * DELETE /instances/:id/messages/:messageId/local
-   * Delete a message for self only (local deletion)
-   */
-  server.delete(
-    '/instances/:id/messages/:messageId/local',
-    {
-      schema: {
-        description: 'Delete a message for yourself only (local deletion, does not affect other participants)',
-        tags: ['Messaging'],
-        summary: 'Delete message locally',
-        params: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            messageId: { type: 'string' },
-          },
-          required: ['id', 'messageId'],
-        },
-        querystring: {
-          type: 'object',
-          properties: {
-            chatJid: {
-              type: 'string',
-              description: 'Optional chat JID to speed up message lookup',
-            },
-            deleteMedia: {
-              type: 'boolean',
-              default: true,
-              description: 'Whether to also delete associated media files (default: true)',
-            },
-          },
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    async (request, reply) => {
-      const params = request.params as { id: string; messageId: string };
-      const query = request.query as { chatJid?: string; deleteMedia?: boolean };
-
-      const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
-
-      if (!client || !instance) {
-        throw new NotFoundError('Instance');
-      }
-
-      if (instance.status !== 'connected') {
-        throw new ServiceUnavailableError('Instance is not connected');
-      }
-
-      try {
-        // Find the message in the store
-        const message = await findMessageById(client, params.messageId, query.chatJid);
-
-        if (!message) {
-          throw new NotFoundError('Message');
-        }
-
-        const deleteMedia = query.deleteMedia !== false; // default true
-        const success = await client.deleteMessageForMe(message, deleteMedia);
-
-        if (!success) {
-          throw new BadRequestError('Failed to delete message locally');
-        }
-
-        reply.send({
-          success: true,
-          message: 'Message deleted locally',
-        });
-      } catch (err: any) {
-        if (err.code === 'NOT_FOUND' || err.code === 'BAD_REQUEST') {
-          throw err;
-        }
-        throw new BadRequestError('Failed to delete message locally', { error: err.message });
-      }
-    }
-  );
 
   /**
-   * POST /instances/:id/messages/forward
+   * POST /instances/:instanceId/messages/:messageId/forward
    * Forward a message to one or more recipients
    */
   server.post(
-    '/instances/:id/messages/forward',
+    '/instances/:instanceId/messages/:messageId/forward',
     {
       schema: {
         description: 'Forward a message to one or more recipients',
@@ -987,89 +403,30 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
+            messageId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId', 'messageId'],
         },
         body: {
           $ref: 'forwardMessage#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  forwarded: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        to: { type: 'string' },
-                        messageId: { type: 'string' },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+        querystring: {
+          type: 'object',
+          properties: { chatJid: { type: 'string' } },
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string; messageId: string };
       const body = request.body as {
-        messageId: string;
         to: string[];
-        chatJid?: string;
       };
+      const query = request.query as { chatJid?: string };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -1080,10 +437,13 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const message = await findMessageById(client, body.messageId, body.chatJid);
+        const message = await requireMessage(client, params.messageId, query.chatJid);
         if (!message) throw new NotFoundError('Message');
         const results = await Promise.all(
-          body.to.map(async (to) => ({ to, result: await client.forwardMessage(message, to) }))
+          body.to.map(async (to) => ({
+            to,
+            result: requireCoreSuccess(await client.forwardMessage(message, to), 'Forward message'),
+          }))
         );
 
         reply.send({
@@ -1103,11 +463,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * GET /instances/:id/messages/:messageId/media
+   * GET /instances/:instanceId/messages/:messageId/media
    * Download media from a message
    */
   server.get(
-    '/instances/:id/messages/:messageId/media',
+    '/instances/:instanceId/messages/:messageId/media',
     {
       schema: {
         description: 'Download media from a message (image, video, audio, document, sticker)',
@@ -1116,10 +476,10 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
             messageId: { type: 'string' },
           },
-          required: ['id', 'messageId'],
+          required: ['instanceId', 'messageId'],
         },
         querystring: {
           type: 'object',
@@ -1130,57 +490,15 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
             },
           },
         },
-        response: {
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string; messageId: string };
+      const params = request.params as { instanceId: string; messageId: string };
       const query = request.query as { chatJid?: string };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -1192,7 +510,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
 
       try {
         // Find the message in the store using helper
-        const message = await findMessageById(client, params.messageId, query.chatJid);
+        const message = await requireMessage(client, params.messageId, query.chatJid);
 
         if (!message) {
           throw new NotFoundError('Message');
@@ -1226,14 +544,15 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         };
         const contentType = message.media?.mimetype || mimetypeMap[message.type] || 'application/octet-stream';
 
-        // Set appropriate headers
-        reply.header('Content-Type', contentType);
-        reply.header('Content-Length', buffer.length);
-        if (message.media?.fileName) {
-          reply.header('Content-Disposition', `attachment; filename="${message.media.fileName}"`);
-        }
-
-        return reply.send(buffer);
+        return reply.send({
+          success: true,
+          data: {
+            contentBase64: buffer.toString('base64'),
+            contentType,
+            fileName: message.media?.fileName ?? null,
+            size: buffer.length,
+          },
+        });
       } catch (err: any) {
         if (err.code === 'NOT_FOUND' || err.code === 'BAD_REQUEST') {
           throw err;
@@ -1244,11 +563,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * GET /instances/:id/chats/:jid/messages/load
+   * POST /instances/:instanceId/chats/:chatJid/message-history-loads
    * Load more messages from chat history
    */
-  server.get(
-    '/instances/:id/chats/:jid/messages/load',
+  server.post(
+    '/instances/:instanceId/chats/:chatJid/message-history-loads',
     {
       schema: {
         description: 'Load more messages from chat history (pagination). Fetches older messages beyond what is currently in memory.',
@@ -1257,12 +576,12 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
-            jid: { type: 'string', description: 'Chat JID (phone@s.whatsapp.net or groupId@g.us)' },
+            instanceId: { type: 'string' },
+            chatJid: { type: 'string', description: 'Chat JID (phone@s.whatsapp.net or groupId@g.us)' },
           },
-          required: ['id', 'jid'],
+          required: ['instanceId', 'chatJid'],
         },
-        querystring: {
+        body: {
           type: 'object',
           properties: {
             count: {
@@ -1272,7 +591,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
               default: 50,
               description: 'Number of messages to load (1-50, default: 50)',
             },
-            timeout: {
+            timeoutMs: {
               type: 'integer',
               minimum: 5000,
               maximum: 60000,
@@ -1281,56 +600,15 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
             },
           },
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messagesLoaded: { type: 'integer', description: 'Number of messages loaded' },
-                  hasMore: { type: 'boolean', description: 'Whether more messages are available' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string; jid: string };
-      const query = request.query as { count?: number; timeout?: number };
+      const params = request.params as { instanceId: string; chatJid: string };
+      const body = (request.body ?? {}) as { count?: number; timeoutMs?: number };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -1340,11 +618,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         throw new ServiceUnavailableError('Instance is not connected');
       }
 
-      const count = query.count || 50;
-      const timeout = query.timeout || 30000;
+      const count = body.count || 50;
+      const timeout = body.timeoutMs || 30000;
 
       try {
-        const result = await client.loadMoreMessages(params.jid, count, timeout);
+        const result = await client.loadMoreMessages(params.chatJid, count, timeout);
 
         reply.send({
           success: true,
@@ -1361,11 +639,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * POST /instances/:id/messages/image
+   * POST /instances/:instanceId/messages/image
    * Send an image message
    */
   server.post(
-    '/instances/:id/messages/image',
+    '/instances/:instanceId/messages/image',
     {
       schema: {
         description: 'Send an image message',
@@ -1374,73 +652,17 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId'],
         },
         body: {
           $ref: 'sendImage#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  to: { type: 'string' },
-                  timestamp: { type: 'number' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const body = request.body as {
         to: string;
         image: string;
@@ -1452,8 +674,8 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -1464,7 +686,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const quoted = await resolveQuotedMessage(client, body.quoted, body.quotedChatJid);
+        const quoted = await resolveQuote(client, body.quoted, body.quotedChatJid);
         const result = await client.sendImage(body.to, body.image, {
           caption: body.caption,
           viewOnce: body.viewOnce,
@@ -1492,11 +714,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * POST /instances/:id/messages/video
+   * POST /instances/:instanceId/messages/video
    * Send a video message
    */
   server.post(
-    '/instances/:id/messages/video',
+    '/instances/:instanceId/messages/video',
     {
       schema: {
         description: 'Send a video message',
@@ -1505,73 +727,17 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId'],
         },
         body: {
           $ref: 'sendVideo#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  to: { type: 'string' },
-                  timestamp: { type: 'number' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const body = request.body as {
         to: string;
         video: string;
@@ -1585,8 +751,8 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -1597,7 +763,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const quoted = await resolveQuotedMessage(client, body.quoted, body.quotedChatJid);
+        const quoted = await resolveQuote(client, body.quoted, body.quotedChatJid);
         const result = await client.sendVideo(body.to, body.video, {
           caption: body.caption,
           viewOnce: body.viewOnce,
@@ -1627,11 +793,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * POST /instances/:id/messages/audio
+   * POST /instances/:instanceId/messages/audio
    * Send an audio message
    */
   server.post(
-    '/instances/:id/messages/audio',
+    '/instances/:instanceId/messages/audio',
     {
       schema: {
         description: 'Send an audio message',
@@ -1640,73 +806,17 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId'],
         },
         body: {
           $ref: 'sendAudio#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  to: { type: 'string' },
-                  timestamp: { type: 'number' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const body = request.body as {
         to: string;
         audio: string;
@@ -1717,8 +827,8 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -1729,7 +839,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const quoted = await resolveQuotedMessage(client, body.quoted, body.quotedChatJid);
+        const quoted = await resolveQuote(client, body.quoted, body.quotedChatJid);
         const result = await client.sendAudio(body.to, body.audio, {
           ptt: body.ptt,
           mimetype: body.mimetype,
@@ -1756,11 +866,11 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * POST /instances/:id/messages/document
+   * POST /instances/:instanceId/messages/document
    * Send a document message
    */
   server.post(
-    '/instances/:id/messages/document',
+    '/instances/:instanceId/messages/document',
     {
       schema: {
         description: 'Send a document message',
@@ -1769,73 +879,17 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId'],
         },
         body: {
           $ref: 'sendDocument#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  messageId: { type: 'string' },
-                  to: { type: 'string' },
-                  timestamp: { type: 'number' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                  details: { type: 'object' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const body = request.body as {
         to: string;
         document: string;
@@ -1847,8 +901,8 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       };
 
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
-      const instance = instanceManager.getInstance(params.id);
+      const client = instanceManager.getClient(params.instanceId);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!client || !instance) {
         throw new NotFoundError('Instance');
@@ -1859,7 +913,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const quoted = await resolveQuotedMessage(client, body.quoted, body.quotedChatJid);
+        const quoted = await resolveQuote(client, body.quoted, body.quotedChatJid);
         const result = await client.sendDocument(body.to, body.document, {
           caption: body.caption,
           fileName: body.fileName,

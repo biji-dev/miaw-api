@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { MiawClient, MiawMessage } from 'miaw-core';
-import { NotFoundError, ServiceUnavailableError } from './errorHandler.js';
+import { BadRequestError, NotFoundError, ServiceUnavailableError } from './errorHandler.js';
 
 export function getClient(server: FastifyInstance, instanceId: string): MiawClient {
   const client = server.instanceManager.getClient(instanceId);
@@ -53,3 +53,14 @@ export async function resolveQuote(
   return messageId ? requireMessage(client, messageId, chatJid) : undefined;
 }
 
+export function requireCoreSuccess<T>(result: T, operation: string): T {
+  if (result && typeof result === 'object' && 'success' in result) {
+    if (result.success === false) {
+      const error = 'error' in result ? result.error : undefined;
+      throw new BadRequestError(`${operation} failed`, { error });
+    }
+    const { success: _success, ...data } = result;
+    return data as T;
+  }
+  return result;
+}

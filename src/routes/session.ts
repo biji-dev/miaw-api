@@ -1,10 +1,10 @@
 /**
  * Session & Lifecycle Routes (Phase 14)
- * POST /instances/:id/logout - Logout and clear session
- * POST /instances/:id/dispose - Dispose and cleanup resources
- * DELETE /instances/:id/session - Clear session files manually
- * GET /instances/:id/stats/messages - Get message counts per chat
- * GET /instances/:id/stats/labels - Get labels store info
+ * DELETE /instances/:instanceId/session - Logout from WhatsApp
+ * DELETE /instances/:instanceId/runtime - Dispose and cleanup resources
+ * DELETE /instances/:instanceId/authentication - Clear local authentication files
+ * GET /instances/:instanceId/stats/messages - Get message counts per chat
+ * GET /instances/:instanceId/stats/labels - Get labels store info
  */
 
 import { FastifyInstance } from 'fastify';
@@ -19,11 +19,11 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
   server.addHook('onRequest', createAuthMiddleware());
 
   /**
-   * POST /instances/:id/logout
+   * DELETE /instances/:instanceId/session
    * Logout from WhatsApp and clear session
    */
-  server.post(
-    '/instances/:id/logout',
+  server.delete(
+    '/instances/:instanceId/session',
     {
       schema: {
         description: `Logout from WhatsApp and clear session files.
@@ -41,51 +41,16 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');
@@ -95,7 +60,7 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
         await client.logout();
         reply.send({
           success: true,
-          message: 'Logged out successfully. Session cleared.',
+          data: { loggedOut: true },
         });
       } catch (err: any) {
         throw new ServiceUnavailableError(err.message);
@@ -104,11 +69,11 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * POST /instances/:id/dispose
+   * DELETE /instances/:instanceId/runtime
    * Dispose instance and cleanup resources
    */
-  server.post(
-    '/instances/:id/dispose',
+  server.delete(
+    '/instances/:instanceId/runtime',
     {
       schema: {
         description: `Dispose instance and cleanup all resources.
@@ -127,51 +92,16 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');
@@ -181,7 +111,7 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
         await client.dispose();
         reply.send({
           success: true,
-          message: 'Instance disposed successfully. Resources cleaned up.',
+          data: { disposed: true },
         });
       } catch (err: any) {
         throw new ServiceUnavailableError(err.message);
@@ -190,11 +120,11 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * DELETE /instances/:id/session
+   * DELETE /instances/:instanceId/authentication
    * Clear session files manually
    */
   server.delete(
-    '/instances/:id/session',
+    '/instances/:instanceId/authentication',
     {
       schema: {
         description: `Clear session files manually.
@@ -211,44 +141,16 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-              data: {
-                type: 'object',
-                properties: {
-                  cleared: { type: 'boolean' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');
@@ -257,18 +159,17 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
       const cleared = client.clearSession();
       reply.send({
         success: true,
-        message: cleared ? 'Session cleared successfully.' : 'No session to clear.',
         data: { cleared },
       });
     }
   );
 
   /**
-   * GET /instances/:id/stats/messages
+   * GET /instances/:instanceId/stats/messages
    * Get message counts per chat
    */
   server.get(
-    '/instances/:id/stats/messages',
+    '/instances/:instanceId/stats/messages',
     {
       schema: {
         description: `Get message counts per chat from in-memory store.
@@ -284,48 +185,16 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  counts: {
-                    type: 'object',
-                    additionalProperties: { type: 'number' },
-                  },
-                  totalChats: { type: 'number' },
-                  totalMessages: { type: 'number' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');
@@ -351,11 +220,11 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * GET /instances/:id/stats/labels
+   * GET /instances/:instanceId/stats/labels
    * Get labels store info
    */
   server.get(
-    '/instances/:id/stats/labels',
+    '/instances/:instanceId/stats/labels',
     {
       schema: {
         description: `Get labels store statistics.
@@ -371,45 +240,16 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  size: { type: 'number' },
-                  eventCount: { type: 'number' },
-                  lastSyncTime: { type: 'string', format: 'date-time', nullable: true },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const instanceManager = server.instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');

@@ -2,8 +2,8 @@
  * Instance Management Routes
  * POST /instances - Create new instance
  * GET /instances - List all instances
- * GET /instances/:id - Get instance details
- * DELETE /instances/:id - Delete instance
+ * GET /instances/:instanceId - Get instance details
+ * DELETE /instances/:instanceId - Delete instance
  */
 
 import { FastifyInstance } from 'fastify';
@@ -31,40 +31,6 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
         summary: 'Create instance',
         body: {
           $ref: 'createInstance#',
-        },
-        response: {
-          201: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  instanceId: { type: 'string' },
-                  status: { type: 'string' },
-                  webhookUrl: { type: 'string', nullable: true },
-                  webhookEvents: { type: 'array', items: { type: 'string' } },
-                  webhookEnabled: { type: 'boolean' },
-                  authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  lastActivity: { type: 'string', format: 'date-time' },
-                },
-              },
-            },
-          },
-          409: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
         },
       },
     },
@@ -104,30 +70,6 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
         description: 'List all WhatsApp instances',
         tags: ['Instances'],
         summary: 'List instances',
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    instanceId: { type: 'string' },
-                    status: { type: 'string' },
-                    webhookUrl: { type: 'string', nullable: true },
-                    webhookEvents: { type: 'array', items: { type: 'string' } },
-                    webhookEnabled: { type: 'boolean' },
-                    authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
-                    createdAt: { type: 'string', format: 'date-time' },
-                    lastActivity: { type: 'string', format: 'date-time' },
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (_request, reply) => {
@@ -136,17 +78,17 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
 
       reply.send({
         success: true,
-        data: instances,
+        data: { items: instances, total: instances.length },
       });
     }
   );
 
   /**
-   * GET /instances/:id
+   * GET /instances/:instanceId
    * Get instance details
    */
   server.get(
-    '/instances/:id',
+    '/instances/:instanceId',
     {
       schema: {
         description: 'Get instance details',
@@ -155,52 +97,16 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  instanceId: { type: 'string' },
-                  status: { type: 'string' },
-                  webhookUrl: { type: 'string', nullable: true },
-                  webhookEvents: { type: 'array', items: { type: 'string' } },
-                  webhookEnabled: { type: 'boolean' },
-                  authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  lastActivity: { type: 'string', format: 'date-time' },
-                  connectedAt: { type: 'string', format: 'date-time', nullable: true },
-                  phoneNumber: { type: 'string', nullable: true },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const instanceManager = server.instanceManager;
-      const instance = instanceManager.getInstance(params.id);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!instance) {
         throw new NotFoundError('Instance');
@@ -214,11 +120,11 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * PATCH /instances/:id
+   * PATCH /instances/:instanceId/webhook
    * Update instance webhook settings without recreating it
    */
   server.patch(
-    '/instances/:id',
+    '/instances/:instanceId/webhook',
     {
       schema: {
         description: 'Update instance webhook settings (URL and/or events)',
@@ -227,53 +133,17 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId'],
         },
         body: {
           $ref: 'updateInstance#',
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  instanceId: { type: 'string' },
-                  status: { type: 'string' },
-                  webhookUrl: { type: 'string', nullable: true },
-                  webhookEvents: { type: 'array', items: { type: 'string' } },
-                  webhookEnabled: { type: 'boolean' },
-                  authMode: { type: 'string', enum: ['qr', 'pairing_code'] },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  lastActivity: { type: 'string', format: 'date-time' },
-                  connectedAt: { type: 'string', format: 'date-time', nullable: true },
-                  phoneNumber: { type: 'string', nullable: true },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const body = request.body as {
         webhookUrl?: string | null;
         webhookEvents?: WebhookEvent[];
@@ -281,7 +151,7 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
       const instanceManager = server.instanceManager;
 
       try {
-        const state = instanceManager.updateWebhook(params.id, body);
+        const state = instanceManager.updateWebhook(params.instanceId, body);
         reply.send({
           success: true,
           data: state,
@@ -296,11 +166,11 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * DELETE /instances/:id
+   * DELETE /instances/:instanceId
    * Delete instance
    */
   server.delete(
-    '/instances/:id',
+    '/instances/:instanceId',
     {
       schema: {
         description: 'Delete a WhatsApp instance',
@@ -309,43 +179,21 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
       const instanceManager = server.instanceManager;
 
       try {
-        await instanceManager.deleteInstance(params.id);
+        await instanceManager.deleteInstance(params.instanceId);
         reply.send({
           success: true,
-          message: 'Instance deleted successfully',
+          data: { deleted: true },
         });
       } catch (err: any) {
         if (err.message?.includes('not found')) {
@@ -357,26 +205,26 @@ export async function instanceRoutes(server: FastifyInstance): Promise<void> {
   );
 
   for (const challengeType of ['qr', 'pairing_code'] as const) {
-    const pathType = challengeType === 'qr' ? 'qr' : 'pairing-code';
-    server.get(`/instances/:id/auth/${pathType}`, {
+    const pathType = challengeType === 'qr' ? 'qr-code' : 'pairing-code';
+    server.get(`/instances/:instanceId/authentication/${pathType}`, {
       schema: {
         tags: ['Instances'],
         summary: `Get current ${pathType}`,
         params: {
           type: 'object',
-          required: ['id'],
-          properties: { id: { type: 'string' } },
+          required: ['instanceId'],
+          properties: { instanceId: { type: 'string' } },
         },
       },
     }, async (request, reply) => {
-      const { id } = request.params as { id: string };
+      const { instanceId: id } = request.params as { instanceId: string };
       let value: string | null;
       try {
         value = server.instanceManager.getAuthChallenge(id, challengeType);
       } catch {
         throw new NotFoundError('Instance');
       }
-      if (!value) throw new NotFoundError(pathType === 'qr' ? 'QR code' : 'Pairing code');
+      if (!value) throw new NotFoundError(pathType === 'qr-code' ? 'QR code' : 'Pairing code');
       reply.send({ success: true, data: { [challengeType === 'qr' ? 'qr' : 'code']: value } });
     });
   }

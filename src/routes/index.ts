@@ -26,46 +26,35 @@ import { operationRoutes } from './operations.js';
  * Register all routes
  */
 export async function registerRoutes(server: FastifyInstance, instanceManager: InstanceManager): Promise<void> {
-  // Instance management routes
-  await server.register(instanceRoutes);
+  await server.register(async (api) => {
+    api.addHook('onRoute', (route) => {
+      if (!route.url.startsWith('/instances')) return;
+      route.schema = {
+        ...route.schema,
+        response: {
+          ...(route.schema?.response ?? {}),
+          '2xx': { $ref: 'successEnvelope#' },
+        },
+      };
+    });
 
-  // Connection routes
-  await server.register(connectionRoutes);
-
-  // Messaging routes
-  await server.register(messagingRoutes);
-
-  // Contact routes
-  await server.register(contactRoutes);
-
-  // Group routes
-  await server.register(groupRoutes);
-
-  // Profile routes
-  await server.register(profileRoutes);
-
-  // Presence & UX routes
-  await server.register(presenceRoutes);
-
-  // Webhook management routes
-  await server.register(webhookRoutes);
-
-  // Business features routes
-  await server.register(businessRoutes);
-
-  // Newsletter routes (v0.13.0)
-  await server.register(newsletterRoutes);
-
-  // Basic GET operations routes (v0.9.0)
-  await server.register(async (server) => {
-    await basicGetsRoutes(server, instanceManager);
-  });
-
-  // Session lifecycle & stats routes (v0.15.0)
-  await server.register(sessionRoutes);
-
-  await server.register(advancedMessagingRoutes);
-  await server.register(businessExtraRoutes);
-  await server.register(communityRoutes);
-  await server.register(operationRoutes);
+    await api.register(instanceRoutes);
+    await api.register(connectionRoutes);
+    await api.register(messagingRoutes);
+    await api.register(contactRoutes);
+    await api.register(groupRoutes);
+    await api.register(profileRoutes);
+    await api.register(presenceRoutes);
+    await api.register(webhookRoutes);
+    await api.register(businessRoutes);
+    await api.register(newsletterRoutes);
+    await api.register(async (scoped) => {
+      await basicGetsRoutes(scoped, instanceManager);
+    });
+    await api.register(sessionRoutes);
+    await api.register(advancedMessagingRoutes);
+    await api.register(businessExtraRoutes);
+    await api.register(communityRoutes);
+    await api.register(operationRoutes);
+  }, { prefix: '/api/v1' });
 }

@@ -1,14 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import type { BusinessProfileUpdate, QuickReplyInput } from 'miaw-core';
 import { createAuthMiddleware } from '../middleware/auth.js';
-import { getConnectedClient } from '../utils/client.js';
+import { getConnectedClient, requireCoreSuccess } from '../utils/client.js';
 
-const params = { type: 'object', required: ['id'], properties: { id: { type: 'string' } } };
+const params = { type: 'object', required: ['instanceId'], properties: { instanceId: { type: 'string' } } };
 
 export async function businessExtraRoutes(server: FastifyInstance): Promise<void> {
   server.addHook('onRequest', createAuthMiddleware());
 
-  server.patch('/instances/:id/business/profile', { schema: { tags: ['Business'], summary: 'Update own business profile', params, body: {
+  server.patch('/instances/:instanceId/business/profile', { schema: { tags: ['Business'], summary: 'Update own business profile', params, body: {
     type: 'object', additionalProperties: false, properties: {
       address: { type: 'string' }, websites: { type: 'array', items: { type: 'string', format: 'uri' } },
       email: { type: 'string', format: 'email' }, description: { type: 'string' },
@@ -21,38 +21,48 @@ export async function businessExtraRoutes(server: FastifyInstance): Promise<void
       } },
     },
   } } }, async (request) => {
-    const { id } = request.params as { id: string };
-    return { success: true, data: await getConnectedClient(server, id).updateBusinessProfile(request.body as BusinessProfileUpdate) };
+    const { instanceId: id } = request.params as { instanceId: string };
+    const result = await getConnectedClient(server, id).updateBusinessProfile(request.body as BusinessProfileUpdate);
+    return { success: true, data: requireCoreSuccess(result, 'Update business profile') };
   });
 
-  server.post('/instances/:id/business/cover-photo', { schema: { tags: ['Business'], summary: 'Update business cover photo', params, body: {
+  server.post('/instances/:instanceId/business/cover-photos', { schema: { tags: ['Business'], summary: 'Update business cover photo', params, body: {
     type: 'object', required: ['image'], properties: { image: { type: 'string', pattern: '^https?://' } },
-  } } }, async (request) => {
-    const { id } = request.params as { id: string };
+  } } }, async (request, reply) => {
+    const { instanceId: id } = request.params as { instanceId: string };
     const { image } = request.body as { image: string };
-    return { success: true, data: await getConnectedClient(server, id).updateCoverPhoto(image) };
+    const data = requireCoreSuccess(
+      await getConnectedClient(server, id).updateCoverPhoto(image),
+      'Update cover photo'
+    );
+    return reply.status(201).send({ success: true, data });
   });
-  server.delete('/instances/:id/business/cover-photo/:coverPhotoId', { schema: { tags: ['Business'], summary: 'Remove business cover photo' } }, async (request) => {
-    const { id, coverPhotoId } = request.params as { id: string; coverPhotoId: string };
-    return { success: true, data: await getConnectedClient(server, id).removeCoverPhoto(coverPhotoId) };
+  server.delete('/instances/:instanceId/business/cover-photos/:coverPhotoId', { schema: { tags: ['Business'], summary: 'Remove business cover photo' } }, async (request) => {
+    const { instanceId: id, coverPhotoId } = request.params as { instanceId: string; coverPhotoId: string };
+    return { success: true, data: requireCoreSuccess(await getConnectedClient(server, id).removeCoverPhoto(coverPhotoId), 'Remove cover photo') };
   });
 
-  server.post('/instances/:id/business/orders/details', { schema: { tags: ['Business'], summary: 'Get business order details', params, body: {
+  server.post('/instances/:instanceId/business/order-lookups', { schema: { tags: ['Business'], summary: 'Get business order details', params, body: {
     type: 'object', required: ['orderId', 'tokenBase64'], properties: { orderId: { type: 'string' }, tokenBase64: { type: 'string' } },
   } } }, async (request) => {
-    const { id } = request.params as { id: string };
+    const { instanceId: id } = request.params as { instanceId: string };
     const { orderId, tokenBase64 } = request.body as { orderId: string; tokenBase64: string };
     return { success: true, data: await getConnectedClient(server, id).getOrderDetails(orderId, tokenBase64) };
   });
 
-  server.post('/instances/:id/business/quick-replies', { schema: { tags: ['Business'], summary: 'Add business quick reply', params, body: {
+  server.post('/instances/:instanceId/business/quick-replies', { schema: { tags: ['Business'], summary: 'Add business quick reply', params, body: {
     type: 'object', required: ['shortcut', 'message'], properties: { shortcut: { type: 'string' }, message: { type: 'string' }, keywords: { type: 'array', items: { type: 'string' } } },
-  } } }, async (request) => {
-    const { id } = request.params as { id: string };
-    return { success: true, data: await getConnectedClient(server, id).addQuickReply(request.body as QuickReplyInput) };
+  } } }, async (request, reply) => {
+    const { instanceId: id } = request.params as { instanceId: string };
+    const result = await getConnectedClient(server, id).addQuickReply(request.body as QuickReplyInput);
+    return reply.status(201).send({
+      success: true,
+      data: requireCoreSuccess(result, 'Create quick reply'),
+    });
   });
-  server.delete('/instances/:id/business/quick-replies/:timestamp', { schema: { tags: ['Business'], summary: 'Remove business quick reply' } }, async (request) => {
-    const { id, timestamp } = request.params as { id: string; timestamp: string };
-    return { success: true, data: await getConnectedClient(server, id).removeQuickReply(timestamp) };
+  server.delete('/instances/:instanceId/business/quick-replies/:timestamp', { schema: { tags: ['Business'], summary: 'Remove business quick reply' } }, async (request) => {
+    const { instanceId: id, timestamp } = request.params as { instanceId: string; timestamp: string };
+    const result = await getConnectedClient(server, id).removeQuickReply(timestamp);
+    return { success: true, data: requireCoreSuccess(result, 'Delete quick reply') };
   });
 }
