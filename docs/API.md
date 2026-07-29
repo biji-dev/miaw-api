@@ -1,110 +1,33 @@
-# Miaw API Guide
+# Miaw API v2 Guide
 
-**API version:** 1.2.1
+**API version:** 2.0.0
 **Core compatibility:** `miaw-core` 1.9.1
 **Last updated:** 2026-07-29
 
-The generated API reference is the authoritative field-level contract:
+The generated reference is the authoritative field-level contract:
 
 - Scalar UI: `GET /docs`
 - OpenAPI JSON: `GET /documentation/json`
 
-All routes except `/health`, `/docs`, and the OpenAPI document require either:
+`/health`, `/docs`, and `/documentation/json` are unversioned. Every protected
+route starts with `/api/v1/instances/:instanceId` and accepts either
+`Authorization: Bearer <API_KEY>` or `X-API-Key: <API_KEY>`.
 
-```http
-Authorization: Bearer <API_KEY>
-```
+## Response contract
 
-or:
-
-```http
-X-API-Key: <API_KEY>
-```
-
-## Create an instance
-
-QR authentication is the default:
+Successful single-resource responses use:
 
 ```json
-{
-  "instanceId": "support",
-  "webhookUrl": "https://example.com/whatsapp-events",
-  "webhookEvents": ["ready", "message", "message_receipt", "error"]
-}
+{"success":true,"data":{}}
 ```
 
-Pairing-code authentication and HTTP proxy configuration are set at creation:
+Collections put pagination metadata inside `data`:
 
 ```json
-{
-  "instanceId": "support",
-  "clientOptions": {
-    "usePairingCode": true,
-    "phoneNumber": "6281234567890",
-    "proxy": {
-      "url": "http://proxy.example.com:8080",
-      "username": "proxy-user",
-      "password": "proxy-password"
-    },
-    "autoReconnect": true,
-    "syncFullHistory": true
-  }
-}
+{"success":true,"data":{"items":[],"total":0}}
 ```
 
-Proxy credentials are never returned. Runtime inspection uses the masked proxy
-information supplied by core.
-
-Connect with `POST /instances/:id/connect`, then retrieve a transient challenge
-from `GET /instances/:id/auth/qr` or
-`GET /instances/:id/auth/pairing-code`. Challenges are API-key protected and
-cleared once the client is ready.
-
-## Route groups
-
-| Group | Route prefix | Capabilities |
-| --- | --- | --- |
-| Instances | `/instances` | CRUD and webhook configuration |
-| Connection/session | `/instances/:id` | Connect, restart, logout, dispose, session clear, status |
-| Messaging | `/instances/:id/messages` and legacy `/send-*` | Rich sends, edits, deletes, reactions, forwarding, stars, media |
-| Chats/statuses | `/instances/:id/chats`, `/instances/:id/statuses` | Inbox state and status stories |
-| Contacts/profiles | `/instances/:id/contacts`, `/instances/:id/profile` | Lookup, validation, writes, own profile |
-| Groups | `/instances/:id/groups` | Metadata, participants, admins, invites |
-| Communities | `/instances/:id/communities` | Lifecycle, linked groups, members, admins, invites |
-| Business | `/instances/:id/business`, `/labels`, `/products` | Profile, covers, orders, replies, labels, catalog |
-| Newsletters | `/instances/:id/newsletters` | Lifecycle, messages, subscriptions, admin operations |
-| Operations | `/instances/:id/runtime`, `/instances/:id/lids` | Runtime toggles, proxy info, LID resolution |
-| Webhooks | `/instances/:id/webhook` | Test delivery and statistics |
-
-## Media inputs
-
-REST media fields accept HTTP(S) URLs only. Local server paths, raw buffers, and
-multipart uploads are intentionally unsupported. The legacy generic media route
-accepts an optional `type` (`image`, `video`, `audio`, or `document`) and falls
-back to MIME type or URL-extension inference.
-
-## Message references
-
-Core operations require a stored `MiawMessage`. HTTP clients provide a
-`messageId` and may include `chatJid` to make lookup deterministic. Reply-capable
-send routes accept `quoted` and optional `quotedChatJid`. A missing stored
-message returns `404`.
-
-## Webhook events
-
-Supported filters are:
-
-`test`, `qr`, `pairing_code`, `ready`, `message`, `message_edit`,
-`message_delete`, `message_reaction`, `message_receipt`, `poll_vote`, `presence`,
-`connection`, `disconnected`, `reconnecting`, `session_saved`, and `error`.
-
-Omit `webhookEvents` or pass `[]` to receive all events. Deliveries include
-`X-Miaw-Signature` and `X-Miaw-Timestamp`; see [SECURITY.md](./SECURITY.md) for
-verification guidance.
-
-## Errors
-
-Errors use a consistent envelope:
+Errors retain the existing envelope:
 
 ```json
 {
@@ -117,4 +40,148 @@ Errors use a consistent envelope:
 }
 ```
 
-See [ERROR-CODES.md](./ERROR-CODES.md) for status codes and troubleshooting.
+A `miaw-core` result containing `success:false` is translated to HTTP `400`.
+Successful core results never expose a nested `data.success`.
+
+## Instance setup
+
+Create an instance with `POST /api/v1/instances`:
+
+```json
+{
+  "instanceId": "support",
+  "webhookUrl": "https://example.com/whatsapp-events",
+  "webhookEvents": ["ready", "message", "message_receipt", "error"]
+}
+```
+
+Pairing-code authentication and proxy configuration can be supplied through
+`clientOptions`. Proxy credentials are never returned. Connect using
+`PUT /api/v1/instances/support/connection`, then read the transient challenge
+from `/authentication/qr-code` or `/authentication/pairing-code`.
+
+## Canonical route families
+
+The tables omit the common `/api/v1/instances/:instanceId` prefix.
+
+### Instances and lifecycle
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/instances` | List or create instances |
+| `GET`, `DELETE` | `/api/v1/instances/:instanceId` | Inspect or remove an instance |
+| `PATCH` | `/api/v1/instances/:instanceId/webhook` | Update instance webhook configuration |
+| `GET`, `PUT`, `DELETE` | `/connection` | Inspect, connect, or disconnect |
+| `POST` | `/connection-restarts` | Restart a connection |
+| `DELETE` | `/session` | Log out of WhatsApp |
+| `DELETE` | `/authentication` | Remove local credentials |
+| `GET` | `/authentication/qr-code`, `/authentication/pairing-code` | Read an authentication challenge |
+| `GET`, `PATCH`, `DELETE` | `/runtime` | Inspect, update, or dispose runtime state |
+| `GET` | `/stats/messages`, `/stats/labels` | Read statistics |
+| `GET`, `PATCH` | `/webhook` | Read or update webhook configuration |
+| `GET` | `/webhook/stats` | Read delivery statistics |
+| `POST` | `/webhook-tests` | Send an isolated test event |
+
+### Messages, chats, statuses, and presence
+
+| Method | Path |
+| --- | --- |
+| `POST` | `/messages/text`, `/messages/image`, `/messages/video`, `/messages/audio`, `/messages/document` |
+| `POST` | `/messages/location`, `/messages/contact`, `/messages/sticker`, `/messages/poll` |
+| `PATCH`, `DELETE` | `/messages/:messageId` |
+| `PUT`, `DELETE` | `/messages/:messageId/reaction` |
+| `POST` | `/messages/:messageId/forward` |
+| `PUT`, `DELETE` | `/messages/:messageId/star` |
+| `GET` | `/messages/:messageId/media` |
+| `PUT` | `/messages/:messageId/read-receipt` |
+| `GET` | `/chats`, `/chats/:chatJid/messages` |
+| `POST` | `/chats/:chatJid/message-history-loads` |
+| `PUT`, `DELETE` | `/chats/:chatJid/archive`, `/pin`, `/mute` |
+| `PUT` | `/chats/:chatJid/read-state`, `/chats/:chatJid/presence` |
+| `DELETE` | `/chats/:chatJid/messages`, `/chats/:chatJid` |
+| `PUT` | `/presence` |
+| `POST` | `/statuses/text`, `/statuses/image`, `/statuses/video` |
+
+Message deletion accepts `scope=everyone|local`, optional `chatJid`, and
+`deleteMedia=true|false`. Message lookup hints belong in the query. History
+loading uses a JSON body with optional `count` and `timeoutMs`.
+
+### Contacts and own profile
+
+| Method | Path |
+| --- | --- |
+| `GET` | `/contacts` |
+| `POST` | `/contacts/checks` with `{"phones":[...]}` |
+| `GET`, `PUT`, `DELETE` | `/contacts/:contactId` |
+| `GET` | `/contacts/:contactId/profile`, `/profile-picture`, `/business-profile` |
+| `PUT` | `/contacts/:contactId/presence-subscription` |
+| `GET`, `PATCH` | `/profile` |
+| `PUT`, `DELETE` | `/profile/picture` |
+
+`contactId` accepts either a 7–15 digit phone number or a JID. `PATCH /profile`
+accepts `name` and/or `about`.
+
+### Groups and communities
+
+Group and community collections use standard `GET`/`POST`; items use
+`GET`/`PATCH`/`DELETE`. Participant changes use:
+
+```json
+{"operation":"add","participants":["6281234567890"]}
+```
+
+`operation` is `add`, `remove`, `promote`, or `demote`. Pictures and linked-group
+assignments use `PUT`. Invites use `GET`/`DELETE` on
+`/groups/:groupJid/invite` or `/communities/:communityJid/invite`. Invite
+inspection and joining use `/group-invites/:inviteCode`,
+`/group-memberships`, `/community-invites/:inviteCode`, and
+`/community-memberships`.
+
+### Business, catalog, and newsletters
+
+| Method | Path |
+| --- | --- |
+| `GET`, `POST` | `/labels` |
+| `PATCH`, `DELETE` | `/labels/:labelId` |
+| `PUT`, `DELETE` | `/chats/:chatJid/labels/:labelId` |
+| `PUT`, `DELETE` | `/messages/:messageId/labels/:labelId` |
+| `GET`, `POST` | `/catalog/products` |
+| `PATCH`, `DELETE` | `/catalog/products/:productId` |
+| `GET` | `/catalog/collections` |
+| `POST` | `/catalog/product-deletions` |
+| `PATCH` | `/business/profile` |
+| `POST` | `/business/cover-photos`, `/business/order-lookups`, `/business/quick-replies` |
+| `DELETE` | `/business/cover-photos/:coverPhotoId`, `/business/quick-replies/:timestamp` |
+| `POST` | `/newsletters` |
+| `GET`, `PATCH`, `DELETE` | `/newsletters/:newsletterId` |
+| `PUT`, `DELETE` | Newsletter picture, follow, mute, and message-reaction state |
+| `PUT` | `/newsletters/:newsletterId/updates-subscription` |
+| `PATCH` | `/newsletters/:newsletterId/owner` |
+
+### LID operations
+
+| Method | Path |
+| --- | --- |
+| `GET`, `DELETE` | `/lids` |
+| `GET`, `PUT` | `/lids/:lid` |
+| `POST` | `/lid-resolutions` |
+| `GET` | `/phone-numbers/:phone/lid` |
+
+## Webhooks and media
+
+REST media fields accept HTTP(S) URLs. Local paths, raw buffers, and multipart
+uploads are not accepted. Webhook deliveries include `X-Miaw-Signature` and
+`X-Miaw-Timestamp`; see [SECURITY.md](./SECURITY.md).
+
+## Verification
+
+```bash
+pnpm build
+pnpm lint
+pnpm test:unit
+pnpm test:integration
+pnpm test:coverage
+```
+
+Run `pnpm test:live` only with the isolated `.env.live-test` account and its
+destructive-operation safeguards enabled.

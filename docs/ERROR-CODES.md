@@ -158,7 +158,7 @@ The requested resource does not exist.
 **Resolution:**
 - Verify the resource ID is correct
 - List existing resources to confirm availability
-- For instances: use `GET /instances` to list all instances
+- For instances: use `GET /api/v1/instances` to list all instances
 
 ---
 
@@ -185,7 +185,7 @@ The operation conflicts with the current state of a resource.
 **Resolution:**
 - Use a different ID for new resources
 - Check if the resource already exists before creating
-- For instances: use `GET /instances/{id}` to check existence
+- For instances: use `GET /api/v1/instances/{instanceId}` to check existence
 
 ---
 
@@ -213,8 +213,8 @@ The service or required connection is not available.
 ```
 
 **Resolution:**
-- Check instance connection status: `GET /instances/{id}/status`
-- Connect the instance: `POST /instances/{id}/connect`
+- Check instance connection status: `GET /api/v1/instances/{instanceId}/connection`
+- Connect the instance: `PUT /api/v1/instances/{instanceId}/connection`
 - Wait for QR code scan if required
 - Check WhatsApp service status if persistent issues
 
@@ -301,15 +301,15 @@ Include the correlationId when reporting issues:
 **Solution:**
 ```bash
 # 1. Check status
-curl -X GET "http://localhost:3000/instances/my-instance/status" \
+curl -X GET "http://localhost:3000/api/v1/instances/my-instance/connection" \
   -H "Authorization: Bearer $API_KEY"
 
 # 2. If disconnected, connect
-curl -X POST "http://localhost:3000/instances/my-instance/connect" \
+curl -X PUT "http://localhost:3000/api/v1/instances/my-instance/connection" \
   -H "Authorization: Bearer $API_KEY"
 
 # 3. If QR required, get QR code
-curl -X GET "http://localhost:3000/instances/my-instance/auth/qr" \
+curl -X GET "http://localhost:3000/api/v1/instances/my-instance/authentication/qr-code" \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -325,7 +325,7 @@ curl -X GET "http://localhost:3000/instances/my-instance/auth/qr" \
 # Right: 12345678901
 
 # Use the validate endpoint
-curl -X POST "http://localhost:3000/instances/my-instance/check-number" \
+curl -X POST "http://localhost:3000/api/v1/instances/my-instance/contacts/checks" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"phones": ["12345678901"]}'
@@ -340,11 +340,11 @@ curl -X POST "http://localhost:3000/instances/my-instance/check-number" \
 # Check header format (two options):
 
 # Option 1: Authorization header
-curl -X GET "http://localhost:3000/instances" \
+curl -X GET "http://localhost:3000/api/v1/instances" \
   -H "Authorization: Bearer your-api-key"
 
 # Option 2: X-API-Key header
-curl -X GET "http://localhost:3000/instances" \
+curl -X GET "http://localhost:3000/api/v1/instances" \
   -H "X-API-Key: your-api-key"
 
 # Verify no extra whitespace

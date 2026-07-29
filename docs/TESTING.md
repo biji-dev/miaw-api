@@ -46,9 +46,9 @@ and lifecycle scenarios are suitable for CI.
 
 Current baseline:
 
-- 135 unit/contract tests.
-- 93 automated integration tests.
-- 265 explicitly skipped live scenarios.
+- 221 unit/contract tests.
+- 114 automated integration tests.
+- 217 explicitly skipped live scenarios.
 
 ## Live WhatsApp tests
 
@@ -79,7 +79,7 @@ MIAW_RUN_LIVE_TESTS=true pnpm test:integration -- setup
 The setup suite creates `integration-test-bot`, starts a local webhook receiver,
 and waits for QR pairing. Pairing-code authentication can instead be exercised
 through instance `clientOptions.usePairingCode` and the protected
-`GET /instances/:id/auth/pairing-code` endpoint.
+`GET /api/v1/instances/:instanceId/authentication/pairing-code` endpoint.
 
 Configure real test contacts in `test/integration/fixtures/data.ts`. Sessions
 are stored under `./test-sessions` and are ignored by Git.

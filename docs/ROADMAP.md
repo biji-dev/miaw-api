@@ -1,6 +1,6 @@
 # Miaw API Roadmap
 
-**Current API version:** 1.2.1
+**Current API version:** 2.0.0
 **Core compatibility:** `miaw-core` 1.9.1
 **Last updated:** 2026-07-29
 
@@ -11,7 +11,8 @@ The synchronization through core 1.9.1 is complete on the current feature
 branch. The API uses native ESM, pnpm, JSON Schema validation, OpenAPI at
 `/documentation/json`, and Scalar documentation at `/docs`.
 
-The API has no `/api/v1` prefix. All protected routes start with `/instances`.
+All protected routes start with `/api/v1/instances/:instanceId`; health and
+generated documentation remain unversioned.
 
 ## Delivered milestones
 
@@ -22,6 +23,7 @@ The API has no `/api/v1` prefix. All protected routes start with `/instances`.
 | Production baseline | 1.0.0 | Complete | Error handling, security documentation, unit and integration suites |
 | Configuration and OpenAPI | 1.1.0 | Complete | Runtime environment fixes, webhook patching, documented API-key security |
 | `miaw-core` 1.9.1 synchronization | 1.2.0 | Complete | ESM, pairing/proxy options, rich messages, chats, statuses, business extras, communities, LID operations, latest events |
+| API-wide endpoint normalization | 2.0.0 | Complete | Central version prefix, resource-oriented routes, uniform envelopes, route manifest and breaking-route checks |
 
 ## Current capability coverage
 
@@ -58,16 +60,16 @@ The API has no `/api/v1` prefix. All protected routes start with `/instances`.
 
 - Signed webhook delivery with retries, statistics, and event filtering.
 - Core events include message receipts, poll votes, pairing codes, and session saves.
-- LID cache inspection, registration, clearing, async/batch resolution, and reverse lookup.
+- LID cache inspection, manual mapping, clearing, batch resolution, and reverse lookup.
 
 ## Quality status
 
 - TypeScript build and ESLint pass.
-- 127 unit/contract tests pass.
-- 93 automated integration scenarios pass.
-- 265 WhatsApp-dependent scenarios remain explicitly skipped unless a live test
+- 221 unit/contract tests pass.
+- 114 automated integration scenarios pass.
+- 217 WhatsApp-dependent scenarios remain explicitly skipped unless a live test
   account is paired.
-- Generated OpenAPI currently contains 126 paths.
+- Generated OpenAPI currently contains 103 paths.
 
 ## Next priorities
 
@@ -75,8 +77,8 @@ The API is synchronized with every useful HTTP-serializable capability in core
 1.9.1. Future feature work should follow new `miaw-core` releases.
 
 1. Add contract tests whenever a core method or event is added.
-2. Add pagination and consistent response schemas where existing legacy routes
-   still return core-native result objects.
+2. Extend pagination to high-volume collections while preserving the v2
+   `{success,data}` and `{items,total}` envelopes.
 3. Add opt-in rate limiting and request-size controls for public deployments.
 4. Add persistent instance configuration if instances must survive API process
    restarts without being recreated.

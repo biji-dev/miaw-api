@@ -71,8 +71,8 @@ LOG_LEVEL=error
 | Metric | Result |
 | --- | --- |
 | Unit/contract tests | 127 passing |
-| Automated integration tests | 93 passing |
-| Explicitly skipped live scenarios | 265 |
+| Automated integration tests | 114 passing |
+| Explicitly skipped live scenarios | 217 |
 | OpenAPI paths exercised by startup generation | 126 |
 
 ## Release execution

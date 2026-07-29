@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 1.2.1 · synchronized with `miaw-core` 1.9.1
+**Version:** 2.0.0 · synchronized with `miaw-core` 1.9.1
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -25,9 +25,9 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 
 ## Current Status
 
-The API exposes the HTTP-serializable `miaw-core` 1.9.1 surface. Existing endpoint
-contracts remain available, while their internal calls now use the current core
-method names and message-object semantics.
+The API exposes the HTTP-serializable `miaw-core` 1.9.1 surface through one
+versioned v2 contract. The former 1.x command-style routes were removed; all
+protected endpoints now live under `/api/v1`.
 
 ### miaw-core 1.9.1 synchronization
 
@@ -197,21 +197,21 @@ http://localhost:3000/docs
 All API requests require an API key:
 
 ```bash
-curl http://localhost:3000/instances \
+curl http://localhost:3000/api/v1/instances \
   -H "Authorization: Bearer your-api-key"
 ```
 
 Or use the `X-API-Key` header:
 
 ```bash
-curl http://localhost:3000/instances \
+curl http://localhost:3000/api/v1/instances \
   -H "X-API-Key: your-api-key"
 ```
 
 ### Create Instance
 
 ```bash
-curl -X POST http://localhost:3000/instances \
+curl -X POST http://localhost:3000/api/v1/instances \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-key" \
   -d '{
@@ -224,7 +224,7 @@ curl -X POST http://localhost:3000/instances \
 ### Connect Instance (Scan QR)
 
 ```bash
-curl -X POST http://localhost:3000/instances/my-bot/connect \
+curl -X PUT http://localhost:3000/api/v1/instances/my-bot/connection \
   -H "Authorization: Bearer your-api-key"
 ```
 
@@ -233,7 +233,7 @@ The QR code will be sent to your webhook URL. Scan it with WhatsApp.
 ### Send Text Message
 
 ```bash
-curl -X POST http://localhost:3000/instances/my-bot/send-text \
+curl -X POST http://localhost:3000/api/v1/instances/my-bot/messages/text \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-key" \
   -d '{
@@ -245,21 +245,21 @@ curl -X POST http://localhost:3000/instances/my-bot/send-text \
 ### List Instances
 
 ```bash
-curl http://localhost:3000/instances \
+curl http://localhost:3000/api/v1/instances \
   -H "Authorization: Bearer your-api-key"
 ```
 
 ### Check Instance Status
 
 ```bash
-curl http://localhost:3000/instances/my-bot/status \
+curl http://localhost:3000/api/v1/instances/my-bot/connection \
   -H "Authorization: Bearer your-api-key"
 ```
 
 ### Delete Instance
 
 ```bash
-curl -X DELETE http://localhost:3000/instances/my-bot \
+curl -X DELETE http://localhost:3000/api/v1/instances/my-bot \
   -H "Authorization: Bearer your-api-key"
 ```
 
@@ -398,154 +398,20 @@ pnpm test:live
 
 ## API Endpoints
 
-### Instance Management
+All protected endpoints use the `/api/v1/instances/:instanceId` prefix. The
+canonical contract is summarized in [docs/API.md](docs/API.md), and the
+generated field-level reference is available from `GET /docs` and
+`GET /documentation/json`.
 
-| Method | Endpoint         | Description          |
-| ------ | ---------------- | -------------------- |
-| POST   | `/instances`     | Create new instance          |
-| GET    | `/instances`     | List all instances           |
-| GET    | `/instances/:id` | Get instance details         |
-| PATCH  | `/instances/:id` | Update webhook URL/events    |
-| DELETE | `/instances/:id` | Delete instance              |
+Core route families:
 
-### Connection
+- lifecycle: `/connection`, `/connection-restarts`, `/session`, `/authentication`, and `/runtime`;
+- resources: `/messages`, `/chats`, `/contacts`, `/groups`, `/communities`, and `/newsletters`;
+- business: `/labels`, `/catalog`, and `/business`;
+- operations: `/stats`, `/webhook`, `/lids`, `/lid-resolutions`, and `/phone-numbers`;
+- unversioned utilities: `/health`, `/docs`, and `/documentation/json`.
 
-| Method | Endpoint                    | Description              |
-| ------ | --------------------------- | ------------------------ |
-| POST   | `/instances/:id/connect`    | Connect to WhatsApp      |
-| DELETE | `/instances/:id/disconnect` | Disconnect from WhatsApp |
-| POST   | `/instances/:id/restart`    | Restart connection       |
-| GET    | `/instances/:id/status`     | Get connection status    |
-
-### Messaging
-
-| Method | Endpoint                             | Description                    |
-| ------ | ------------------------------------ | ------------------------------ |
-| POST   | `/instances/:id/send-text`           | Send text message              |
-| POST   | `/instances/:id/send-media`          | Send media (image/video/audio) |
-| PATCH  | `/instances/:id/messages/edit`       | Edit text message              |
-| DELETE | `/instances/:id/messages/:messageId` | Delete message                 |
-| POST   | `/instances/:id/messages/reaction`   | React to message               |
-| POST   | `/instances/:id/messages/forward`    | Forward message                |
-| POST   | `/instances/:id/messages/location`   | Send location                  |
-| POST   | `/instances/:id/messages/contact`    | Send contact cards             |
-| POST   | `/instances/:id/messages/sticker`    | Send WebP sticker              |
-| POST   | `/instances/:id/messages/poll`       | Send poll                      |
-
-### Chats and Statuses
-
-| Method | Endpoint                                      | Description                    |
-| ------ | --------------------------------------------- | ------------------------------ |
-| POST/DELETE | `/instances/:id/chats/:jid/archive`    | Archive/unarchive chat         |
-| POST/DELETE | `/instances/:id/chats/:jid/pin`        | Pin/unpin chat                 |
-| POST/DELETE | `/instances/:id/chats/:jid/mute`       | Mute/unmute chat               |
-| POST/DELETE | `/instances/:id/chats/:jid/read`       | Mark chat read/unread          |
-| POST   | `/instances/:id/statuses/text`                | Post text status               |
-| POST   | `/instances/:id/statuses/image`               | Post image status              |
-| POST   | `/instances/:id/statuses/video`               | Post video status              |
-
-### Contacts
-
-| Method | Endpoint                               | Description                   |
-| ------ | -------------------------------------- | ----------------------------- |
-| POST   | `/instances/:id/check-number`          | Check if phone is on WhatsApp |
-| POST   | `/instances/:id/check-batch`           | Batch check numbers (max 50)  |
-| GET    | `/instances/:id/contacts/:jid`         | Get contact information       |
-| GET    | `/instances/:id/contacts/:jid/picture` | Get profile picture URL       |
-
-### Groups
-
-| Method | Endpoint                                        | Description                   |
-| ------ | ----------------------------------------------- | ----------------------------- |
-| POST   | `/instances/:id/groups`                         | Create group                  |
-| GET    | `/instances/:id/groups/:groupJid`               | Get group info                |
-| PATCH  | `/instances/:id/groups/:groupJid`               | Update group name/description |
-| POST   | `/instances/:id/groups/:groupJid/participants`  | Add participants              |
-| DELETE | `/instances/:id/groups/:groupJid/participants`  | Remove participants           |
-| POST   | `/instances/:id/groups/:groupJid/admins`        | Promote to admin              |
-| DELETE | `/instances/:id/groups/:groupJid/admins`        | Demote admin                  |
-| POST   | `/instances/:id/groups/:groupJid/picture`       | Update group picture          |
-| GET    | `/instances/:id/groups/:groupJid/invite`        | Get invite link               |
-| POST   | `/instances/:id/groups/:groupJid/revoke-invite` | Revoke invite link            |
-| POST   | `/instances/:id/groups/join/:inviteCode`        | Join via invite code          |
-| DELETE | `/instances/:id/groups/:groupJid`               | Leave group                   |
-
-### Communities
-
-Community lifecycle, participants/admins, linked groups, nested group creation,
-and invite operations are available under `/instances/:id/communities`.
-
-### Profile
-
-| Method | Endpoint                         | Description            |
-| ------ | -------------------------------- | ---------------------- |
-| POST   | `/instances/:id/profile/picture` | Update profile picture |
-| DELETE | `/instances/:id/profile/picture` | Remove profile picture |
-| PATCH  | `/instances/:id/profile/name`    | Update profile name    |
-| PATCH  | `/instances/:id/profile/status`  | Update profile status  |
-
-### Presence
-
-| Method | Endpoint                         | Description                   |
-| ------ | -------------------------------- | ----------------------------- |
-| POST   | `/instances/:id/presence`        | Set presence (online/offline) |
-| POST   | `/instances/:id/typing/:to`      | Send typing indicator         |
-| POST   | `/instances/:id/recording/:to`   | Send recording indicator      |
-| POST   | `/instances/:id/stop-typing/:to` | Stop typing/recording         |
-| POST   | `/instances/:id/read`            | Mark message as read          |
-| POST   | `/instances/:id/subscribe/:jid`  | Subscribe to presence updates |
-
-### Webhooks
-
-| Method | Endpoint                        | Description                     |
-| ------ | ------------------------------- | ------------------------------- |
-| POST   | `/instances/:id/webhook/test`   | Send test webhook event         |
-| GET    | `/instances/:id/webhook/status` | Get webhook delivery statistics |
-
-### Business (WhatsApp Business Only)
-
-| Method | Endpoint                                             | Description               |
-| ------ | ---------------------------------------------------- | ------------------------- |
-| POST   | `/instances/:id/labels`                              | Create/edit label         |
-| DELETE | `/instances/:id/labels/:labelId`                     | Delete label              |
-| POST   | `/instances/:id/chats/:jid/labels/:labelId`          | Add label to chat         |
-| DELETE | `/instances/:id/chats/:jid/labels/:labelId`          | Remove label from chat    |
-| POST   | `/instances/:id/messages/:messageId/labels/:labelId` | Add label to message      |
-| DELETE | `/instances/:id/messages/:messageId/labels/:labelId` | Remove label from message |
-| GET    | `/instances/:id/products/catalog`                    | Get product catalog       |
-| GET    | `/instances/:id/products/collections`                | Get product collections   |
-| GET    | `/instances/:id/newsletters/:newsletterId`           | Get newsletter metadata   |
-| GET    | `/instances/:id/newsletters/:newsletterId/messages`  | Get newsletter messages   |
-
-Business profile, cover-photo, order-detail, and quick-reply routes are under
-`/instances/:id/business`.
-
-### Runtime and LID Operations
-
-| Method | Endpoint                               | Description                    |
-| ------ | -------------------------------------- | ------------------------------ |
-| GET/PATCH | `/instances/:id/runtime`           | Inspect or update runtime flags|
-| GET/DELETE | `/instances/:id/lids`             | Inspect or clear LID cache     |
-| POST   | `/instances/:id/lids/register`         | Register mapping               |
-| POST   | `/instances/:id/lids/resolve`          | Resolve one LID                |
-| POST   | `/instances/:id/lids/resolve-batch`    | Resolve LIDs in bulk           |
-
-### Basic GET Operations
-
-| Method | Endpoint                                | Description                |
-| ------ | --------------------------------------- | -------------------------- |
-| GET    | `/instances/:id/contacts`              | Get all contacts           |
-| GET    | `/instances/:id/groups`                | Get all groups             |
-| GET    | `/instances/:id/profile`               | Get own profile            |
-| GET    | `/instances/:id/labels`                | Get all labels             |
-| GET    | `/instances/:id/chats`                 | Get all chats              |
-| GET    | `/instances/:id/chats/:jid/messages`   | Get chat messages          |
-
-### Health
-
-| Method | Endpoint  | Description  |
-| ------ | --------- | ------------ |
-| GET    | `/health` | Health check |
+The v1-style command routes and body-based identifiers were removed in 2.0.0.
 
 ## Documentation
 
@@ -615,7 +481,7 @@ Business profile, cover-photo, order-detail, and quick-reply routes are under
 
 This project follows Semantic Versioning (semver).
 
-Current version: `1.2.1`
+Current version: `2.0.0`
 
 - **Major version**: breaking HTTP or configuration changes
 - **Minor version**: backward-compatible capabilities

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-29
+
+### Changed
+
+- Added the central `/api/v1` prefix to every protected route and standardized
+  the instance path parameter as `instanceId`.
+- Replaced command-style and body-identified operations with resource-oriented
+  paths, path identifiers, query lookup hints, and consistent HTTP methods.
+- Split generic message, contact, label, catalog, group, community, business,
+  newsletter, and LID operations into the canonical v2 resource families.
+- Standardized successful responses as `{success:true,data:T}` and collections
+  as `{success:true,data:{items,total}}`.
+- Generalized core operation validation so `success:false` becomes HTTP 400 and
+  successful core results do not expose nested `data.success`.
+
+### Removed
+
+- Removed all 1.x compatibility aliases, including `/send-text`, `/send-media`,
+  `/connect`, `/disconnect`, `/status`, body-based message operations, and
+  command-style contact and LID routes.
+
+### Testing
+
+- Added an authoritative route manifest, removed-route 404 checks, OpenAPI
+  normalization checks, envelope and creation-status assertions, and canonical
+  integration/live test coverage.
+
 ## [1.2.1] - 2026-07-29
 
 ### Fixed
