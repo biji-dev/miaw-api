@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-30
+
+### Added
+
+- Safe proxy-pool configuration, watched reloads, masked pool status, and
+  fixed-target proxy testing endpoints.
+- Disconnected-only per-instance proxy replacement that preserves the instance
+  identity, session path, webhooks, event listeners, and client settings.
+
+### Changed
+
+- Upgraded to `miaw-core` ^1.10.0, including its proxied media handling,
+  credential-safe errors, rotation strategies, and `socks4a`/`socks5h` support.
+- Raised the Node.js runtime requirement to >=20.18.1.
+
+### Fixed
+
+- Retained the pairing-code retry workaround required by core 1.10.0.
+
 ## [2.0.0] - 2026-07-29
 
 ### Changed

@@ -1,13 +1,13 @@
 # Miaw API Roadmap
 
-**Current API version:** 2.0.0
-**Core compatibility:** `miaw-core` 1.9.1
-**Last updated:** 2026-07-29
+**Current API version:** 2.1.0
+**Core compatibility:** `miaw-core` 1.10.0
+**Last updated:** 2026-07-30
 
 ## Current state
 
 Miaw API is a Fastify REST wrapper for the HTTP-serializable `miaw-core` API.
-The synchronization through core 1.9.1 is complete on the current feature
+The synchronization through core 1.10.0 is complete on the current feature
 branch. The API uses native ESM, pnpm, JSON Schema validation, OpenAPI at
 `/documentation/json`, and Scalar documentation at `/docs`.
 
@@ -24,6 +24,7 @@ generated documentation remain unversioned.
 | Configuration and OpenAPI | 1.1.0 | Complete | Runtime environment fixes, webhook patching, documented API-key security |
 | `miaw-core` 1.9.1 synchronization | 1.2.0 | Complete | ESM, pairing/proxy options, rich messages, chats, statuses, business extras, communities, LID operations, latest events |
 | API-wide endpoint normalization | 2.0.0 | Complete | Central version prefix, resource-oriented routes, uniform envelopes, route manifest and breaking-route checks |
+| `miaw-core` 1.10.0 safe proxy management | 2.1.0 | Complete | Watched proxy pools, masked status/test endpoints, and disconnected-only client proxy replacement |
 
 ## Current capability coverage
 
@@ -65,7 +66,7 @@ generated documentation remain unversioned.
 ## Quality status
 
 - TypeScript build and ESLint pass.
-- 221 unit/contract tests pass.
+- 250 unit/contract tests pass.
 - 114 automated integration scenarios pass.
 - 217 WhatsApp-dependent scenarios remain explicitly skipped unless a live test
   account is paired.
@@ -74,7 +75,7 @@ generated documentation remain unversioned.
 ## Next priorities
 
 The API is synchronized with every useful HTTP-serializable capability in core
-1.9.1. Future feature work should follow new `miaw-core` releases.
+1.10.0. Future feature work should follow new `miaw-core` releases.
 
 1. Add contract tests whenever a core method or event is added.
 2. Extend pagination to high-volume collections while preserving the v2

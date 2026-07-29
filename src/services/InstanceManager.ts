@@ -104,7 +104,7 @@ export class InstanceManager extends EventEmitter {
 
     this.instances.set(instanceId, managed);
 
-    // miaw-core 1.9.1 requests a pairing code immediately after constructing
+    // miaw-core 1.10.0 still requests a pairing code immediately after constructing
     // its socket. Baileys rejects that pre-handshake request; retry once after
     // the transport is ready so headless pairing remains usable.
     if (storedConfig.clientOptions?.usePairingCode && storedConfig.clientOptions.phoneNumber) {

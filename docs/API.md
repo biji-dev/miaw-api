@@ -1,6 +1,6 @@
 # Miaw API v2 Guide
 
-**API version:** 2.0.0
+**API version:** 2.1.0
 **Core compatibility:** `miaw-core` 1.10.0
 **Last updated:** 2026-07-29
 
