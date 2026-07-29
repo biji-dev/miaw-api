@@ -180,7 +180,7 @@ describe('InstanceManager.updateWebhook', () => {
       clientOptions: { debug: true, autoReconnect: false },
     });
 
-    const result = manager.replaceProxy(
+    const result = await manager.replaceProxy(
       'bot',
       'http://region:secret@proxy.test:8080'
     );
@@ -210,9 +210,9 @@ describe('InstanceManager.updateWebhook', () => {
       await manager.createInstance({ instanceId: 'bot' });
       coreMock.clients[0].emitTest('connection', status);
 
-      expect(() =>
+      await expect(
         manager.replaceProxy('bot', 'http://proxy.test:8080')
-      ).toThrow('must be disconnected');
+      ).rejects.toThrow('must be disconnected');
       expect(coreMock.clients).toHaveLength(1);
     }
   );
@@ -233,10 +233,10 @@ describe('InstanceManager.updateWebhook', () => {
     expect(coreMock.options[0]).toMatchObject({ proxy: pooledProxy });
     expect(pooledManager.getProxy('bot').source).toBe('pool');
 
-    pooledManager.replaceProxy('bot', 'http://override.test:8080');
+    await pooledManager.replaceProxy('bot', 'http://override.test:8080');
     expect(pooledManager.getProxy('bot').source).toBe('explicit');
 
-    const restored = pooledManager.replaceProxy('bot');
+    const restored = await pooledManager.replaceProxy('bot');
     expect(restored).toMatchObject({
       source: 'pool',
       protocol: 'socks5h',

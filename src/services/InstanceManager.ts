@@ -205,7 +205,10 @@ export class InstanceManager extends EventEmitter {
     return describeProxy(managed.effectiveProxy, managed.proxySource);
   }
 
-  replaceProxy(instanceId: string, proxy?: ProxyConfig | string): EffectiveProxyInfo {
+  async replaceProxy(
+    instanceId: string,
+    proxy?: ProxyConfig | string
+  ): Promise<EffectiveProxyInfo> {
     const managed = this.instances.get(instanceId);
     if (!managed) throw new Error(`Instance ${instanceId} not found`);
     if (managed.state.status !== 'disconnected') {
@@ -229,10 +232,11 @@ export class InstanceManager extends EventEmitter {
     const { proxy: effectiveProxy, source: proxySource } =
       this.resolveEffectiveProxy(nextConfig);
     const nextClient = this.createClient(nextConfig, effectiveProxy);
-    this.setupClientEvents(instanceId, nextClient);
 
     if (managed.pairingRetryTimeout) clearTimeout(managed.pairingRetryTimeout);
+    await managed.client.disconnect();
     managed.client.removeAllListeners();
+    this.setupClientEvents(instanceId, nextClient);
     managed.client = nextClient;
     managed.config = nextConfig;
     managed.effectiveProxy = effectiveProxy;

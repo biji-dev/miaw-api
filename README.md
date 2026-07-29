@@ -121,7 +121,7 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for the full roadmap.
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.18.1
 - pnpm 10 (via Corepack)
 
 ### Installation
@@ -166,9 +166,23 @@ WEBHOOK_RETRY_DELAY_MS=1000
 # Session Storage
 SESSION_PATH=./sessions
 
+# Optional mounted proxy pool
+# MIAW_PROXY_FILE=/run/secrets/miaw-proxies.txt
+MIAW_PROXY_STRATEGY=deterministic
+
 # Logging
 LOG_LEVEL=info
 ```
+
+`MIAW_PROXY_FILE` accepts the TXT and JSON formats supported by
+`miaw-core` 1.10.0. Pool entries are assigned to new instances using
+`deterministic` selection by default, so a stable `instanceId` keeps a stable
+egress proxy. An explicit `clientOptions.proxy` supplied during instance
+creation takes precedence over the pool.
+
+Proxy passwords are never returned by the API. Manage the pool file as a
+mounted secret and use `POST /api/v1/proxy-pool/reloads` after replacing it
+when an immediate reload is required.
 
 ### Running
 
@@ -432,6 +446,8 @@ The v1-style command routes and body-based identifiers were removed in 2.0.0.
 | `WEBHOOK_MAX_RETRIES`    | 6          | Max webhook retry attempts           |
 | `WEBHOOK_RETRY_DELAY_MS` | 60000      | Initial retry delay (ms)             |
 | `SESSION_PATH`           | ./sessions | Session storage path                 |
+| `MIAW_PROXY_FILE`        | -          | Optional mounted TXT/JSON proxy pool |
+| `MIAW_PROXY_STRATEGY`    | deterministic | Pool selection strategy           |
 | `LOG_LEVEL`              | info       | Log level (debug, info, warn, error) |
 | `CORS_ORIGIN`            | \*         | CORS allowed origin                  |
 
@@ -449,6 +465,7 @@ The v1-style command routes and body-based identifiers were removed in 2.0.0.
 3. **HTTPS**: Use HTTPS in production for all API communication
 4. **Firewall**: Restrict access to webhook endpoints
 5. **Session Files**: Protect `./sessions/` directory (contains auth credentials)
+6. **Proxy Credentials**: Mount proxy lists as secrets and never commit them
 
 ## Troubleshooting
 

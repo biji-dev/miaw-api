@@ -21,6 +21,7 @@ import { advancedMessagingRoutes } from './advanced-messaging.js';
 import { businessExtraRoutes } from './business-extras.js';
 import { communityRoutes } from './communities.js';
 import { operationRoutes } from './operations.js';
+import { proxyRoutes } from './proxies.js';
 
 /**
  * Register all routes
@@ -28,7 +29,7 @@ import { operationRoutes } from './operations.js';
 export async function registerRoutes(server: FastifyInstance, instanceManager: InstanceManager): Promise<void> {
   await server.register(async (api) => {
     api.addHook('onRoute', (route) => {
-      if (!route.url.startsWith('/instances')) return;
+      if (!route.url.startsWith('/instances') && !route.url.startsWith('/proxy')) return;
       route.schema = {
         ...route.schema,
         response: {
@@ -56,5 +57,6 @@ export async function registerRoutes(server: FastifyInstance, instanceManager: I
     await api.register(businessExtraRoutes);
     await api.register(communityRoutes);
     await api.register(operationRoutes);
+    await api.register(proxyRoutes);
   }, { prefix: '/api/v1' });
 }

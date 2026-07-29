@@ -1,7 +1,7 @@
 # Miaw API v2 Guide
 
 **API version:** 2.0.0
-**Core compatibility:** `miaw-core` 1.9.1
+**Core compatibility:** `miaw-core` 1.10.0
 **Last updated:** 2026-07-29
 
 The generated reference is the authoritative field-level contract:
@@ -9,8 +9,8 @@ The generated reference is the authoritative field-level contract:
 - Scalar UI: `GET /docs`
 - OpenAPI JSON: `GET /documentation/json`
 
-`/health`, `/docs`, and `/documentation/json` are unversioned. Every protected
-route starts with `/api/v1/instances/:instanceId` and accepts either
+`/health`, `/docs`, and `/documentation/json` are unversioned. Protected
+routes start with `/api/v1` and accept either
 `Authorization: Bearer <API_KEY>` or `X-API-Key: <API_KEY>`.
 
 ## Response contract
@@ -59,6 +59,43 @@ Pairing-code authentication and proxy configuration can be supplied through
 `clientOptions`. Proxy credentials are never returned. Connect using
 `PUT /api/v1/instances/support/connection`, then read the transient challenge
 from `/authentication/qr-code` or `/authentication/pairing-code`.
+
+Supported proxy schemes are `http`, `https`, `socks`, `socks4`, `socks4a`,
+`socks5`, and `socks5h`. Prefer HTTP(S) when media downloads must also use the
+proxy; SOCKS carries the WhatsApp connection and media uploads, but incoming
+media downloads remain direct.
+
+## Proxy management
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/proxy-pool` | Inspect the configured pool with masked credentials |
+| `POST` | `/api/v1/proxy-pool/reloads` | Atomically reload the mounted pool file |
+| `POST` | `/api/v1/proxy-tests` | Test reachability without creating or pairing an instance |
+| `GET` | `/api/v1/instances/:instanceId/proxy` | Inspect the effective instance proxy |
+| `PUT` | `/api/v1/instances/:instanceId/proxy` | Set an explicit proxy on a disconnected instance |
+| `DELETE` | `/api/v1/instances/:instanceId/proxy` | Clear the override and return to the pool/direct route |
+
+Changing a proxy rebuilds the underlying `MiawClient` because the transport is
+constructor-bound. The operation returns `409` unless the instance is already
+`disconnected`; connect it again explicitly afterward. Pool reloads never
+remap an existing client.
+
+`POST /api/v1/proxy-tests` accepts:
+
+```json
+{
+  "proxy": {
+    "url": "http://proxy.example.com:8080",
+    "username": "region-id",
+    "password": "secret"
+  },
+  "timeoutMs": 10000
+}
+```
+
+The timeout range is 1–30 seconds. A completed probe returns HTTP `200` even
+when `data.reachable` is false; invalid proxy configuration returns `400`.
 
 ## Canonical route families
 

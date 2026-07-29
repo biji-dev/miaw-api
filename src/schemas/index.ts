@@ -11,6 +11,7 @@ export function registerSchemas(server: FastifyInstance): void {
   // Instance ID pattern
   const instanceIdPattern = '^[a-z0-9_-]+$';
   const httpUrlPattern = '^https?://';
+  const proxyUrlPattern = '^(?:https?|socks|socks4|socks4a|socks5|socks5h)://';
   const webhookEvents = ['test', 'qr', 'ready', 'message', 'message_edit', 'message_delete', 'message_reaction', 'message_receipt', 'poll_vote', 'pairing_code', 'presence', 'connection', 'disconnected', 'reconnecting', 'error', 'session_saved'];
 
   server.addSchema({
@@ -68,6 +69,31 @@ export function registerSchemas(server: FastifyInstance): void {
     },
   });
 
+  server.addSchema({
+    $id: 'proxyConfig',
+    oneOf: [
+      {
+        type: 'string',
+        format: 'uri',
+        pattern: proxyUrlPattern,
+      },
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['url'],
+        properties: {
+          url: {
+            type: 'string',
+            format: 'uri',
+            pattern: proxyUrlPattern,
+          },
+          username: { type: 'string' },
+          password: { type: 'string' },
+        },
+      },
+    ],
+  });
+
   // ============================================================================
   // Instance Schemas
   // ============================================================================
@@ -114,19 +140,7 @@ export function registerSchemas(server: FastifyInstance): void {
             items: { type: 'string' },
           },
           proxy: {
-            oneOf: [
-              { type: 'string', format: 'uri' },
-              {
-                type: 'object',
-                additionalProperties: false,
-                required: ['url'],
-                properties: {
-                  url: { type: 'string', format: 'uri' },
-                  username: { type: 'string' },
-                  password: { type: 'string' },
-                },
-              },
-            ],
+            $ref: 'proxyConfig#',
           },
           usePairingCode: { type: 'boolean' },
           phoneNumber: { type: 'string', pattern: '^[0-9]+$' },

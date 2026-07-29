@@ -20,7 +20,7 @@ const storedMessage = {
   isGroup: false, fromMe: true, type: 'text', text: 'hello', raw: {},
 } as MiawMessage;
 
-describe('miaw-core 1.9.1 route contracts', () => {
+describe('miaw-core 1.10.0 route contracts', () => {
   let server: FastifyInstance;
   let client: Record<string, ReturnType<typeof vi.fn>>;
 
