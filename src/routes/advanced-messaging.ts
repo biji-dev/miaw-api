@@ -9,6 +9,14 @@ const params = {
 };
 const mediaUrl = { type: 'string', pattern: '^https?://' };
 
+function requireOperationSuccess<T>(result: T, operation: string): T {
+  if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+    const error = 'error' in result ? result.error : undefined;
+    throw new BadRequestError(`${operation} failed`, { error });
+  }
+  return result;
+}
+
 export async function advancedMessagingRoutes(server: FastifyInstance): Promise<void> {
   server.addHook('onRequest', createAuthMiddleware());
 
@@ -104,26 +112,31 @@ export async function advancedMessagingRoutes(server: FastifyInstance): Promise<
   for (const [method, action, execute] of chatActions) {
     server.route({ method, url: `/instances/:id/chats/:jid/${action}`, schema: { tags: ['Chats'], summary: `${method === 'DELETE' ? 'Undo' : ''} ${action} chat` }, handler: async (request) => {
       const { id, jid } = request.params as { id: string; jid: string };
-      return { success: true, data: await execute(getConnectedClient(server, id), jid) };
+      const result = await execute(getConnectedClient(server, id), jid);
+      return { success: true, data: requireOperationSuccess(result, `${method} chat ${action}`) };
     } });
   }
 
   server.post('/instances/:id/chats/:jid/mute', { schema: { tags: ['Chats'], summary: 'Mute chat', body: { type: 'object', properties: { durationMs: { type: 'integer', minimum: 1 } } } } }, async (request) => {
     const { id, jid } = request.params as { id: string; jid: string };
     const { durationMs } = request.body as { durationMs?: number };
-    return { success: true, data: await getConnectedClient(server, id).muteChat(jid, durationMs) };
+    const result = await getConnectedClient(server, id).muteChat(jid, durationMs);
+    return { success: true, data: requireOperationSuccess(result, 'Mute chat') };
   });
   server.delete('/instances/:id/chats/:jid/mute', { schema: { tags: ['Chats'], summary: 'Unmute chat' } }, async (request) => {
     const { id, jid } = request.params as { id: string; jid: string };
-    return { success: true, data: await getConnectedClient(server, id).unmuteChat(jid) };
+    const result = await getConnectedClient(server, id).unmuteChat(jid);
+    return { success: true, data: requireOperationSuccess(result, 'Unmute chat') };
   });
   server.delete('/instances/:id/chats/:jid/messages', { schema: { tags: ['Chats'], summary: 'Clear chat messages' } }, async (request) => {
     const { id, jid } = request.params as { id: string; jid: string };
-    return { success: true, data: await getConnectedClient(server, id).clearChat(jid) };
+    const result = await getConnectedClient(server, id).clearChat(jid);
+    return { success: true, data: requireOperationSuccess(result, 'Clear chat') };
   });
   server.delete('/instances/:id/chats/:jid', { schema: { tags: ['Chats'], summary: 'Delete chat' } }, async (request) => {
     const { id, jid } = request.params as { id: string; jid: string };
-    return { success: true, data: await getConnectedClient(server, id).deleteChat(jid) };
+    const result = await getConnectedClient(server, id).deleteChat(jid);
+    return { success: true, data: requireOperationSuccess(result, 'Delete chat') };
   });
   for (const method of ['POST', 'DELETE'] as const) {
     server.route({ method, url: '/instances/:id/messages/:messageId/star', schema: { tags: ['Chats'], summary: `${method === 'POST' ? 'Star' : 'Unstar'} message` }, handler: async (request) => {
@@ -131,7 +144,8 @@ export async function advancedMessagingRoutes(server: FastifyInstance): Promise<
       const { chatJid } = request.query as { chatJid?: string };
       const client = getConnectedClient(server, id);
       const message = await requireMessage(client, messageId, chatJid);
-      return { success: true, data: method === 'POST' ? await client.starMessage(message) : await client.unstarMessage(message) };
+      const result = method === 'POST' ? await client.starMessage(message) : await client.unstarMessage(message);
+      return { success: true, data: requireOperationSuccess(result, `${method === 'POST' ? 'Star' : 'Unstar'} message`) };
     } });
   }
 }

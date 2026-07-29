@@ -91,6 +91,17 @@ describe('miaw-core 1.9.1 route contracts', () => {
     expect(client.sendLocation).toHaveBeenCalledWith('6282', -6.2, 106.8, expect.any(Object));
   });
 
+  it('maps failed chat operations to a bad request instead of reporting success', async () => {
+    client.muteChat.mockResolvedValueOnce({ success: false, error: 'app state unavailable' });
+    const response = await inject('POST', '/instances/test/chats/6282%40s.whatsapp.net/mute', { durationMs: 5000 });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Mute chat failed',
+    });
+  });
+
   it('maps community participant operations to core', async () => {
     const response = await inject('POST', '/instances/test/communities/c@g.us/participants', { participants: ['6282'] });
     expect(response.statusCode).toBe(200);
