@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 0.9.0 (Phase 9 - Basic GET Operations)
+**Version:** 2.1.0 · synchronized with `miaw-core` 1.10.0
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -10,15 +10,33 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 
 - **Multi-Instance Management** - Create and manage multiple WhatsApp instances
 - **Full Messaging** - Text, media, edit, delete, reactions, forward
+- **Rich Messaging** - Locations, contact cards, stickers, polls, mentions, and replies
+- **Chat & Status Management** - Archive, pin, mute, star, read state, and status stories
 - **Contact Validation** - Check numbers, get contact info, profile pictures
 - **Group Management** - Create groups, manage participants, admin operations
+- **Community Management** - Communities, linked groups, members, admins, and invites
+- **Business Extras** - Business profile, cover photo, orders, and quick replies
+- **Operations** - Pairing-code auth, per-instance proxies, runtime controls, and LID resolution
 - **Profile Management** - Update profile name, status, picture
 - **RESTful API** - Clean JSON API with OpenAPI/Swagger documentation
 - **Real-Time Webhooks** - Receive events (messages, edits, reactions, etc.) via webhooks
 - **Authentication** - Simple API key authentication
 - **Docker Support** - Easy deployment with Docker and Docker Compose
 
-## Current Status (Phase 9 - Basic GET Operations)
+## Current Status
+
+The API exposes the HTTP-serializable `miaw-core` 1.10.0 surface through one
+versioned v2 contract. The former 1.x command-style routes were removed; all
+protected endpoints now live under `/api/v1`.
+
+### miaw-core 1.10.0 synchronization
+
+- QR or pairing-code authentication with protected challenge retrieval
+- Rich messaging, chat operations, statuses, business extras, and communities
+- LID mapping/resolution plus safe proxy-pool management, testing, and masked
+  runtime inspection
+- Webhooks for pairing codes, poll votes, message receipts, and session saves
+- ESM runtime compatible with the ESM-only `miaw-core`
 
 ### Implemented (Phase 1-9)
 
@@ -98,20 +116,14 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 - Get all chats
 - Get chat messages
 
-### Planned (Phase 10+)
-
-- Polish & Testing
-- Performance optimization
-- Security audit
-
 See [docs/ROADMAP.md](./docs/ROADMAP.md) for the full roadmap.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- npm or yarn
+- Node.js >= 20.18.1
+- pnpm 10 (via Corepack)
 
 ### Installation
 
@@ -121,10 +133,11 @@ git clone <repository-url>
 cd miaw-api
 
 # Install dependencies
-npm install
+corepack enable
+pnpm install --frozen-lockfile
 
 # Build the project
-npm run build
+pnpm build
 ```
 
 ### Configuration
@@ -154,18 +167,32 @@ WEBHOOK_RETRY_DELAY_MS=1000
 # Session Storage
 SESSION_PATH=./sessions
 
+# Optional mounted proxy pool
+# MIAW_PROXY_FILE=/run/secrets/miaw-proxies.txt
+MIAW_PROXY_STRATEGY=deterministic
+
 # Logging
 LOG_LEVEL=info
 ```
+
+`MIAW_PROXY_FILE` accepts the TXT and JSON formats supported by
+`miaw-core` 1.10.0. Pool entries are assigned to new instances using
+`deterministic` selection by default, so a stable `instanceId` keeps a stable
+egress proxy. An explicit `clientOptions.proxy` supplied during instance
+creation takes precedence over the pool.
+
+Proxy passwords are never returned by the API. Manage the pool file as a
+mounted secret and use `POST /api/v1/proxy-pool/reloads` after replacing it
+when an immediate reload is required.
 
 ### Running
 
 ```bash
 # Start the server
-npm start
+pnpm start
 
 # Or in development mode
-npm run dev:start
+pnpm dev:start
 ```
 
 The API will be available at `http://localhost:3000`
@@ -185,21 +212,21 @@ http://localhost:3000/docs
 All API requests require an API key:
 
 ```bash
-curl http://localhost:3000/instances \
+curl http://localhost:3000/api/v1/instances \
   -H "Authorization: Bearer your-api-key"
 ```
 
 Or use the `X-API-Key` header:
 
 ```bash
-curl http://localhost:3000/instances \
+curl http://localhost:3000/api/v1/instances \
   -H "X-API-Key: your-api-key"
 ```
 
 ### Create Instance
 
 ```bash
-curl -X POST http://localhost:3000/instances \
+curl -X POST http://localhost:3000/api/v1/instances \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-key" \
   -d '{
@@ -212,7 +239,7 @@ curl -X POST http://localhost:3000/instances \
 ### Connect Instance (Scan QR)
 
 ```bash
-curl -X POST http://localhost:3000/instances/my-bot/connect \
+curl -X PUT http://localhost:3000/api/v1/instances/my-bot/connection \
   -H "Authorization: Bearer your-api-key"
 ```
 
@@ -221,7 +248,7 @@ The QR code will be sent to your webhook URL. Scan it with WhatsApp.
 ### Send Text Message
 
 ```bash
-curl -X POST http://localhost:3000/instances/my-bot/send-text \
+curl -X POST http://localhost:3000/api/v1/instances/my-bot/messages/text \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-key" \
   -d '{
@@ -233,21 +260,21 @@ curl -X POST http://localhost:3000/instances/my-bot/send-text \
 ### List Instances
 
 ```bash
-curl http://localhost:3000/instances \
+curl http://localhost:3000/api/v1/instances \
   -H "Authorization: Bearer your-api-key"
 ```
 
 ### Check Instance Status
 
 ```bash
-curl http://localhost:3000/instances/my-bot/status \
+curl http://localhost:3000/api/v1/instances/my-bot/connection \
   -H "Authorization: Bearer your-api-key"
 ```
 
 ### Delete Instance
 
 ```bash
-curl -X DELETE http://localhost:3000/instances/my-bot \
+curl -X DELETE http://localhost:3000/api/v1/instances/my-bot \
   -H "Authorization: Bearer your-api-key"
 ```
 
@@ -279,11 +306,15 @@ When events occur, POST requests are sent to your configured webhook URL:
 | `message_edit`      | A message was edited                          |
 | `message_delete`    | A message was deleted/revoked                 |
 | `message_reaction`  | A message received an emoji reaction          |
+| `message_receipt`   | Sent message delivery/read/played receipt     |
+| `poll_vote`         | Aggregated poll vote changed                  |
+| `pairing_code`      | Pairing code generated for phone-number auth  |
 | `presence`          | Subscribed contact's presence changed         |
 | `connection`        | Connection state changed                      |
 | `disconnected`      | Instance disconnected                         |
 | `reconnecting`      | Reconnection attempt in progress              |
 | `error`             | Error occurred                                |
+| `session_saved`     | Authentication session was persisted          |
 
 When creating an instance, `webhookEvents` acts as a whitelist: list specific
 events to receive only those, or omit it / pass `[]` to receive all events.
@@ -326,7 +357,7 @@ docker run -d \
 miaw-api/
 ├── src/
 │   ├── config/         # Configuration loader
-│   ├── middleware/     # Express middleware (auth)
+│   ├── middleware/     # Fastify authentication hooks
 │   ├── routes/         # API route handlers
 │   ├── schemas/        # JSON Schema definitions
 │   ├── services/       # Business logic (InstanceManager, WebhookDispatcher)
@@ -335,7 +366,7 @@ miaw-api/
 │   └── server.ts       # Server entry point
 ├── test/
 │   ├── integration/    # Integration tests
-│   └── unit/           # Unit tests (planned)
+│   └── unit/           # Unit and route-contract tests
 ├── sessions/           # WhatsApp session data (gitignored)
 └── dist/               # Compiled output (gitignored)
 ```
@@ -344,19 +375,20 @@ miaw-api/
 
 ```bash
 # Build
-npm run build
+pnpm build
 
 # Development (watch mode)
-npm run dev
+pnpm dev
 
 # Run tests
-npm test
-npm run test:unit
-npm run test:integration
+pnpm test
+pnpm test:unit
+pnpm test:integration
+pnpm test:live
 
 # Lint
-npm run lint
-npm run lint:fix
+pnpm lint
+pnpm lint:fix
 ```
 
 ### Adding New Features
@@ -372,132 +404,33 @@ npm run lint:fix
 See [docs/TESTING.md](./docs/TESTING.md) for detailed testing guide.
 
 ```bash
-# Run integration tests (requires WhatsApp pairing)
-npm run test:integration
+# Run automated integration tests
+pnpm test:integration
 
-# Setup test instance (pair via QR)
-npm run test:integration -- setup
+# Run the isolated-account live suite using .env.live-test
+pnpm test:live
 ```
 
 ## API Endpoints
 
-### Instance Management
+All protected endpoints use the `/api/v1/instances/:instanceId` prefix. The
+canonical contract is summarized in [docs/API.md](docs/API.md), and the
+generated field-level reference is available from `GET /docs` and
+`GET /documentation/json`.
 
-| Method | Endpoint         | Description          |
-| ------ | ---------------- | -------------------- |
-| POST   | `/instances`     | Create new instance          |
-| GET    | `/instances`     | List all instances           |
-| GET    | `/instances/:id` | Get instance details         |
-| PATCH  | `/instances/:id` | Update webhook URL/events    |
-| DELETE | `/instances/:id` | Delete instance              |
+Core route families:
 
-### Connection
+- lifecycle: `/connection`, `/connection-restarts`, `/session`, `/authentication`, and `/runtime`;
+- resources: `/messages`, `/chats`, `/contacts`, `/groups`, `/communities`, and `/newsletters`;
+- business: `/labels`, `/catalog`, and `/business`;
+- operations: `/stats`, `/webhook`, `/lids`, `/lid-resolutions`, and `/phone-numbers`;
+- unversioned utilities: `/health`, `/docs`, and `/documentation/json`.
 
-| Method | Endpoint                    | Description              |
-| ------ | --------------------------- | ------------------------ |
-| POST   | `/instances/:id/connect`    | Connect to WhatsApp      |
-| DELETE | `/instances/:id/disconnect` | Disconnect from WhatsApp |
-| POST   | `/instances/:id/restart`    | Restart connection       |
-| GET    | `/instances/:id/status`     | Get connection status    |
-
-### Messaging
-
-| Method | Endpoint                             | Description                    |
-| ------ | ------------------------------------ | ------------------------------ |
-| POST   | `/instances/:id/send-text`           | Send text message              |
-| POST   | `/instances/:id/send-media`          | Send media (image/video/audio) |
-| PATCH  | `/instances/:id/messages/edit`       | Edit text message              |
-| DELETE | `/instances/:id/messages/:messageId` | Delete message                 |
-| POST   | `/instances/:id/messages/reaction`   | React to message               |
-| POST   | `/instances/:id/messages/forward`    | Forward message                |
-
-### Contacts
-
-| Method | Endpoint                               | Description                   |
-| ------ | -------------------------------------- | ----------------------------- |
-| POST   | `/instances/:id/check-number`          | Check if phone is on WhatsApp |
-| POST   | `/instances/:id/check-batch`           | Batch check numbers (max 50)  |
-| GET    | `/instances/:id/contacts/:jid`         | Get contact information       |
-| GET    | `/instances/:id/contacts/:jid/picture` | Get profile picture URL       |
-
-### Groups
-
-| Method | Endpoint                                        | Description                   |
-| ------ | ----------------------------------------------- | ----------------------------- |
-| POST   | `/instances/:id/groups`                         | Create group                  |
-| GET    | `/instances/:id/groups/:groupJid`               | Get group info                |
-| PATCH  | `/instances/:id/groups/:groupJid`               | Update group name/description |
-| POST   | `/instances/:id/groups/:groupJid/participants`  | Add participants              |
-| DELETE | `/instances/:id/groups/:groupJid/participants`  | Remove participants           |
-| POST   | `/instances/:id/groups/:groupJid/admins`        | Promote to admin              |
-| DELETE | `/instances/:id/groups/:groupJid/admins`        | Demote admin                  |
-| POST   | `/instances/:id/groups/:groupJid/picture`       | Update group picture          |
-| GET    | `/instances/:id/groups/:groupJid/invite`        | Get invite link               |
-| POST   | `/instances/:id/groups/:groupJid/revoke-invite` | Revoke invite link            |
-| POST   | `/instances/:id/groups/join/:inviteCode`        | Join via invite code          |
-| DELETE | `/instances/:id/groups/:groupJid`               | Leave group                   |
-
-### Profile
-
-| Method | Endpoint                         | Description            |
-| ------ | -------------------------------- | ---------------------- |
-| POST   | `/instances/:id/profile/picture` | Update profile picture |
-| DELETE | `/instances/:id/profile/picture` | Remove profile picture |
-| PATCH  | `/instances/:id/profile/name`    | Update profile name    |
-| PATCH  | `/instances/:id/profile/status`  | Update profile status  |
-
-### Presence
-
-| Method | Endpoint                         | Description                   |
-| ------ | -------------------------------- | ----------------------------- |
-| POST   | `/instances/:id/presence`        | Set presence (online/offline) |
-| POST   | `/instances/:id/typing/:to`      | Send typing indicator         |
-| POST   | `/instances/:id/recording/:to`   | Send recording indicator      |
-| POST   | `/instances/:id/stop-typing/:to` | Stop typing/recording         |
-| POST   | `/instances/:id/read`            | Mark message as read          |
-| POST   | `/instances/:id/subscribe/:jid`  | Subscribe to presence updates |
-
-### Webhooks
-
-| Method | Endpoint                        | Description                     |
-| ------ | ------------------------------- | ------------------------------- |
-| POST   | `/instances/:id/webhook/test`   | Send test webhook event         |
-| GET    | `/instances/:id/webhook/status` | Get webhook delivery statistics |
-
-### Business (WhatsApp Business Only)
-
-| Method | Endpoint                                             | Description               |
-| ------ | ---------------------------------------------------- | ------------------------- |
-| POST   | `/instances/:id/labels`                              | Create/edit label         |
-| DELETE | `/instances/:id/labels/:labelId`                     | Delete label              |
-| POST   | `/instances/:id/chats/:jid/labels/:labelId`          | Add label to chat         |
-| DELETE | `/instances/:id/chats/:jid/labels/:labelId`          | Remove label from chat    |
-| POST   | `/instances/:id/messages/:messageId/labels/:labelId` | Add label to message      |
-| DELETE | `/instances/:id/messages/:messageId/labels/:labelId` | Remove label from message |
-| GET    | `/instances/:id/products/catalog`                    | Get product catalog       |
-| GET    | `/instances/:id/products/collections`                | Get product collections   |
-| GET    | `/instances/:id/newsletters/:newsletterId`           | Get newsletter metadata   |
-| GET    | `/instances/:id/newsletters/:newsletterId/messages`  | Get newsletter messages   |
-
-### Basic GET Operations
-
-| Method | Endpoint                                | Description                |
-| ------ | --------------------------------------- | -------------------------- |
-| GET    | `/instances/:id/contacts`              | Get all contacts           |
-| GET    | `/instances/:id/groups`                | Get all groups             |
-| GET    | `/instances/:id/profile`               | Get own profile            |
-| GET    | `/instances/:id/labels`                | Get all labels             |
-| GET    | `/instances/:id/chats`                 | Get all chats              |
-| GET    | `/instances/:id/chats/:jid/messages`   | Get chat messages          |
-
-### Health
-
-| Method | Endpoint  | Description  |
-| ------ | --------- | ------------ |
-| GET    | `/health` | Health check |
+The v1-style command routes and body-based identifiers were removed in 2.0.0.
 
 ## Documentation
 
+- [API Guide](./docs/API.md) - Authentication, route groups, media and webhook contracts
 - [Roadmap](./docs/ROADMAP.md) - Full development roadmap
 - [Integration Test Plan](./docs/INTEGRATION-TEST-PLAN.md) - Test strategy
 - [Testing Guide](./docs/TESTING.md) - How to run tests
@@ -514,13 +447,15 @@ npm run test:integration -- setup
 | `WEBHOOK_MAX_RETRIES`    | 6          | Max webhook retry attempts           |
 | `WEBHOOK_RETRY_DELAY_MS` | 60000      | Initial retry delay (ms)             |
 | `SESSION_PATH`           | ./sessions | Session storage path                 |
+| `MIAW_PROXY_FILE`        | -          | Optional mounted TXT/JSON proxy pool |
+| `MIAW_PROXY_STRATEGY`    | deterministic | Pool selection strategy           |
 | `LOG_LEVEL`              | info       | Log level (debug, info, warn, error) |
 | `CORS_ORIGIN`            | \*         | CORS allowed origin                  |
 
 ## Limitations
 
 - One WhatsApp number per instance
-- Manual QR scanning required for initial connection
+- QR scan or phone-number pairing code required for initial connection
 - Sessions expire after inactivity (requires re-pairing)
 - Rate limiting by WhatsApp (may need delays between operations)
 
@@ -531,6 +466,7 @@ npm run test:integration -- setup
 3. **HTTPS**: Use HTTPS in production for all API communication
 4. **Firewall**: Restrict access to webhook endpoints
 5. **Session Files**: Protect `./sessions/` directory (contains auth credentials)
+6. **Proxy Credentials**: Mount proxy lists as secrets and never commit them
 
 ## Troubleshooting
 
@@ -563,11 +499,11 @@ npm run test:integration -- setup
 
 This project follows Semantic Versioning (semver).
 
-Current version: `0.1.0`
+Current version: `2.1.0`
 
-- **Major version** (0): Initial development, API may change
-- **Minor version** (1): Phase 1 (MVP) features
-- **Patch version** (0): Initial release
+- **Major version**: breaking HTTP or configuration changes
+- **Minor version**: backward-compatible capabilities
+- **Patch version**: backward-compatible fixes
 
 ## License
 

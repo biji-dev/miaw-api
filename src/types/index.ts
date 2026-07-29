@@ -2,6 +2,8 @@
  * API Type Definitions
  */
 
+import type { MiawClientOptions } from 'miaw-core';
+
 // ============================================================================
 // Instance Types
 // ============================================================================
@@ -13,11 +15,29 @@ export type ConnectionState =
   | 'reconnecting'
   | 'qr_required';
 
+export type InstanceClientOptions = Pick<
+  MiawClientOptions,
+  | 'debug'
+  | 'autoReconnect'
+  | 'maxReconnectAttempts'
+  | 'reconnectDelay'
+  | 'stuckStateTimeout'
+  | 'qrGracePeriod'
+  | 'qrScanTimeout'
+  | 'connectionTimeout'
+  | 'syncFullHistory'
+  | 'browser'
+  | 'proxy'
+  | 'usePairingCode'
+  | 'phoneNumber'
+>;
+
 export interface InstanceConfig {
   instanceId: string;
   webhookUrl?: string;
   webhookEvents?: WebhookEvent[];
   webhookEnabled?: boolean;
+  clientOptions?: InstanceClientOptions;
 }
 
 export interface InstanceState {
@@ -30,6 +50,7 @@ export interface InstanceState {
   lastActivity: Date;
   connectedAt?: Date;
   phoneNumber?: string;
+  authMode: 'qr' | 'pairing_code';
 }
 
 // ============================================================================
@@ -37,17 +58,22 @@ export interface InstanceState {
 // ============================================================================
 
 export type WebhookEvent =
+  | 'test'
   | 'qr'
   | 'ready'
   | 'message'
   | 'message_edit'
   | 'message_delete'
   | 'message_reaction'
+  | 'message_receipt'
+  | 'poll_vote'
+  | 'pairing_code'
   | 'presence'
   | 'connection'
   | 'disconnected'
   | 'reconnecting'
-  | 'error';
+  | 'error'
+  | 'session_saved';
 
 export interface WebhookPayload {
   event: WebhookEvent;

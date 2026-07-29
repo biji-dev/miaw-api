@@ -7,12 +7,14 @@ import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
 import ScalarApiReference from '@scalar/fastify-api-reference';
-import { config } from './config';
-import { registerRoutes } from './routes';
-import { registerSchemas } from './schemas';
-import { InstanceManager } from './services/InstanceManager';
-import { WebhookDispatcher } from './services/WebhookDispatcher';
-import { errorHandler } from './utils/errorHandler';
+import { pathToFileURL } from 'node:url';
+import { config } from './config/index.js';
+import { registerRoutes } from './routes/index.js';
+import { registerSchemas } from './schemas/index.js';
+import { InstanceManager } from './services/InstanceManager.js';
+import { ProxyPoolService } from './services/ProxyService.js';
+import { WebhookDispatcher } from './services/WebhookDispatcher.js';
+import { errorHandler } from './utils/errorHandler.js';
 
 /**
  * Create and configure Fastify server
@@ -46,7 +48,7 @@ export async function createServer(): Promise<FastifyInstance> {
       info: {
         title: 'Miaw API',
         description: 'REST API wrapper for miaw-core - Multiple Instance of App WhatsApp',
-        version: '1.0.0',
+        version: '2.1.0',
       },
       servers: [
         {
@@ -59,12 +61,17 @@ export async function createServer(): Promise<FastifyInstance> {
         { name: 'Connection', description: 'Connect, disconnect, and check instance status' },
         { name: 'Data', description: 'Fetch contacts, groups, profile, labels, chats, and messages from in-memory store' },
         { name: 'Messaging', description: 'Send text, media, and manage messages (edit, delete, react, forward)' },
+        { name: 'Chats', description: 'Archive, pin, mute, read, clear, and delete chats' },
+        { name: 'Statuses', description: 'Post WhatsApp status stories' },
         { name: 'Contacts', description: 'Check phone numbers and get contact information' },
         { name: 'Groups', description: 'Create and manage WhatsApp groups' },
         { name: 'Profile', description: 'Update profile picture, name, and status' },
         { name: 'Presence', description: 'Presence, typing indicators, and read receipts' },
         { name: 'Webhooks', description: 'Configure webhooks for real-time events' },
         { name: 'Business', description: 'WhatsApp Business features (labels, catalog, newsletters)' },
+        { name: 'Communities', description: 'Create and manage WhatsApp communities' },
+        { name: 'Operations', description: 'Runtime, proxy, and LID management' },
+        { name: 'Proxies', description: 'Inspect, reload, and test outbound proxies' },
         { name: 'Health', description: 'API health check' },
       ],
       components: {
@@ -90,9 +97,6 @@ export async function createServer(): Promise<FastifyInstance> {
     routePrefix: '/docs',
     configuration: {
       title: 'Miaw API Documentation',
-      spec: {
-        url: '/documentation/json',
-      },
     },
   });
 
@@ -127,6 +131,12 @@ export async function createServer(): Promise<FastifyInstance> {
     return server.swagger();
   });
 
+  const proxyPool = await ProxyPoolService.create({
+    filePath: config.proxyFile,
+    strategy: config.proxyStrategy,
+    logger: server.log,
+  });
+
   // Create instance manager (shared across requests)
   const instanceManager = new InstanceManager({
     sessionPath: config.sessionPath,
@@ -134,6 +144,7 @@ export async function createServer(): Promise<FastifyInstance> {
     webhookTimeout: config.webhookTimeout,
     webhookMaxRetries: config.webhookMaxRetries,
     webhookRetryDelay: config.webhookRetryDelay,
+    proxyPool,
   });
 
   // Create webhook dispatcher
@@ -151,7 +162,13 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Decorate server with instance manager
   server.decorate('instanceManager', instanceManager);
+  server.decorate('proxyPool', proxyPool);
   server.decorate('webhookDispatcher', webhookDispatcher);
+  server.addHook('onClose', async () => {
+    await instanceManager.dispose();
+    proxyPool.close();
+    webhookDispatcher.dispose();
+  });
 
   // Register API routes (pass instanceManager for v0.9.0 routes)
   await registerRoutes(server, instanceManager);
@@ -186,6 +203,6 @@ export async function startServer(): Promise<void> {
 }
 
 // Start server if run directly
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   startServer();
 }

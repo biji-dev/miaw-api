@@ -1,14 +1,14 @@
 /**
  * Connection Routes
- * POST /instances/:id/connect - Connect instance (returns QR)
- * DELETE /instances/:id/disconnect - Disconnect instance
- * POST /instances/:id/restart - Restart instance
- * GET /instances/:id/status - Get connection status
+ * PUT /instances/:instanceId/connection - Connect instance
+ * DELETE /instances/:instanceId/connection - Disconnect instance
+ * POST /instances/:instanceId/connection-restarts - Restart instance
+ * GET /instances/:instanceId/connection - Get connection status
  */
 
 import { FastifyInstance } from 'fastify';
-import { createAuthMiddleware } from '../middleware/auth';
-import { NotFoundError, ServiceUnavailableError } from '../utils/errorHandler';
+import { createAuthMiddleware } from '../middleware/auth.js';
+import { NotFoundError, ServiceUnavailableError } from '../utils/errorHandler.js';
 
 /**
  * Register connection routes
@@ -18,11 +18,11 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
   server.addHook('onRequest', createAuthMiddleware());
 
   /**
-   * POST /instances/:id/connect
+   * PUT /instances/:instanceId/connection
    * Connect instance to WhatsApp
    */
-  server.post(
-    '/instances/:id/connect',
+  server.put(
+    '/instances/:instanceId/connection',
     {
       schema: {
         description: 'Connect instance to WhatsApp (returns QR code if needed). Scan the QR code with WhatsApp to authenticate. Listen to webhooks for the QR code.',
@@ -31,73 +31,22 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                oneOf: [
-                  {
-                    type: 'object',
-                    properties: {
-                      status: { type: 'string', enum: ['connected', 'connecting'] },
-                    },
-                  },
-                  {
-                    type: 'object',
-                    properties: {
-                      status: { type: 'string', enum: ['qr_required'] },
-                      qr: { type: 'string' },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const params = request.params as { instanceId: string };
+      const instanceManager = server.instanceManager;
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');
       }
 
-      const instance = instanceManager.getInstance(params.id);
+      const instance = instanceManager.getInstance(params.instanceId);
 
       try {
         await client.connect();
@@ -132,11 +81,11 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * DELETE /instances/:id/disconnect
+   * DELETE /instances/:instanceId/connection
    * Disconnect instance from WhatsApp
    */
   server.delete(
-    '/instances/:id/disconnect',
+    '/instances/:instanceId/connection',
     {
       schema: {
         description: 'Disconnect instance from WhatsApp. You can reconnect later using the connect endpoint.',
@@ -145,38 +94,16 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const params = request.params as { instanceId: string };
+      const instanceManager = server.instanceManager;
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');
@@ -186,17 +113,17 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
 
       reply.send({
         success: true,
-        message: 'Instance disconnected successfully',
+        data: { connected: false },
       });
     }
   );
 
   /**
-   * POST /instances/:id/restart
+   * POST /instances/:instanceId/connection-restarts
    * Restart instance connection
    */
   server.post(
-    '/instances/:id/restart',
+    '/instances/:instanceId/connection-restarts',
     {
       schema: {
         description: 'Restart instance connection. Useful when the connection is stale or having issues.',
@@ -205,38 +132,16 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              message: { type: 'string' },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
-      const client = instanceManager.getClient(params.id);
+      const params = request.params as { instanceId: string };
+      const instanceManager = server.instanceManager;
+      const client = instanceManager.getClient(params.instanceId);
 
       if (!client) {
         throw new NotFoundError('Instance');
@@ -254,17 +159,17 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
 
       reply.send({
         success: true,
-        message: 'Instance restarted successfully',
+        data: { restarted: true },
       });
     }
   );
 
   /**
-   * GET /instances/:id/status
+   * GET /instances/:instanceId/connection
    * Get connection status
    */
   server.get(
-    '/instances/:id/status',
+    '/instances/:instanceId/connection',
     {
       schema: {
         description: `Get instance connection status.
@@ -280,49 +185,16 @@ export async function connectionRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  instanceId: { type: 'string' },
-                  status: {
-                    type: 'string',
-                    enum: ['disconnected', 'connecting', 'connected', 'reconnecting', 'qr_required'],
-                  },
-                  phoneNumber: { type: 'string', nullable: true },
-                  connectedAt: { type: 'string', format: 'date-time', nullable: true },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
-      const instanceManager = (server as any).instanceManager;
-      const instance = instanceManager.getInstance(params.id);
+      const params = request.params as { instanceId: string };
+      const instanceManager = server.instanceManager;
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!instance) {
         throw new NotFoundError('Instance');

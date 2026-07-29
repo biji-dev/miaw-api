@@ -8,6 +8,7 @@ This document outlines security best practices for deploying and operating miaw-
 - [Webhook Security](#webhook-security)
 - [CORS Configuration](#cors-configuration)
 - [Session Security](#session-security)
+- [Proxy Security](#proxy-security)
 - [Deployment Recommendations](#deployment-recommendations)
 - [Security Checklist](#security-checklist)
 
@@ -119,17 +120,20 @@ function verifyWebhookSignature(payload, signature, timestamp, secret, maxAgeMs 
   );
 }
 
-// Express middleware example
-app.post('/webhook', express.json(), (req, res) => {
-  const signature = req.headers['x-miaw-signature'];
-  const timestamp = parseInt(req.headers['x-miaw-timestamp'], 10);
+// Fastify webhook receiver example
+import Fastify from 'fastify';
 
-  if (!verifyWebhookSignature(req.body, signature, timestamp, process.env.WEBHOOK_SECRET)) {
-    return res.status(401).json({ error: 'Invalid signature' });
+const app = Fastify();
+app.post('/webhook', async (request, reply) => {
+  const signature = request.headers['x-miaw-signature'];
+  const timestamp = Number(request.headers['x-miaw-timestamp']);
+
+  if (!verifyWebhookSignature(request.body, signature, timestamp, process.env.WEBHOOK_SECRET)) {
+    return reply.status(401).send({ error: 'Invalid signature' });
   }
 
   // Process webhook...
-  res.status(200).json({ received: true });
+  return { received: true };
 });
 ```
 
@@ -249,6 +253,27 @@ Session directories contain:
 - Store backups in different physical location
 
 ---
+
+## Proxy Security
+
+Proxy URLs commonly contain usernames, passwords, provider regions, and sticky
+session identifiers. Treat a proxy-list file with the same controls as session
+credentials:
+
+- Mount `MIAW_PROXY_FILE` from a secret volume with least-privilege filesystem
+  permissions. Do not commit proxy lists or place credentials in CLI flags.
+- The API masks passwords in pool status, instance status, probe responses,
+  logs, and errors. Avoid adding request-body logging at the reverse proxy.
+- Keep `MIAW_PROXY_STRATEGY=deterministic` for persisted WhatsApp sessions.
+  Random or round-robin selection can change an instance's egress IP when the
+  client is reconstructed.
+- Proxy-pool reloads affect future clients only. Updating the pool never
+  rotates a connected session.
+- Prefer HTTP(S) proxies when all media traffic must be proxied. SOCKS proxy
+  connections and uploads are tunneled, but media downloads use a direct
+  connection because Node's undici transport has no SOCKS dispatcher.
+- Restrict API access to `POST /api/v1/proxy-tests`. It probes only the fixed
+  WhatsApp Web target and cannot be used as an arbitrary URL fetcher.
 
 ## Deployment Recommendations
 

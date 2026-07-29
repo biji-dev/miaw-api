@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createAuthMiddleware } from '../../../src/middleware/auth';
-import { UnauthorizedError } from '../../../src/utils/errorHandler';
+import { createAuthMiddleware } from '../../../src/middleware/auth.js';
+import { UnauthorizedError } from '../../../src/utils/errorHandler.js';
 
 // Mock the config module
 vi.mock('../../../src/config', () => ({
@@ -268,7 +268,7 @@ describe('Auth Middleware', () => {
 
     it('should include request URL in audit logs', async () => {
       mockRequest.headers = {};
-      mockRequest.url = '/api/instances/123';
+      mockRequest.url = '/api/api/v1/instances/123';
 
       try {
         await authMiddleware(mockRequest, mockReply);
@@ -278,7 +278,7 @@ describe('Auth Middleware', () => {
 
       expect(mockRequest.log.warn).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: '/api/instances/123',
+          url: '/api/api/v1/instances/123',
         }),
         expect.any(String)
       );

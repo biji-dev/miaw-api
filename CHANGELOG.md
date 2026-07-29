@@ -5,6 +5,109 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.1.0] - 2026-07-30
+
+### Added
+
+- Safe proxy-pool configuration, watched reloads, masked pool status, and
+  fixed-target proxy testing endpoints.
+- Disconnected-only per-instance proxy replacement that preserves the instance
+  identity, session path, webhooks, event listeners, and client settings.
+
+### Changed
+
+- Upgraded to `miaw-core` ^1.10.0, including its proxied media handling,
+  credential-safe errors, rotation strategies, and `socks4a`/`socks5h` support.
+- Raised the Node.js runtime requirement to >=20.18.1.
+
+### Fixed
+
+- Retained the pairing-code retry workaround required by core 1.10.0.
+
+## [2.0.0] - 2026-07-29
+
+### Changed
+
+- Added the central `/api/v1` prefix to every protected route and standardized
+  the instance path parameter as `instanceId`.
+- Replaced command-style and body-identified operations with resource-oriented
+  paths, path identifiers, query lookup hints, and consistent HTTP methods.
+- Split generic message, contact, label, catalog, group, community, business,
+  newsletter, and LID operations into the canonical v2 resource families.
+- Standardized successful responses as `{success:true,data:T}` and collections
+  as `{success:true,data:{items,total}}`.
+- Generalized core operation validation so `success:false` becomes HTTP 400 and
+  successful core results do not expose nested `data.success`.
+
+### Removed
+
+- Removed all 1.x compatibility aliases, including `/send-text`, `/send-media`,
+  `/connect`, `/disconnect`, `/status`, body-based message operations, and
+  command-style contact and LID routes.
+
+### Testing
+
+- Added an authoritative route manifest, removed-route 404 checks, OpenAPI
+  normalization checks, envelope and creation-status assertions, and canonical
+  integration/live test coverage.
+
+## [1.2.1] - 2026-07-29
+
+### Fixed
+
+- Retried pairing-code retrieval after the WhatsApp socket handshake, working
+  around `miaw-core` 1.9.1's premature initial request.
+- Mapped failed chat mutations to `400 INVALID_REQUEST` instead of returning a
+  misleading HTTP 200 response with an inner `success: false` result.
+- Kept the automated integration harness isolated from ambient environment
+  credentials while allowing live runs to use a dedicated session directory.
+
+### Testing
+
+- Added an environment-only QR/pairing-code live release suite with fail-fast
+  destructive-test safeguards and capability reporting.
+- Expanded the isolated live suite to reuse persisted sessions and verify real
+  text/media/location/contact/poll delivery, profile/contact/chat reads,
+  presence, runtime and LID controls, group cleanup, reconnects, webhooks, and
+  structured account-capability reporting.
+
+## [1.2.0] - 2026-07-12
+
+### Added
+
+- Full HTTP coverage for `miaw-core` 1.9.1 rich messages, chat operations,
+  statuses, business extras, communities, LID operations, and runtime controls.
+- Pairing-code and per-instance proxy/client configuration, with protected QR
+  and pairing-code challenge endpoints.
+- Webhooks for `pairing_code`, `poll_vote`, `message_receipt`, and
+  `session_saved`, including disconnect status codes.
+
+### Changed
+
+- Migrated the API runtime and TypeScript build to native ESM/NodeNext.
+- Corrected the dependency to npm-published `miaw-core ^1.9.1`, removed the
+  unused direct Baileys dependency, and regenerated the pnpm lockfile.
+- Existing message operations now resolve stored `MiawMessage` objects before
+  invoking core; legacy generic media requests dispatch to typed media methods.
+
+### Fixed
+
+- Replaced obsolete core calls for group participants/admins, profiles,
+  products, newsletters, reactions, forwarding, editing, and deletion.
+- Prevented duplicate ready/disconnected webhooks and masked proxy credentials
+  in operational responses.
+
+### Documentation
+
+- Replaced the legacy phase plan and test documents with current roadmap,
+  automated/live testing, and release-check guidance.
+- Added an API guide covering authentication, instance options, route groups,
+  media/message references, webhooks, and error envelopes.
+- Updated README, security examples, error-code examples, Docker, and Compose
+  configuration for ESM, pnpm, and the current endpoint/environment contracts.
+
 ## [1.1.0] - 2026-07-09
 
 ### Added
@@ -23,7 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conventions.
 - Renamed webhook config env vars to match the code: `WEBHOOK_TIMEOUT` →
   `WEBHOOK_TIMEOUT_MS`, `WEBHOOK_RETRY_DELAY` → `WEBHOOK_RETRY_DELAY_MS`.
-- Bumped `miaw-core` dependency to `^1.9.2`.
+- Intended to bump `miaw-core`; the published synchronization is completed in
+  the Unreleased section with `^1.9.1`.
 
 ### Fixed
 
@@ -121,7 +225,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- **miaw-core** v1.2.1 - WhatsApp Web API wrapper
+- **miaw-core** v1.9.1 - WhatsApp Web API wrapper
 - **fastify** v5.2.0 - Web framework
 - **@fastify/swagger** v9.0.0 - OpenAPI documentation
 - **@scalar/fastify-api-reference** v1.40.9 - API reference UI

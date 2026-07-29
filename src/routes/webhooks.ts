@@ -1,12 +1,12 @@
 /**
  * Webhook Management Routes
- * POST /instances/:id/webhook/test - Send test webhook
- * GET /instances/:id/webhook/status - Get webhook delivery stats
+ * POST /instances/:instanceId/webhook-tests - Send test webhook
+ * GET /instances/:instanceId/webhook/stats - Get webhook delivery stats
  */
 
 import { FastifyInstance } from 'fastify';
-import { createAuthMiddleware } from '../middleware/auth';
-import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler';
+import { createAuthMiddleware } from '../middleware/auth.js';
+import { NotFoundError, BadRequestError, ServiceUnavailableError } from '../utils/errorHandler.js';
 
 /**
  * Register webhook management routes
@@ -15,12 +15,41 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
   // All routes require authentication
   server.addHook('onRequest', createAuthMiddleware());
 
+  server.get(
+    '/instances/:instanceId/webhook',
+    {
+      schema: {
+        description: 'Get the configured webhook destination and event subscriptions',
+        tags: ['Webhooks'],
+        summary: 'Get webhook configuration',
+        params: {
+          type: 'object',
+          required: ['instanceId'],
+          properties: { instanceId: { type: 'string' } },
+        },
+      },
+    },
+    async (request) => {
+      const { instanceId } = request.params as { instanceId: string };
+      const instance = server.instanceManager.getInstance(instanceId);
+      if (!instance) throw new NotFoundError('Instance');
+      return {
+        success: true,
+        data: {
+          url: instance.webhookUrl ?? null,
+          events: instance.webhookEvents ?? [],
+          enabled: instance.webhookEnabled,
+        },
+      };
+    }
+  );
+
   /**
-   * POST /instances/:id/webhook/test
+   * POST /instances/:instanceId/webhook/test
    * Send test webhook to configured URL
    */
   server.post(
-    '/instances/:id/webhook/test',
+    '/instances/:instanceId/webhook-tests',
     {
       schema: {
         description: 'Send a test webhook event to the configured URL',
@@ -29,9 +58,9 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
+          required: ['instanceId'],
         },
         body: {
           type: 'object',
@@ -43,69 +72,14 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
             },
           },
         },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  sent: { type: 'boolean' },
-                  webhookUrl: { type: 'string' },
-                  testEvent: { type: 'object' },
-                },
-              },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-          503: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
-      const body = request.body as { event?: string };
+      const params = request.params as { instanceId: string };
+      const body = (request.body || {}) as { event?: string };
 
-      const instanceManager = (server as any).instanceManager;
-      const instance = instanceManager.getInstance(params.id);
+      const instanceManager = server.instanceManager;
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!instance) {
         throw new NotFoundError('Instance');
@@ -118,7 +92,7 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
       // Create test event payload
       const testEvent = {
         event: body.event || 'test',
-        instanceId: params.id,
+        instanceId: params.instanceId,
         timestamp: Date.now(),
         data: {
           test: true,
@@ -128,7 +102,7 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
 
       try {
         // Get webhook dispatcher and queue test event
-        const webhookDispatcher = (server as any).webhookDispatcher;
+        const webhookDispatcher = server.webhookDispatcher;
         if (!webhookDispatcher) {
           throw new ServiceUnavailableError('Webhook dispatcher not available');
         }
@@ -155,11 +129,11 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
   );
 
   /**
-   * GET /instances/:id/webhook/status
+   * GET /instances/:instanceId/webhook/stats
    * Get webhook delivery statistics
    */
   server.get(
-    '/instances/:id/webhook/status',
+    '/instances/:instanceId/webhook/stats',
     {
       schema: {
         description: 'Get webhook delivery statistics for an instance',
@@ -168,66 +142,24 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            instanceId: { type: 'string' },
           },
-          required: ['id'],
-        },
-        response: {
-          200: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              data: {
-                type: 'object',
-                properties: {
-                  instanceId: { type: 'string' },
-                  webhookUrl: { type: 'string' },
-                  webhookEvents: {
-                    type: 'array',
-                    items: { type: 'string' },
-                  },
-                  stats: {
-                    type: 'object',
-                    properties: {
-                      queued: { type: 'number' },
-                      delivered: { type: 'number' },
-                      failed: { type: 'number' },
-                      lastDeliveryTime: { type: 'number' },
-                      lastFailureTime: { type: 'number' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          404: {
-            type: 'object',
-            properties: {
-              success: { type: 'boolean' },
-              error: {
-                type: 'object',
-                properties: {
-                  code: { type: 'string' },
-                  message: { type: 'string' },
-                },
-              },
-            },
-          },
+          required: ['instanceId'],
         },
       },
     },
     async (request, reply) => {
-      const params = request.params as { id: string };
+      const params = request.params as { instanceId: string };
 
-      const instanceManager = (server as any).instanceManager;
-      const instance = instanceManager.getInstance(params.id);
+      const instanceManager = server.instanceManager;
+      const instance = instanceManager.getInstance(params.instanceId);
 
       if (!instance) {
         throw new NotFoundError('Instance');
       }
 
       try {
-        const webhookDispatcher = (server as any).webhookDispatcher;
+        const webhookDispatcher = server.webhookDispatcher;
         if (!webhookDispatcher) {
           throw new ServiceUnavailableError('Webhook dispatcher not available');
         }
@@ -237,7 +169,7 @@ export async function webhookRoutes(server: FastifyInstance): Promise<void> {
         reply.send({
           success: true,
           data: {
-            instanceId: params.id,
+            instanceId: params.instanceId,
             webhookUrl: instance.webhookUrl || null,
             webhookEvents: instance.webhookEvents || [],
             stats,

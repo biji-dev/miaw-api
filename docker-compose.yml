@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   miaw-api:
     build: .
@@ -11,9 +9,9 @@ services:
       - HOST=0.0.0.0
       - API_KEY=${API_KEY:-change-me-in-production}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-change-me-in-production}
-      - WEBHOOK_TIMEOUT=10000
+      - WEBHOOK_TIMEOUT_MS=10000
       - WEBHOOK_MAX_RETRIES=5
-      - WEBHOOK_RETRY_DELAY=1000
+      - WEBHOOK_RETRY_DELAY_MS=1000
       - CORS_ORIGIN=*
       - SESSION_PATH=/app/sessions
       - LOG_LEVEL=info

@@ -9,7 +9,8 @@ export const TEST_CONFIG = {
   SESSION_PATH: './test-sessions',
   WEBHOOK_SECRET: 'test-webhook-secret',
 
-  // Test contacts (replace with real numbers for testing)
+  // Live identities belong in .env.live-test. These synthetic values are only
+  // used by skipped legacy examples; the active live suite rejects placeholders.
   TEST_CONTACT_A: '6281234567890',
   TEST_CONTACT_B: '6280987654321',
 

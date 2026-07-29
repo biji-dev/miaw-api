@@ -14,7 +14,7 @@
  * Most tests are skipped by default as they require specific newsletter ownership.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 
@@ -45,7 +45,7 @@ describe('Phase 12 Newsletter Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: [],
@@ -54,7 +54,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
   afterEach(async () => {
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -62,26 +62,26 @@ describe('Phase 12 Newsletter Tests', () => {
 
   describe('Newsletter CRUD', () => {
     it.skip('should create a new newsletter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/newsletters`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/newsletters`, {
         name: `Test Newsletter ${Date.now()}`,
         description: 'Test newsletter created by integration tests',
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
       expect(response.data.data).toHaveProperty('id');
       expect(response.data.data).toHaveProperty('name');
     });
 
     it.skip('should delete a newsletter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -90,7 +90,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
       // Note: This requires a newsletter you own
       const response = await client.delete(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`
       );
 
       // May fail if newsletter doesn't exist or not owned
@@ -98,7 +98,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should get newsletter metadata', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -106,7 +106,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`
       );
 
       expect([200, 400, 404]).toContain(response.status);
@@ -119,7 +119,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should get newsletter messages', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -127,7 +127,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages?limit=10`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages?limit=10`
       );
 
       expect([200, 400, 404]).toContain(response.status);
@@ -140,7 +140,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`
       );
 
       expect(response.status).toBe(503);
@@ -150,7 +150,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
   describe('Newsletter Messaging', () => {
     it.skip('should send text message to newsletter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -158,7 +158,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/text`,
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/text`,
         {
           text: `Test message ${Date.now()}`,
         }
@@ -174,7 +174,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should send image to newsletter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -182,7 +182,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/image`,
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/image`,
         {
           image: 'https://via.placeholder.com/300x200.png',
           caption: 'Test image caption',
@@ -194,7 +194,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should send video to newsletter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -202,7 +202,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/video`,
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/video`,
         {
           video: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
           caption: 'Test video caption',
@@ -215,7 +215,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
     it.skip('should reject text message when instance not connected', async () => {
       const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/text`,
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/text`,
         {
           text: 'Test message',
         }
@@ -228,27 +228,27 @@ describe('Phase 12 Newsletter Tests', () => {
 
   describe('Newsletter Subscription', () => {
     it.skip('should follow a newsletter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/follow`
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/follow`
       );
 
       expect([200, 400]).toContain(response.status);
 
       if (response.status === 200) {
         expect(response.data.success).toBe(true);
-        expect(response.data.data.success).toBe(true);
+        expect(response.data.data.success).toBeUndefined();
       }
     });
 
     it.skip('should unfollow a newsletter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -256,29 +256,29 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.delete(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/follow`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/follow`
       );
 
       expect([200, 400]).toContain(response.status);
     });
 
     it.skip('should mute newsletter notifications', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/mute`
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/mute`
       );
 
       expect([200, 400]).toContain(response.status);
     });
 
     it.skip('should unmute newsletter notifications', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -286,22 +286,22 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.delete(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/mute`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/mute`
       );
 
       expect([200, 400]).toContain(response.status);
     });
 
     it.skip('should subscribe to newsletter updates', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/subscribe`
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/updates-subscription`
       );
 
       expect([200, 400]).toContain(response.status);
@@ -310,7 +310,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
   describe('Newsletter Updates', () => {
     it.skip('should update newsletter name', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -318,7 +318,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.patch(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/name`,
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`,
         {
           name: `Updated Name ${Date.now()}`,
         }
@@ -329,7 +329,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should update newsletter description', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -337,7 +337,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.patch(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/description`,
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`,
         {
           description: `Updated description ${Date.now()}`,
         }
@@ -348,15 +348,15 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should update newsletter picture', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/picture`,
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/picture`,
         {
           image: 'https://via.placeholder.com/500x500.png',
         }
@@ -367,7 +367,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should remove newsletter picture', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -375,7 +375,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.delete(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/picture`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/picture`
       );
 
       // May fail if not newsletter owner
@@ -385,7 +385,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
   describe('Newsletter Info', () => {
     it.skip('should get newsletter subscribers', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -393,7 +393,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/subscribers`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/subscribers`
       );
 
       // May fail if not newsletter owner
@@ -406,7 +406,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should get newsletter admin count', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -414,7 +414,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/admins/count`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/admins/count`
       );
 
       expect([200, 400]).toContain(response.status);
@@ -429,17 +429,17 @@ describe('Phase 12 Newsletter Tests', () => {
 
   describe('Newsletter Admin Operations', () => {
     it.skip('should transfer newsletter ownership', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/owner`,
+      const response = await client.patch(
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/owner`,
         {
-          newOwnerJid: testAdminJid,
+          ownerJid: testAdminJid,
         }
       );
 
@@ -448,7 +448,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should demote newsletter admin', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -456,7 +456,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.delete(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/admins/${testAdminJid}`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/admins/${testAdminJid}`
       );
 
       // May fail if not newsletter owner or admin doesn't exist
@@ -466,15 +466,15 @@ describe('Phase 12 Newsletter Tests', () => {
 
   describe('Newsletter Reactions', () => {
     it.skip('should react to a newsletter message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/${testMessageId}/reaction`,
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/${testMessageId}/reaction`,
         {
           emoji: '👍',
         }
@@ -484,18 +484,15 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should remove reaction from newsletter message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/${testMessageId}/reaction`,
-        {
-          emoji: '',
-        }
+      const response = await client.delete(
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages/${testMessageId}/reaction`
       );
 
       expect([200, 400]).toContain(response.status);
@@ -505,7 +502,7 @@ describe('Phase 12 Newsletter Tests', () => {
   describe('Error Handling', () => {
     it('should return 404 for non-existent instance', async () => {
       const response = await client.get(
-        '/instances/non-existent-instance/newsletters/some-newsletter'
+        '/api/v1/instances/non-existent-instance/newsletters/some-newsletter'
       );
 
       expect(response.status).toBe(404);
@@ -515,7 +512,7 @@ describe('Phase 12 Newsletter Tests', () => {
     it('should return 503 when instance is not connected', async () => {
       // Instance exists but not connected
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`
       );
 
       expect(response.status).toBe(503);
@@ -523,7 +520,7 @@ describe('Phase 12 Newsletter Tests', () => {
     });
 
     it.skip('should handle invalid newsletter ID gracefully', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -531,7 +528,7 @@ describe('Phase 12 Newsletter Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/invalid-newsletter-id`
+        `/api/v1/instances/${testInstanceId}/newsletters/invalid-newsletter-id`
       );
 
       // API may still accept and return error from WhatsApp

@@ -9,7 +9,7 @@
  * NOTE: These tests require a connected WhatsApp Business account.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 import { TEST_CONFIG } from './fixtures/data.js';
@@ -36,7 +36,7 @@ describe('Phase 8 Business Features Tests', () => {
     webhookServer.clearEvents();
 
     // Create instance
-    await client.post('/instances', {
+    await client.post('/api/v1/instances', {
       instanceId: testInstanceId,
       webhookUrl: webhookServer.getWebhookUrl(),
       webhookEvents: [],
@@ -47,7 +47,7 @@ describe('Phase 8 Business Features Tests', () => {
     // Note: We don't cleanup labels created during tests as they're useful
     // and deleting them would require additional API calls
     try {
-      await client.delete(`/instances/${testInstanceId}`);
+      await client.delete(`/api/v1/instances/${testInstanceId}`);
     } catch {
       // Ignore if instance doesn't exist
     }
@@ -55,26 +55,26 @@ describe('Phase 8 Business Features Tests', () => {
 
   describe('Label Management', () => {
     it.skip('should create a new label', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/labels`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Test Label ${Date.now()}`,
         color: 0, // Dark blue
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
       expect(response.data.data.labelId).toBeDefined();
     });
 
     it.skip('should edit an existing label', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -82,7 +82,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // First create a label
-      const createResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Test Label ${Date.now()}`,
         color: 0,
       });
@@ -95,8 +95,7 @@ describe('Phase 8 Business Features Tests', () => {
       const labelId = createResponse.data.data.labelId;
 
       // Now edit it
-      const editResponse = await client.post(`/instances/${testInstanceId}/labels`, {
-        id: labelId,
+      const editResponse = await client.patch(`/api/v1/instances/${testInstanceId}/labels/${labelId}`, {
         name: `Updated Label ${Date.now()}`,
         color: 5,
       });
@@ -106,7 +105,7 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should delete a label', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -114,7 +113,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // First create a label
-      const createResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Temporary Label ${Date.now()}`,
         color: 0,
       });
@@ -127,15 +126,15 @@ describe('Phase 8 Business Features Tests', () => {
       const labelId = createResponse.data.data.labelId;
 
       // Now delete it
-      const response = await client.delete(`/instances/${testInstanceId}/labels/${labelId}`);
+      const response = await client.delete(`/api/v1/instances/${testInstanceId}/labels/${labelId}`);
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
     });
 
     it.skip('should reject label creation when instance is not connected', async () => {
-      const response = await client.post(`/instances/${testInstanceId}/labels`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: 'Test Label',
         color: 0,
       });
@@ -145,14 +144,14 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should reject label with invalid color', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/labels`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: 'Test Label',
         color: 25, // Invalid (max is 19)
       });
@@ -162,14 +161,14 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should reject label with empty name', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/labels`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: '',
         color: 0,
       });
@@ -184,7 +183,7 @@ describe('Phase 8 Business Features Tests', () => {
     const testChatJid = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
 
     it.skip('should add label to chat', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -192,7 +191,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // First create a label
-      const createResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Chat Label ${Date.now()}`,
         color: 3,
       });
@@ -205,17 +204,17 @@ describe('Phase 8 Business Features Tests', () => {
       testLabelId = createResponse.data.data.labelId;
 
       // Add label to chat
-      const response = await client.post(
-        `/instances/${testInstanceId}/chats/${testChatJid}/labels/${testLabelId}`
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/chats/${testChatJid}/labels/${testLabelId}`
       );
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data.success).toBe(true);
+      expect(response.data.data.success).toBeUndefined();
     });
 
     it.skip('should remove label from chat', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -223,7 +222,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // First create a label and add it to chat
-      const createResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Removable Label ${Date.now()}`,
         color: 7,
       });
@@ -236,8 +235,8 @@ describe('Phase 8 Business Features Tests', () => {
       const labelId = createResponse.data.data.labelId;
 
       // Add label to chat
-      await client.post(
-        `/instances/${testInstanceId}/chats/${testChatJid}/labels/${labelId}`
+      await client.put(
+        `/api/v1/instances/${testInstanceId}/chats/${testChatJid}/labels/${labelId}`
       );
 
       // Wait a moment
@@ -245,7 +244,7 @@ describe('Phase 8 Business Features Tests', () => {
 
       // Remove label from chat
       const response = await client.delete(
-        `/instances/${testInstanceId}/chats/${testChatJid}/labels/${labelId}`
+        `/api/v1/instances/${testInstanceId}/chats/${testChatJid}/labels/${labelId}`
       );
 
       expect(response.status).toBe(200);
@@ -253,8 +252,8 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.post(
-        `/instances/${testInstanceId}/chats/${testChatJid}/labels/test-label-id`
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/chats/${testChatJid}/labels/test-label-id`
       );
 
       expect(response.status).toBe(503);
@@ -268,7 +267,7 @@ describe('Phase 8 Business Features Tests', () => {
     let testMessageId: string | null = null;
 
     it.skip('should add label to message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -276,7 +275,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // Create a label
-      const createResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Message Label ${Date.now()}`,
         color: 10,
       });
@@ -293,11 +292,8 @@ describe('Phase 8 Business Features Tests', () => {
       // For testing, we use a placeholder
       testMessageId = 'test-message-' + Date.now();
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/messages/${testMessageId}/labels/${testLabelId}`,
-        {
-          jid: testChatJid,
-        }
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/messages/${testMessageId}/labels/${testLabelId}?chatJid=${encodeURIComponent(testChatJid)}`
       );
 
       // May succeed or fail depending on if message exists
@@ -305,7 +301,7 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should remove label from message', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -313,7 +309,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // Create a label
-      const createResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Removable Msg Label ${Date.now()}`,
         color: 12,
       });
@@ -328,10 +324,7 @@ describe('Phase 8 Business Features Tests', () => {
 
       // Try to remove (may fail if message doesn't exist, but API should respond)
       const response = await client.delete(
-        `/instances/${testInstanceId}/messages/${messageId}/labels/${labelId}`,
-        {
-          jid: testChatJid,
-        }
+        `/api/v1/instances/${testInstanceId}/messages/${messageId}/labels/${labelId}?chatJid=${encodeURIComponent(testChatJid)}`
       );
 
       // May succeed or fail depending on if message exists
@@ -339,15 +332,15 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should reject without jid in request body', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(
-        `/instances/${testInstanceId}/messages/test-msg-id/labels/test-label-id`,
+      const response = await client.put(
+        `/api/v1/instances/${testInstanceId}/messages/test-msg-id/labels/test-label-id`,
         {}
       );
 
@@ -358,14 +351,14 @@ describe('Phase 8 Business Features Tests', () => {
 
   describe('Product Catalog', () => {
     it.skip('should get product catalog', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.get(`/instances/${testInstanceId}/products/catalog`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/catalog/products`);
 
       // Response will vary depending on if account is a Business account with products
       expect([200, 400]).toContain(response.status);
@@ -378,14 +371,14 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should get product catalog with limit', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.get(`/instances/${testInstanceId}/products/catalog?limit=5`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/catalog/products?limit=5`);
 
       expect([200, 400]).toContain(response.status);
 
@@ -395,14 +388,14 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should get product collections', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.get(`/instances/${testInstanceId}/products/collections`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/catalog/collections`);
 
       // Response will vary depending on if account is a Business account
       expect([200, 400]).toContain(response.status);
@@ -414,14 +407,14 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should reject when instance is not connected', async () => {
-      const response = await client.get(`/instances/${testInstanceId}/products/catalog`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/catalog/products`);
 
       expect(response.status).toBe(503);
       expect(response.data.success).toBe(false);
     });
 
     it.skip('should reject invalid limit parameter', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -429,7 +422,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/products/catalog?limit=200`
+        `/api/v1/instances/${testInstanceId}/catalog/products?limit=200`
       );
 
       expect(response.status).toBe(400);
@@ -442,7 +435,7 @@ describe('Phase 8 Business Features Tests', () => {
     const testNewsletterId = '120363326200799499@newsletter'; // Example newsletter JID
 
     it.skip('should get newsletter metadata', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -450,7 +443,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`
       );
 
       // Response will vary depending on if newsletter exists and is accessible
@@ -464,7 +457,7 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should get newsletter messages', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -472,7 +465,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages?limit=10`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}/messages?limit=10`
       );
 
       // Response will vary depending on if newsletter exists
@@ -486,7 +479,7 @@ describe('Phase 8 Business Features Tests', () => {
 
     it.skip('should reject when instance is not connected', async () => {
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/${testNewsletterId}`
+        `/api/v1/instances/${testInstanceId}/newsletters/${testNewsletterId}`
       );
 
       expect(response.status).toBe(503);
@@ -494,7 +487,7 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should reject invalid newsletter ID format', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -502,7 +495,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       const response = await client.get(
-        `/instances/${testInstanceId}/newsletters/invalid-newsletter-id`
+        `/api/v1/instances/${testInstanceId}/newsletters/invalid-newsletter-id`
       );
 
       // API may still accept and return error from WhatsApp
@@ -512,7 +505,7 @@ describe('Phase 8 Business Features Tests', () => {
 
   describe('Combined Operations', () => {
     it.skip('should create label and apply to multiple chats', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -520,7 +513,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // Create label
-      const createResponse = await client.post(`/instances/${testInstanceId}/labels`, {
+      const createResponse = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         name: `Multi-Chat Label ${Date.now()}`,
         color: 15,
       });
@@ -536,21 +529,21 @@ describe('Phase 8 Business Features Tests', () => {
       const chatA = `${TEST_CONFIG.TEST_CONTACT_A}@s.whatsapp.net`;
       const chatB = `${TEST_CONFIG.TEST_CONTACT_B}@s.whatsapp.net`;
 
-      const response1 = await client.post(
-        `/instances/${testInstanceId}/chats/${chatA}/labels/${labelId}`
+      const response1 = await client.put(
+        `/api/v1/instances/${testInstanceId}/chats/${chatA}/labels/${labelId}`
       );
       expect(response1.status).toBe(200);
 
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const response2 = await client.post(
-        `/instances/${testInstanceId}/chats/${chatB}/labels/${labelId}`
+      const response2 = await client.put(
+        `/api/v1/instances/${testInstanceId}/chats/${chatB}/labels/${labelId}`
       );
       expect(response2.status).toBe(200);
     });
 
     it.skip('should handle business account checks gracefully', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
@@ -558,7 +551,7 @@ describe('Phase 8 Business Features Tests', () => {
       }
 
       // Try to access business features on a non-business account
-      const response = await client.get(`/instances/${testInstanceId}/products/catalog`);
+      const response = await client.get(`/api/v1/instances/${testInstanceId}/catalog/products`);
 
       // Should either return empty catalog or appropriate error
       expect([200, 400]).toContain(response.status);
@@ -572,7 +565,7 @@ describe('Phase 8 Business Features Tests', () => {
 
   describe('Error Handling', () => {
     it.skip('should handle invalid instance ID', async () => {
-      const response = await client.post(`/instances/non-existent/labels`, {
+      const response = await client.post(`/api/v1/instances/non-existent/labels`, {
         name: 'Test',
         color: 0,
       });
@@ -582,14 +575,14 @@ describe('Phase 8 Business Features Tests', () => {
     });
 
     it.skip('should handle malformed request', async () => {
-      const statusResponse = await client.get(`/instances/${testInstanceId}/status`);
+      const statusResponse = await client.get(`/api/v1/instances/${testInstanceId}/connection`);
 
       if (statusResponse.data.data.status !== 'connected') {
         console.log('Skipping test - instance not connected');
         return;
       }
 
-      const response = await client.post(`/instances/${testInstanceId}/labels`, {
+      const response = await client.post(`/api/v1/instances/${testInstanceId}/labels`, {
         invalid: 'field',
       });
 

@@ -12,7 +12,7 @@ import {
   ServiceUnavailableError,
   ValidationError,
   errorHandler,
-} from '../../../src/utils/errorHandler';
+} from '../../../src/utils/errorHandler.js';
 
 describe('Error Classes', () => {
   describe('ApiError', () => {

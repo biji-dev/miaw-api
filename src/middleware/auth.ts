@@ -5,8 +5,8 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
-import { config } from '../config';
-import { UnauthorizedError } from '../utils/errorHandler';
+import { config } from '../config/index.js';
+import { UnauthorizedError } from '../utils/errorHandler.js';
 
 /**
  * Timing-safe string comparison to prevent timing attacks

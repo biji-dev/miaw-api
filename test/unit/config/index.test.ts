@@ -27,6 +27,8 @@ describe('Config', () => {
     delete process.env.WEBHOOK_MAX_RETRIES;
     delete process.env.WEBHOOK_RETRY_DELAY_MS;
     delete process.env.LOG_LEVEL;
+    delete process.env.MIAW_PROXY_FILE;
+    delete process.env.MIAW_PROXY_STRATEGY;
     delete process.env.NODE_ENV;
     resetModules();
   });
@@ -39,143 +41,164 @@ describe('Config', () => {
 
   describe('Default values', () => {
     it('should use default port 3000', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.port).toBe(3000);
     });
 
     it('should use default host 0.0.0.0', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.host).toBe('0.0.0.0');
     });
 
     it('should use default API key', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.apiKey).toBe('miaw-api-key');
     });
 
     it('should use default webhook secret', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookSecret).toBe('webhook-secret');
     });
 
     it('should use default CORS origin "*"', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.corsOrigin).toBe('*');
     });
 
     it('should use default session path "./sessions"', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.sessionPath).toBe('./sessions');
     });
 
     it('should use default webhook timeout 10000ms', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookTimeout).toBe(10000);
     });
 
     it('should use default webhook max retries 6', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookMaxRetries).toBe(6);
     });
 
     it('should use default webhook retry delay 60000ms', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookRetryDelay).toBe(60000);
     });
 
     it('should use default log level "info"', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.logLevel).toBe('info');
+    });
+
+    it('should disable the proxy file and use deterministic assignment', async () => {
+      const { config } = await import('../../../src/config/index.js');
+      expect(config.proxyFile).toBeUndefined();
+      expect(config.proxyStrategy).toBe('deterministic');
     });
   });
 
   describe('Environment variable overrides', () => {
     it('should override port from PORT', async () => {
       process.env.PORT = '8080';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.port).toBe(8080);
     });
 
     it('should override host from HOST', async () => {
       process.env.HOST = 'localhost';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.host).toBe('localhost');
     });
 
     it('should override API key from API_KEY', async () => {
       process.env.API_KEY = 'custom-api-key';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.apiKey).toBe('custom-api-key');
     });
 
     it('should override webhook secret from WEBHOOK_SECRET', async () => {
       process.env.WEBHOOK_SECRET = 'custom-secret';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookSecret).toBe('custom-secret');
     });
 
     it('should override CORS origin from CORS_ORIGIN', async () => {
       process.env.CORS_ORIGIN = 'https://example.com';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.corsOrigin).toBe('https://example.com');
     });
 
     it('should override session path from SESSION_PATH', async () => {
       process.env.SESSION_PATH = '/data/sessions';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.sessionPath).toBe('/data/sessions');
     });
 
     it('should override webhook timeout from WEBHOOK_TIMEOUT_MS', async () => {
       process.env.WEBHOOK_TIMEOUT_MS = '5000';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookTimeout).toBe(5000);
     });
 
     it('should override max retries from WEBHOOK_MAX_RETRIES', async () => {
       process.env.WEBHOOK_MAX_RETRIES = '3';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookMaxRetries).toBe(3);
     });
 
     it('should override retry delay from WEBHOOK_RETRY_DELAY_MS', async () => {
       process.env.WEBHOOK_RETRY_DELAY_MS = '30000';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.webhookRetryDelay).toBe(30000);
     });
 
     it('should override log level from LOG_LEVEL', async () => {
       process.env.LOG_LEVEL = 'debug';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(config.logLevel).toBe('debug');
+    });
+
+    it('should override proxy pool settings', async () => {
+      process.env.MIAW_PROXY_FILE = '/run/secrets/proxies.txt';
+      process.env.MIAW_PROXY_STRATEGY = 'weighted';
+      const { config } = await import('../../../src/config/index.js');
+      expect(config.proxyFile).toBe('/run/secrets/proxies.txt');
+      expect(config.proxyStrategy).toBe('weighted');
+    });
+
+    it('should reject an unknown proxy strategy', async () => {
+      process.env.MIAW_PROXY_STRATEGY = 'rotate-live';
+      await expect(import('../../../src/config/index.js')).rejects.toThrow(
+        'Invalid MIAW_PROXY_STRATEGY'
+      );
     });
   });
 
   describe('Type coercion', () => {
     it('should convert port string to number', async () => {
       process.env.PORT = '3001';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(typeof config.port).toBe('number');
       expect(config.port).toBe(3001);
     });
 
     it('should convert webhook timeout string to number', async () => {
       process.env.WEBHOOK_TIMEOUT_MS = '15000';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(typeof config.webhookTimeout).toBe('number');
       expect(config.webhookTimeout).toBe(15000);
     });
 
     it('should convert max retries string to number', async () => {
       process.env.WEBHOOK_MAX_RETRIES = '10';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(typeof config.webhookMaxRetries).toBe('number');
       expect(config.webhookMaxRetries).toBe(10);
     });
 
     it('should convert retry delay string to number', async () => {
       process.env.WEBHOOK_RETRY_DELAY_MS = '120000';
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
       expect(typeof config.webhookRetryDelay).toBe('number');
       expect(config.webhookRetryDelay).toBe(120000);
     });
@@ -185,7 +208,7 @@ describe('Config', () => {
     it('should warn about default API key', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await import('../../../src/config');
+      await import('../../../src/config/index.js');
 
       expect(warnSpy).toHaveBeenCalled();
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
@@ -196,7 +219,7 @@ describe('Config', () => {
     it('should warn about default webhook secret', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await import('../../../src/config');
+      await import('../../../src/config/index.js');
 
       expect(warnSpy).toHaveBeenCalled();
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
@@ -208,7 +231,7 @@ describe('Config', () => {
       process.env.API_KEY = 'custom-production-key';
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await import('../../../src/config');
+      await import('../../../src/config/index.js');
 
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
       expect(warningCalls).not.toContain('API key');
@@ -218,7 +241,7 @@ describe('Config', () => {
       process.env.WEBHOOK_SECRET = 'custom-production-secret';
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await import('../../../src/config');
+      await import('../../../src/config/index.js');
 
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
       expect(warningCalls).not.toContain('webhook secret');
@@ -230,7 +253,7 @@ describe('Config', () => {
       process.env.WEBHOOK_SECRET = 'prod-secret';
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await import('../../../src/config');
+      await import('../../../src/config/index.js');
 
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
       expect(warningCalls).toContain('CORS');
@@ -244,7 +267,7 @@ describe('Config', () => {
       process.env.CORS_ORIGIN = 'https://app.example.com';
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await import('../../../src/config');
+      await import('../../../src/config/index.js');
 
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
       expect(warningCalls).not.toContain('CORS');
@@ -254,7 +277,7 @@ describe('Config', () => {
       process.env.PORT = '99999'; // Invalid port > 65535
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
 
       expect(config.port).toBe(3000);
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
@@ -265,7 +288,7 @@ describe('Config', () => {
       process.env.PORT = '0';
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
 
       expect(config.port).toBe(3000);
       const warningCalls = warnSpy.mock.calls.flat().join(' ');
@@ -275,7 +298,7 @@ describe('Config', () => {
 
   describe('Config interface', () => {
     it('should have all required properties', async () => {
-      const { config } = await import('../../../src/config');
+      const { config } = await import('../../../src/config/index.js');
 
       expect(config).toHaveProperty('port');
       expect(config).toHaveProperty('host');
@@ -287,6 +310,8 @@ describe('Config', () => {
       expect(config).toHaveProperty('webhookMaxRetries');
       expect(config).toHaveProperty('webhookRetryDelay');
       expect(config).toHaveProperty('logLevel');
+      expect(config).toHaveProperty('proxyFile');
+      expect(config).toHaveProperty('proxyStrategy');
     });
   });
 });

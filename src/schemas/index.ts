@@ -10,6 +10,89 @@ import { FastifyInstance } from 'fastify';
 export function registerSchemas(server: FastifyInstance): void {
   // Instance ID pattern
   const instanceIdPattern = '^[a-z0-9_-]+$';
+  const httpUrlPattern = '^https?://';
+  const proxyUrlPattern = '^(?:https?|socks|socks4|socks4a|socks5|socks5h)://';
+  const webhookEvents = ['test', 'qr', 'ready', 'message', 'message_edit', 'message_delete', 'message_reaction', 'message_receipt', 'poll_vote', 'pairing_code', 'presence', 'connection', 'disconnected', 'reconnecting', 'error', 'session_saved'];
+
+  server.addSchema({
+    $id: 'instanceParams',
+    type: 'object',
+    required: ['instanceId'],
+    properties: { instanceId: { type: 'string', pattern: instanceIdPattern } },
+  });
+
+  server.addSchema({
+    $id: 'paginationQuery',
+    type: 'object',
+    properties: {
+      limit: { type: 'integer', minimum: 1, maximum: 500 },
+      cursor: { type: 'string' },
+    },
+  });
+
+  server.addSchema({
+    $id: 'successEnvelope',
+    type: 'object',
+    required: ['success', 'data'],
+    properties: {
+      success: { const: true },
+      data: {},
+    },
+  });
+
+  server.addSchema({
+    $id: 'collectionData',
+    type: 'object',
+    required: ['items', 'total'],
+    properties: {
+      items: { type: 'array', items: {} },
+      total: { type: 'integer', minimum: 0 },
+    },
+  });
+
+  server.addSchema({
+    $id: 'coreOperationFailure',
+    type: 'object',
+    required: ['success', 'error'],
+    properties: {
+      success: { const: false },
+      error: {
+        type: 'object',
+        required: ['code', 'message'],
+        properties: {
+          code: { const: 'INVALID_REQUEST' },
+          message: { type: 'string' },
+          correlationId: { type: 'string' },
+          details: { type: 'object' },
+        },
+      },
+    },
+  });
+
+  server.addSchema({
+    $id: 'proxyConfig',
+    oneOf: [
+      {
+        type: 'string',
+        format: 'uri',
+        pattern: proxyUrlPattern,
+      },
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['url'],
+        properties: {
+          url: {
+            type: 'string',
+            format: 'uri',
+            pattern: proxyUrlPattern,
+          },
+          username: { type: 'string' },
+          password: { type: 'string' },
+        },
+      },
+    ],
+  });
 
   // ============================================================================
   // Instance Schemas
@@ -27,17 +110,45 @@ export function registerSchemas(server: FastifyInstance): void {
         maxLength: 50,
       },
       webhookUrl: {
-        type: 'string',
-        format: 'uri',
-        nullable: true,
+        anyOf: [{ type: 'string', format: 'uri' }, { type: 'string', const: '' }, { type: 'null' }],
       },
       webhookEvents: {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['qr', 'ready', 'message', 'message_edit', 'message_delete', 'message_reaction', 'presence', 'connection', 'disconnected', 'reconnecting', 'error'],
+          enum: webhookEvents,
         },
         nullable: true,
+      },
+      clientOptions: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          debug: { type: 'boolean' },
+          autoReconnect: { type: 'boolean' },
+          maxReconnectAttempts: { type: 'integer', minimum: 0 },
+          reconnectDelay: { type: 'integer', minimum: 0 },
+          stuckStateTimeout: { type: 'integer', minimum: 1000 },
+          qrGracePeriod: { type: 'integer', minimum: 0 },
+          qrScanTimeout: { type: 'integer', minimum: 1000 },
+          connectionTimeout: { type: 'integer', minimum: 1000 },
+          syncFullHistory: { type: 'boolean' },
+          browser: {
+            type: 'array',
+            minItems: 3,
+            maxItems: 3,
+            items: { type: 'string' },
+          },
+          proxy: {
+            $ref: 'proxyConfig#',
+          },
+          usePairingCode: { type: 'boolean' },
+          phoneNumber: { type: 'string', pattern: '^[0-9]+$' },
+        },
+        allOf: [{
+          if: { properties: { usePairingCode: { const: true } }, required: ['usePairingCode'] },
+          then: { required: ['phoneNumber'] },
+        }],
       },
     },
   });
@@ -48,15 +159,13 @@ export function registerSchemas(server: FastifyInstance): void {
     additionalProperties: false,
     properties: {
       webhookUrl: {
-        type: 'string',
-        format: 'uri',
-        nullable: true,
+        anyOf: [{ type: 'string', format: 'uri' }, { type: 'string', const: '' }, { type: 'null' }],
       },
       webhookEvents: {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['qr', 'ready', 'message', 'message_edit', 'message_delete', 'message_reaction', 'presence', 'connection', 'disconnected', 'reconnecting', 'error'],
+          enum: webhookEvents,
         },
         nullable: true,
       },
@@ -85,62 +194,17 @@ export function registerSchemas(server: FastifyInstance): void {
         type: 'string',
         nullable: true,
       },
-    },
-  });
-
-  server.addSchema({
-    $id: 'sendMedia',
-    type: 'object',
-    required: ['to', 'media'],
-    properties: {
-      to: {
-        type: 'string',
-        minLength: 1,
-        maxLength: 100,
-      },
-      media: {
-        type: 'string',
-        format: 'uri',
-      },
-      caption: {
-        type: 'string',
-        nullable: true,
-      },
-      fileName: {
-        type: 'string',
-        nullable: true,
-      },
-      mimetype: {
-        type: 'string',
-        nullable: true,
-      },
-      viewOnce: {
-        type: 'boolean',
-        nullable: true,
-      },
-      ptt: {
-        type: 'boolean',
-        nullable: true,
-      },
-      gifPlayback: {
-        type: 'boolean',
-        nullable: true,
-      },
-      quoted: {
-        type: 'string',
-        nullable: true,
-      },
+      quotedChatJid: { type: 'string', nullable: true },
+      mentions: { type: 'array', items: { type: 'string' } },
     },
   });
 
   server.addSchema({
     $id: 'editMessage',
     type: 'object',
-    required: ['messageId', 'text'],
+    additionalProperties: false,
+    required: ['text'],
     properties: {
-      messageId: {
-        type: 'string',
-      },
       text: {
         type: 'string',
         minLength: 1,
@@ -151,11 +215,9 @@ export function registerSchemas(server: FastifyInstance): void {
   server.addSchema({
     $id: 'reactionMessage',
     type: 'object',
-    required: ['messageId', 'emoji'],
+    additionalProperties: false,
+    required: ['emoji'],
     properties: {
-      messageId: {
-        type: 'string',
-      },
       emoji: {
         type: 'string',
       },
@@ -165,11 +227,9 @@ export function registerSchemas(server: FastifyInstance): void {
   server.addSchema({
     $id: 'forwardMessage',
     type: 'object',
-    required: ['messageId', 'to'],
+    additionalProperties: false,
+    required: ['to'],
     properties: {
-      messageId: {
-        type: 'string',
-      },
       to: {
         type: 'array',
         items: {
@@ -194,6 +254,7 @@ export function registerSchemas(server: FastifyInstance): void {
       image: {
         type: 'string',
         format: 'uri',
+        pattern: httpUrlPattern,
       },
       caption: {
         type: 'string',
@@ -207,6 +268,8 @@ export function registerSchemas(server: FastifyInstance): void {
         type: 'string',
         nullable: true,
       },
+      quotedChatJid: { type: 'string', nullable: true },
+      mentions: { type: 'array', items: { type: 'string' } },
     },
   });
 
@@ -223,6 +286,7 @@ export function registerSchemas(server: FastifyInstance): void {
       video: {
         type: 'string',
         format: 'uri',
+        pattern: httpUrlPattern,
       },
       caption: {
         type: 'string',
@@ -245,6 +309,8 @@ export function registerSchemas(server: FastifyInstance): void {
         type: 'string',
         nullable: true,
       },
+      quotedChatJid: { type: 'string', nullable: true },
+      mentions: { type: 'array', items: { type: 'string' } },
     },
   });
 
@@ -261,6 +327,7 @@ export function registerSchemas(server: FastifyInstance): void {
       audio: {
         type: 'string',
         format: 'uri',
+        pattern: httpUrlPattern,
       },
       ptt: {
         type: 'boolean',
@@ -275,6 +342,7 @@ export function registerSchemas(server: FastifyInstance): void {
         type: 'string',
         nullable: true,
       },
+      quotedChatJid: { type: 'string', nullable: true },
     },
   });
 
@@ -291,6 +359,7 @@ export function registerSchemas(server: FastifyInstance): void {
       document: {
         type: 'string',
         format: 'uri',
+        pattern: httpUrlPattern,
       },
       caption: {
         type: 'string',
@@ -308,6 +377,7 @@ export function registerSchemas(server: FastifyInstance): void {
         type: 'string',
         nullable: true,
       },
+      quotedChatJid: { type: 'string', nullable: true },
     },
   });
 

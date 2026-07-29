@@ -1,29 +1,29 @@
 # Integration Tests
 
-Phase 1 integration tests for Miaw API.
+Automated HTTP and opt-in live WhatsApp integration tests for Miaw API.
 
 ## Prerequisites
 
 1. Install dependencies:
    ```bash
-   npm install
+   corepack enable && pnpm install --frozen-lockfile
    ```
 
 2. Build the project:
    ```bash
-   npm run build
+   pnpm build
    ```
 
-3. A dedicated WhatsApp test number (not your personal number)
+3. For live tests only, a dedicated WhatsApp test number (not your personal number)
 
 ## Running Tests
 
-### Setup Test (Run First)
+### Live Setup Test
 
 The setup test connects to WhatsApp via QR code:
 
 ```bash
-npm run test:integration -- setup
+MIAW_RUN_LIVE_TESTS=true pnpm test:integration -- setup
 ```
 
 This will:
@@ -37,20 +37,20 @@ This will:
 ### Run All Tests
 
 ```bash
-npm run test:integration
+pnpm test:integration
 ```
 
 ### Run Specific Test Suite
 
 ```bash
 # Instance management only
-npm run test:integration -- instance
+pnpm test:integration -- instance
 
 # Connection tests only
-npm run test:integration -- connection
+pnpm test:integration -- connection
 
 # Messaging tests only
-npm run test:integration -- messaging
+pnpm test:integration -- messaging
 ```
 
 ## Test Files
@@ -73,6 +73,7 @@ Edit `test/integration/fixtures/data.ts` to configure:
 ## Notes
 
 - Tests marked with `it.skip` require manual WhatsApp connection
+- The interactive setup suite only runs when `MIAW_RUN_LIVE_TESTS=true`
 - Session persists in `./test-sessions/`
 - Re-run setup test if session expires
 - Some tests are skipped automatically if instance is not connected

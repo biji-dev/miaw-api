@@ -19,6 +19,10 @@ export interface WebhookRequest {
 }
 
 export class WebhookTestServer {
+  private static readonly PNG_FIXTURE = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64'
+  );
   private server?: Server;
   private port: number;
   private events: WebhookEvent[] = [];
@@ -32,15 +36,25 @@ export class WebhookTestServer {
   }
 
   start(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       this.server = createServer((req, res) => {
         this.handleRequest(req, res);
       });
 
-      this.server.listen(this.port, () => {
+      this.server.once('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'EADDRINUSE') {
+          this.server?.listen(0, '127.0.0.1');
+        } else {
+          reject(error);
+        }
+      });
+      this.server.on('listening', () => {
+        const address = this.server?.address();
+        if (address && typeof address === 'object') this.port = address.port;
         this.isRunning = true;
         resolve();
       });
+      this.server.listen(this.port, '127.0.0.1');
     });
   }
 
@@ -92,6 +106,12 @@ export class WebhookTestServer {
           res.end(JSON.stringify({ error: 'Invalid JSON' }));
         }
       });
+    } else if (req.method === 'GET' && req.url === '/fixture.png') {
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Content-Length': WebhookTestServer.PNG_FIXTURE.length,
+      });
+      res.end(WebhookTestServer.PNG_FIXTURE);
     } else if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok' }));
@@ -103,6 +123,10 @@ export class WebhookTestServer {
 
   getWebhookUrl(): string {
     return `http://127.0.0.1:${this.port}/webhook`;
+  }
+
+  getMediaFixtureUrl(): string {
+    return `http://127.0.0.1:${this.port}/fixture.png`;
   }
 
   getEvents(): WebhookEvent[] {
