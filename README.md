@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 1.2.0 · synchronized with `miaw-core` 1.9.1
+**Version:** 1.2.1 · synchronized with `miaw-core` 1.9.1
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -369,6 +369,7 @@ pnpm dev
 pnpm test
 pnpm test:unit
 pnpm test:integration
+pnpm test:live
 
 # Lint
 pnpm lint
@@ -391,8 +392,8 @@ See [docs/TESTING.md](./docs/TESTING.md) for detailed testing guide.
 # Run automated integration tests
 pnpm test:integration
 
-# Opt in to the interactive live pairing suite
-MIAW_RUN_LIVE_TESTS=true pnpm test:integration -- setup
+# Run the isolated-account live suite using .env.live-test
+pnpm test:live
 ```
 
 ## API Endpoints
@@ -614,7 +615,7 @@ Business profile, cover-photo, order-detail, and quick-reply routes are under
 
 This project follows Semantic Versioning (semver).
 
-Current version: `1.2.0`
+Current version: `1.2.1`
 
 - **Major version**: breaking HTTP or configuration changes
 - **Minor version**: backward-compatible capabilities

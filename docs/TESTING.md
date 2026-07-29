@@ -1,6 +1,6 @@
 # Miaw API Testing Guide
 
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-29
 
 Miaw API uses Vitest. Automated tests do not require a WhatsApp account; live
 protocol scenarios are opt-in.
@@ -46,13 +46,31 @@ and lifecycle scenarios are suitable for CI.
 
 Current baseline:
 
-- 127 unit/contract tests.
+- 135 unit/contract tests.
 - 93 automated integration tests.
 - 265 explicitly skipped live scenarios.
 
 ## Live WhatsApp tests
 
 Use a dedicated WhatsApp account, never a personal production account.
+
+Copy `.env.live-test.example` to `.env.live-test`, replace every number with a
+dedicated account, and run:
+
+```bash
+pnpm test:live
+```
+
+The runner creates or reuses the configured instance, supports either a QR
+challenge or pairing code, and persists its session by instance ID. It verifies
+connection/reconnect, webhooks, text and media messaging, contacts, profiles,
+presence, chat error mapping, runtime and LID controls, isolated group
+lifecycle, and optional supplied group/community probes. Account-gated
+business and newsletter results are printed as a structured capability report.
+The runner refuses to start unless all account data is distinct and
+`MIAW_LIVE_CONFIRM_DESTRUCTIVE=true` is set.
+
+The older QR setup suite remains available for QR-specific diagnostics:
 
 ```bash
 MIAW_RUN_LIVE_TESTS=true pnpm test:integration -- setup
@@ -74,6 +92,7 @@ pnpm build
 pnpm lint
 pnpm test:unit
 pnpm test:integration
+pnpm test:coverage
 ```
 
 Do not enable `MIAW_RUN_LIVE_TESTS` in ordinary CI. Live tests depend on manual
@@ -87,6 +106,7 @@ pairing, WhatsApp availability, network conditions, and rate limits.
 | Webhook test port is occupied | The test helper automatically falls back to an ephemeral port |
 | Pairing challenge expires | Restart the instance connection and request the protected challenge endpoint again |
 | Session is invalid | Remove `./test-sessions` and repeat the live setup |
+| Chat mutation returns `INVALID_REQUEST` with `App state key not present` | The linked account did not supply the required WhatsApp app-state key; the API reports this failure instead of claiming success |
 | WhatsApp throttles requests | Stop the test run and retry later with fewer live operations |
 | Frozen install fails | Run `pnpm install`, inspect the lockfile diff, and commit it with the dependency change |
 

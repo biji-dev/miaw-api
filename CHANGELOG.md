@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-07-29
+
+### Fixed
+
+- Retried pairing-code retrieval after the WhatsApp socket handshake, working
+  around `miaw-core` 1.9.1's premature initial request.
+- Mapped failed chat mutations to `400 INVALID_REQUEST` instead of returning a
+  misleading HTTP 200 response with an inner `success: false` result.
+- Kept the automated integration harness isolated from ambient environment
+  credentials while allowing live runs to use a dedicated session directory.
+
+### Testing
+
+- Added an environment-only QR/pairing-code live release suite with fail-fast
+  destructive-test safeguards and capability reporting.
+- Expanded the isolated live suite to reuse persisted sessions and verify real
+  text/media/location/contact/poll delivery, profile/contact/chat reads,
+  presence, runtime and LID controls, group cleanup, reconnects, webhooks, and
+  structured account-capability reporting.
+
 ## [1.2.0] - 2026-07-12
 
 ### Added

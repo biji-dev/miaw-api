@@ -1,8 +1,8 @@
 # Miaw API Guide
 
-**API version:** 1.2.0
+**API version:** 1.2.1
 **Core compatibility:** `miaw-core` 1.9.1
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-29
 
 The generated API reference is the authoritative field-level contract:
 
