@@ -115,6 +115,25 @@ describe('InstanceManager.updateWebhook', () => {
     expect(manager.getAuthChallenge('pairing-bot', 'pairing_code')).toBeNull();
   });
 
+  it('retries the pairing-code request after the socket handshake window', async () => {
+    vi.useFakeTimers();
+    try {
+      await manager.createInstance({
+        instanceId: 'pairing-bot',
+        clientOptions: { usePairingCode: true, phoneNumber: '628123' },
+      });
+      const requestPairingCode = vi.fn(async () => 'WXYZ9876');
+      coreMock.clients[0].socket = { requestPairingCode };
+
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(requestPairingCode).toHaveBeenCalledWith('628123');
+      expect(manager.getAuthChallenge('pairing-bot', 'pairing_code')).toBe('WXYZ9876');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each(['message_receipt', 'poll_vote', 'session_saved'] as const)(
     'forwards the %s core event once',
     async (event) => {

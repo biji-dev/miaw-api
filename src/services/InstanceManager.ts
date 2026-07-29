@@ -28,6 +28,7 @@ interface ManagedInstance {
   disconnectTimeout?: NodeJS.Timeout;
   qrCode?: string;
   pairingCode?: string;
+  pairingRetryTimeout?: NodeJS.Timeout;
 }
 
 /**
@@ -89,6 +90,13 @@ export class InstanceManager extends EventEmitter {
 
     this.instances.set(instanceId, managed);
 
+    // miaw-core 1.9.1 requests a pairing code immediately after constructing
+    // its socket. Baileys rejects that pre-handshake request; retry once after
+    // the transport is ready so headless pairing remains usable.
+    if (config.clientOptions?.usePairingCode && config.clientOptions.phoneNumber) {
+      this.schedulePairingCodeRetry(instanceId, client, config.clientOptions.phoneNumber);
+    }
+
     this.logger.info({ instanceId }, 'Instance created');
 
     return state;
@@ -128,6 +136,7 @@ export class InstanceManager extends EventEmitter {
 
     // Remove event listeners
     managed.client.removeAllListeners();
+    if (managed.pairingRetryTimeout) clearTimeout(managed.pairingRetryTimeout);
 
     // Delete from map
     this.instances.delete(instanceId);
@@ -192,6 +201,33 @@ export class InstanceManager extends EventEmitter {
     }
   }
 
+  private schedulePairingCodeRetry(instanceId: string, client: MiawClient, phoneNumber: string): void {
+    const managed = this.instances.get(instanceId);
+    if (!managed) return;
+
+    managed.pairingRetryTimeout = setTimeout(() => {
+      const current = this.instances.get(instanceId);
+      if (!current || current.pairingCode) return;
+
+      const socket = (client as unknown as {
+        socket?: { requestPairingCode: (phone: string) => Promise<string> };
+      }).socket;
+      if (!socket) return;
+
+      void socket.requestPairingCode(phoneNumber)
+        .then((code) => {
+          const active = this.instances.get(instanceId);
+          if (!active || active.pairingCode) return;
+          active.pairingCode = code;
+          this.emitWebhook(instanceId, 'pairing_code', { code });
+        })
+        .catch((error: unknown) => {
+          this.logger.warn({ instanceId, error }, 'Delayed pairing-code request failed');
+        });
+    }, 3000);
+    managed.pairingRetryTimeout.unref();
+  }
+
   /**
    * Set up MiawClient event handlers
    */
@@ -219,6 +255,7 @@ export class InstanceManager extends EventEmitter {
       if (managed) {
         managed.qrCode = undefined;
         managed.pairingCode = undefined;
+        if (managed.pairingRetryTimeout) clearTimeout(managed.pairingRetryTimeout);
       }
       this.emitWebhook(instanceId, 'ready', {
         instanceId,
