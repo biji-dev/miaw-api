@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
+import { uniqueInstanceId } from './helpers/ids.js';
 import { HttpClient } from './helpers/http.js';
 import { TEST_CONFIG } from './fixtures/data.js';
 
@@ -27,7 +28,7 @@ describe('Instance Management Tests', () => {
 
   beforeEach(() => {
     client = createTestClient();
-    testInstanceId = `test-${Date.now()}`;
+    testInstanceId = uniqueInstanceId('test');
   });
 
   afterEach(async () => {

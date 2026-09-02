@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-09-03
+
+Everything here was found by running 2.2.0's proxy features against a real
+10-proxy pool instead of mocks.
+
+### Added
+
+- **`pnpm test:proxies`** — checks a real proxy pool end to end: every entry
+  parses, each one reaches WhatsApp, and traffic genuinely egresses through it
+  rather than falling back to a direct connection. It compares each proxy's exit
+  IP against the host's real one and exits non-zero on an unreachable proxy or a
+  leak, so it can gate a deploy. SOCKS entries are flagged because their media
+  downloads bypass the proxy. Passwords are never printed.
+- `proxies.live.example.txt` documents the pool format. Real pools live in
+  `proxies.live.txt`, which is gitignored along with any `proxies.*.txt`.
+
+### Fixed
+
+- **An unresolvable proxy label returned `500`.** `mapInstanceProxyError` had no
+  case for pool-resolution failures, so naming a label the pool cannot satisfy
+  produced "An unexpected error occurred" instead of a message identifying the
+  cause. It is now a `400` carrying that message, which names the fix and
+  contains no credentials.
+- **The proxy log lines always reported `persisted: false`.** Both
+  "Instance proxy replaced" and "Instance restored from store" called
+  `describeProxy()` without its `persisted` argument, so the logs contradicted
+  the API response for every stored assignment.
+- **Integration tests could collide on instance ids.** `test-${Date.now()}` is
+  not unique — two calls in the same millisecond return the same id. A test that
+  minted one id in `beforeEach` and another in its body reused the first instance
+  whenever the intervening work took under a millisecond; the duplicate create
+  returned an unasserted `409` and the assertion then ran against the wrong
+  instance. This produced an intermittent failure in the webhook suite. Ids now
+  come from a counter-backed `uniqueInstanceId()` helper.
+
+## [2.2.0] - 2026-09-03
+
+Per-instance proxies become settable at connect time, visible across the fleet,
+changeable on a live instance, and durable across restarts. All four land on
+existing routes, so the route contract is unchanged.
+
+### Added
+
+- **A proxy can be set in the connect call.** `PUT /instances/:id/connection`
+  and `POST /instances/:id/connection-restarts` take an optional body carrying
+  `proxy`, applied before the socket opens so a pairing comes from its final
+  egress IP. Sending no body connects the instance unchanged, exactly as before.
+- **The effective proxy appears in instance state.** `GET /instances` and
+  `GET /instances/:id` report `source`, masked `url`, `protocol`,
+  `downloadProxied`, `active`, `appliesOnNextConnect`, `persisted` and
+  `liveProxy`, computed on read so it cannot go stale.
+- **`force` swaps a proxy on a live instance**, on `PUT /instances/:id/proxy`
+  and `DELETE /instances/:id/proxy?force=true`. Without it the endpoints still
+  return `409`. Changing a paired session's egress IP is read by WhatsApp as
+  account takeover, so this is for a dead proxy, not routine rotation.
+- **Instances and their proxies persist** to `<SESSION_PATH>/instances.json` and
+  are restored at boot. This is the file `miaw-cli instance set-proxy` writes,
+  and the two tools preserve each other's fields. Written `0600` via atomic
+  temp-and-rename, with a write mutex the CLI's own store does not have, because
+  a REST API serves concurrent writes. `RESTORE_AUTOCONNECT=true` connects
+  restored instances sequentially at boot; the default is not to connect them.
+- **Credential-free assignments.** `{"label":"eu"}` references a `label=` entry
+  in `MIAW_PROXY_FILE` and stores no credentials, so rotating a proxy password
+  touches only the pool file.
+- `validate: true` probes a proxy for reachability before applying it, returning
+  `400` when it cannot be reached. Off by default, so connect latency is unchanged.
+- New `INSTANCE_STORE_FILE` and `RESTORE_AUTOCONNECT` environment variables.
+
+### Changed
+
+- Upgraded to `miaw-core` ^1.12.1.
+- **Changing a proxy no longer rebuilds the `MiawClient`.** It uses core 1.11's
+  `setProxy()`, following core's failover recipe: disconnect, then stage, then
+  connect. Staging before the teardown would let an auto-reconnect fire on the
+  old egress, and reusing the client avoids two writers on one auth state. The
+  rebuild path survives only for core's custom-agent refusal.
+- Proxy resolution now consults the stored assignment between an explicit
+  `clientOptions.proxy` and the pool. `MIAW_PROXY` remains deliberately unread:
+  a cluster-wide value would silently outrank every per-instance assignment.
+- A corrupt `instances.json` fails startup rather than being treated as empty,
+  which would connect every instance directly and leak the egress IP the
+  assignments exist to hide.
+
+### Fixed
+
+- `proxy: null` was rejected as an invalid proxy. Fastify runs AJV with
+  `coerceTypes`, and the string branch of the proxy schema coerced null to `""`
+  before validation saw it. The null branch now comes first, with a code-level
+  guard so a future schema edit cannot reintroduce it.
+
 ## [2.1.0] - 2026-07-30
 
 ### Added

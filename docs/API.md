@@ -73,13 +73,89 @@ media downloads remain direct.
 | `POST` | `/api/v1/proxy-pool/reloads` | Atomically reload the mounted pool file |
 | `POST` | `/api/v1/proxy-tests` | Test reachability without creating or pairing an instance |
 | `GET` | `/api/v1/instances/:instanceId/proxy` | Inspect the effective instance proxy |
-| `PUT` | `/api/v1/instances/:instanceId/proxy` | Set an explicit proxy on a disconnected instance |
+| `PUT` | `/api/v1/instances/:instanceId/proxy` | Set an explicit proxy on an instance |
 | `DELETE` | `/api/v1/instances/:instanceId/proxy` | Clear the override and return to the pool/direct route |
 
-Changing a proxy rebuilds the underlying `MiawClient` because the transport is
-constructor-bound. The operation returns `409` unless the instance is already
-`disconnected`; connect it again explicitly afterward. Pool reloads never
-remap an existing client.
+### Setting a proxy
+
+`PUT /api/v1/instances/:instanceId/proxy` accepts:
+
+```jsonc
+{
+  "proxy": { "url": "socks5h://host:1080", "username": "u", "password": "p" },
+  "validate": false,  // probe reachability first; 400 when unreachable
+  "force": false,     // permit the change on a live instance
+  "persist": true     // write the assignment to instances.json
+}
+```
+
+`proxy` also accepts a plain URL string, a `{ "label": "eu" }` reference to the
+pool, or `null` to clear the assignment. `DELETE` takes `?force=true` for the
+same effect as `{ "proxy": null, "force": true }`.
+
+The instance must be `disconnected` unless `force` is set, and the operation
+returns `409` otherwise. With `force`, the instance is disconnected, the new
+proxy is staged, and it is reconnected — in that order, because miaw-core stages
+a proxy for the next connect rather than touching a live socket.
+
+**Changing a paired session's egress IP is read by WhatsApp as account
+takeover.** `force` exists for a dead proxy, not for routine rotation.
+
+### Setting a proxy while connecting
+
+`PUT /api/v1/instances/:instanceId/connection` and
+`POST /api/v1/instances/:instanceId/connection-restarts` accept the same body,
+with every field optional. Sending no body at all connects the instance
+unchanged, exactly as before.
+
+```bash
+curl -X PUT .../instances/support/connection \
+  -d '{"proxy":"socks5h://host:1080","validate":true}'
+```
+
+The proxy is applied before the socket opens, so the pairing itself comes from
+the final egress IP.
+
+### Reading the effective proxy
+
+`GET /api/v1/instances/:instanceId/proxy` returns, and every instance in
+`GET /api/v1/instances` now carries, the same object:
+
+```jsonc
+{
+  "source": "pin-label",         // explicit | pin-label | pool | none
+  "url": "socks5h://user:****@eu1.example.com:1080/",
+  "protocol": "socks5h",
+  "downloadProxied": false,      // false for SOCKS: downloads bypass the proxy
+  "active": true,                // the open socket is using this configuration
+  "appliesOnNextConnect": false, // configured, but a reconnect is needed
+  "persisted": true,             // survives a restart
+  "liveProxy": null              // what the socket uses instead, when it differs
+}
+```
+
+Precedence is: an explicit assignment, then the stored pin, then the
+`MIAW_PROXY_FILE` pool, then a direct connection. Unlike `miaw-cli`, this API
+does **not** read `MIAW_PROXY` — a global environment proxy would silently
+outrank every per-instance assignment.
+
+### Persistence
+
+Instances and their proxy assignments are written to
+`<SESSION_PATH>/instances.json` and restored at boot, so a restart cannot
+silently move a paired session to a different egress IP. This is the same file
+`miaw-cli instance set-proxy` uses, and the two interoperate: each preserves the
+other's fields.
+
+Restored instances are **not** connected automatically. Set
+`RESTORE_AUTOCONNECT=true` to connect them sequentially at boot.
+
+A `label` pin stores no credentials — only the label — so prefer it over a URL
+when the proxy is in the pool. A corrupt `instances.json` fails startup rather
+than being treated as empty, because an empty store would connect every instance
+directly and leak the egress IP the pins exist to hide.
+
+### Testing a proxy
 
 `POST /api/v1/proxy-tests` accepts:
 

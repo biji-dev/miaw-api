@@ -1,0 +1,27 @@
+# Proxy pool for live testing. Copy to proxies.live.txt and fill with real
+# entries; that filename is gitignored because these are credentials.
+#
+#   cp proxies.live.example.txt proxies.live.txt
+#   chmod 600 proxies.live.txt
+#   pnpm test:proxies
+#
+# A line is a comment only when its first non-whitespace character is # or ;.
+# An inline # is never stripped, because that would corrupt passwords - write a
+# literal # in a password as %23.
+
+# Full URL form. Schemes: http, https, socks, socks4, socks4a, socks5, socks5h.
+# Prefer HTTP(S): with SOCKS, WhatsApp media *downloads* bypass the proxy and
+# reveal the real IP, because undici has no SOCKS dispatcher.
+http://user:pass@proxy-a.example.com:8080   weight=2 label=jakarta
+socks5h://proxy-b.example.com:1080          weight=1 label=singapore
+
+# Scheme-less vendor forms, expanded with the default protocol (http).
+# The second is what Webshare and most residential vendors export.
+1.2.3.4:8080
+5.6.7.8:8080:myuser:mypass
+
+# `label=` is what makes a credential-free assignment possible:
+#   PUT /api/v1/instances/:id/proxy  {"proxy":{"label":"jakarta"}}
+# stores only {"label":"jakarta"} on disk, so rotating a proxy password touches
+# this file and nothing else. Several entries may share a label; an instance is
+# then pinned to one of them deterministically and stays there.

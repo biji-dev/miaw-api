@@ -180,11 +180,17 @@ describe('proxy routes', () => {
       proxy: replacement,
     });
     expect(replaced.statusCode).toBe(200);
-    expect(manager.replaceProxy).toHaveBeenCalledWith('bot', replacement);
+    expect(manager.replaceProxy).toHaveBeenCalledWith('bot', replacement, {
+      force: false,
+      persist: true,
+    });
 
     const cleared = await inject('DELETE', '/api/v1/instances/bot/proxy');
     expect(cleared.statusCode).toBe(200);
-    expect(manager.replaceProxy).toHaveBeenCalledWith('bot');
+    expect(manager.replaceProxy).toHaveBeenCalledWith('bot', null, {
+      force: false,
+      persist: true,
+    });
   });
 
   it('maps missing instances and live proxy changes to REST errors', async () => {
@@ -201,5 +207,37 @@ describe('proxy routes', () => {
       proxy: 'http://proxy.test:8080',
     });
     expect(connected.statusCode).toBe(409);
+  });
+
+  it('reports an unresolvable label as a bad request, not a server error', async () => {
+    // The caller named a label the pool cannot satisfy. Falling through to 500
+    // hid that, and the message names the fix.
+    manager.replaceProxy.mockImplementationOnce(() => {
+      throw new Error(
+        'Cannot resolve proxy label "nowhere": no entry in the proxy pool carries it.'
+      );
+    });
+
+    const response = await inject('PUT', '/api/v1/instances/bot/proxy', {
+      proxy: { label: 'nowhere' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.payload).toContain('Cannot resolve proxy label');
+  });
+
+  it('reports a missing pool for a label as a bad request', async () => {
+    manager.replaceProxy.mockImplementationOnce(() => {
+      throw new Error(
+        'Cannot resolve proxy label "eu": no proxy pool is configured. Set MIAW_PROXY_FILE.'
+      );
+    });
+
+    const response = await inject('PUT', '/api/v1/instances/bot/proxy', {
+      proxy: { label: 'eu' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.payload).toContain('MIAW_PROXY_FILE');
   });
 });

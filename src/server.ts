@@ -12,6 +12,10 @@ import { config } from './config/index.js';
 import { registerRoutes } from './routes/index.js';
 import { registerSchemas } from './schemas/index.js';
 import { InstanceManager } from './services/InstanceManager.js';
+import {
+  InstanceStore,
+  getInstanceStorePath,
+} from './services/InstanceStore.js';
 import { ProxyPoolService } from './services/ProxyService.js';
 import { WebhookDispatcher } from './services/WebhookDispatcher.js';
 import { errorHandler } from './utils/errorHandler.js';
@@ -137,6 +141,13 @@ export async function createServer(): Promise<FastifyInstance> {
     logger: server.log,
   });
 
+  // Instances and their proxy assignments outlive the process. The file is
+  // shared with `miaw-cli instance set-proxy`, so both tools agree on egress.
+  const store = new InstanceStore(
+    config.instanceStoreFile ?? getInstanceStorePath(config.sessionPath),
+    server.log
+  );
+
   // Create instance manager (shared across requests)
   const instanceManager = new InstanceManager({
     sessionPath: config.sessionPath,
@@ -145,7 +156,19 @@ export async function createServer(): Promise<FastifyInstance> {
     webhookMaxRetries: config.webhookMaxRetries,
     webhookRetryDelay: config.webhookRetryDelay,
     proxyPool,
+    store,
   });
+
+  // A corrupt store throws here and stops the boot on purpose: starting with an
+  // empty one would drop every pin and connect directly, leaking the real
+  // egress IP that the pins exist to hide.
+  const restored = await instanceManager.restore(store.list());
+  if (restored.length > 0) {
+    server.log.info(
+      { instanceCount: restored.length, autoConnect: config.restoreAutoConnect },
+      'Restored instances from the store'
+    );
+  }
 
   // Create webhook dispatcher
   const webhookDispatcher = new WebhookDispatcher({
@@ -172,6 +195,21 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Register API routes (pass instanceManager for v0.9.0 routes)
   await registerRoutes(server, instanceManager);
+
+  // Opt-in, and sequential: reconnecting N paired sessions at once is a
+  // thundering herd against WhatsApp.
+  if (config.restoreAutoConnect) {
+    for (const instanceId of restored) {
+      try {
+        await instanceManager.getClient(instanceId)?.connect();
+      } catch (error) {
+        server.log.error(
+          { instanceId, error: error instanceof Error ? error.message : String(error) },
+          'Could not auto-connect a restored instance'
+        );
+      }
+    }
+  }
 
   return server;
 }

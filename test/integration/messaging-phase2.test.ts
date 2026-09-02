@@ -8,6 +8,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TEST_CONFIG } from './fixtures/data.js';
 import { createTestClient, startTestServer, stopTestServer } from './helpers/server.js';
+import { uniqueInstanceId } from './helpers/ids.js';
 
 describe('Message mutations', () => {
   let client: ReturnType<typeof createTestClient>;
@@ -18,7 +19,7 @@ describe('Message mutations', () => {
 
   beforeEach(async () => {
     client = createTestClient();
-    instanceId = `messages-${Date.now()}`;
+    instanceId = uniqueInstanceId('messages');
     await client.post('/api/v1/instances', { instanceId });
   });
 

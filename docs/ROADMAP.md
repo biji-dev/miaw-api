@@ -25,6 +25,7 @@ generated documentation remain unversioned.
 | `miaw-core` 1.9.1 synchronization | 1.2.0 | Complete | ESM, pairing/proxy options, rich messages, chats, statuses, business extras, communities, LID operations, latest events |
 | API-wide endpoint normalization | 2.0.0 | Complete | Central version prefix, resource-oriented routes, uniform envelopes, route manifest and breaking-route checks |
 | `miaw-core` 1.10.0 safe proxy management | 2.1.0 | Complete | Watched proxy pools, masked status/test endpoints, and disconnected-only client proxy replacement |
+| `miaw-core` 1.12.1 sync and durable per-instance proxies | 2.2.0 | Complete | Connect-time proxy assignment, fleet-wide proxy visibility, forced live swaps via `setProxy()`, and a persistent store shared with `miaw-cli` |
 
 ## Current capability coverage
 
@@ -34,6 +35,8 @@ generated documentation remain unversioned.
 - QR and pairing-code authentication with protected challenge retrieval.
 - Per-instance reconnect, timeout, history-sync, browser identity, and proxy options.
 - Runtime debug/sync toggles and masked proxy inspection.
+- Per-instance proxies set at creation, at connect time, or on a live instance,
+  persisted across restarts and interoperable with `miaw-cli instance set-proxy`.
 
 ### Messaging and chats
 
@@ -74,17 +77,22 @@ generated documentation remain unversioned.
 
 ## Next priorities
 
-The API is synchronized with every useful HTTP-serializable capability in core
-1.10.0. Future feature work should follow new `miaw-core` releases.
+The API runs on core 1.12.1, but only its proxy surface is exposed. The 2.2.0
+release deliberately scoped out the ~37 non-proxy methods core added in 1.12.0.
 
-1. Add contract tests whenever a core method or event is added.
-2. Extend pagination to high-volume collections while preserving the v2
+1. **Expose the `miaw-core` 1.12.0 feature backlog.** Privacy settings,
+   blocklist, calls (including the new `call` event), group and community
+   administration, disappearing messages, group-invite cards, pin-in-chat, and
+   `BrowserPresets`. Roughly 40 new routes, so it deserves its own release.
+2. Add contract tests whenever a core method or event is added.
+3. Extend pagination to high-volume collections while preserving the v2
    `{success,data}` and `{items,total}` envelopes.
-3. Add opt-in rate limiting and request-size controls for public deployments.
-4. Add persistent instance configuration if instances must survive API process
-   restarts without being recreated.
+4. Add opt-in rate limiting and request-size controls for public deployments.
 5. Evaluate multipart uploads separately; current media inputs intentionally
    accept HTTP(S) URLs only.
+6. Cross-process locking for `instances.json` if the API is ever run as more
+   than one replica against one session volume. Writes are serialized within a
+   process, but two processes remain last-writer-wins.
 
 ## Deferred or out of scope
 

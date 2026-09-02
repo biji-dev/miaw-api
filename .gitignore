@@ -20,6 +20,12 @@ build/
 .env.test
 .env.test.local
 
+# Proxy lists - these contain live credentials. Never commit one.
+# Keep the committed *.example.txt as the format reference.
+proxies.live.txt
+proxies.*.txt
+!proxies.*.example.txt
+
 # Sessions
 sessions/
 test-sessions/

@@ -94,6 +94,44 @@ export function registerSchemas(server: FastifyInstance): void {
     ],
   });
 
+  server.addSchema({
+    $id: 'proxyAssignment',
+    oneOf: [
+      { $ref: 'proxyConfig#' },
+      {
+        // A pool label. Carries no credentials, so rotating a proxy password
+        // touches only the mounted pool file.
+        type: 'object',
+        additionalProperties: false,
+        required: ['label'],
+        properties: { label: { type: 'string', minLength: 1 } },
+      },
+    ],
+  });
+
+  server.addSchema({
+    $id: 'proxyMutation',
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      // null clears the assignment and falls back to the pool, or direct.
+      // The null branch must come first: Fastify runs AJV with coerceTypes, and
+      // the string branch of proxyConfig would otherwise turn null into "".
+      proxy: {
+        anyOf: [{ type: 'null' }, { $ref: 'proxyAssignment#' }],
+      },
+      validate: { type: 'boolean', default: false },
+      force: { type: 'boolean', default: false },
+      persist: { type: 'boolean', default: true },
+      timeoutMs: {
+        type: 'integer',
+        minimum: 1000,
+        maximum: 30000,
+        default: 10000,
+      },
+    },
+  });
+
   // ============================================================================
   // Instance Schemas
   // ============================================================================

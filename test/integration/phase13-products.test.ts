@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
+import { uniqueId, uniqueInstanceId } from './helpers/ids.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 
 describe('Phase 13 Product Management Tests', () => {
@@ -32,7 +33,7 @@ describe('Phase 13 Product Management Tests', () => {
 
   beforeEach(async () => {
     client = createTestClient();
-    testInstanceId = `test-${Date.now()}`;
+    testInstanceId = uniqueInstanceId('test');
     webhookServer.clearEvents();
 
     // Create instance
@@ -88,7 +89,7 @@ describe('Phase 13 Product Management Tests', () => {
         currency: 'USD',
         imageUrls: ['https://example.com/product.jpg'],
         isHidden: false,
-        retailerId: `SKU-${Date.now()}`,
+        retailerId: uniqueId('SKU'),
         url: 'https://example.com/product',
         originCountryCode: 'US',
       });
