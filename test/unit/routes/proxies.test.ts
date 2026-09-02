@@ -208,4 +208,36 @@ describe('proxy routes', () => {
     });
     expect(connected.statusCode).toBe(409);
   });
+
+  it('reports an unresolvable label as a bad request, not a server error', async () => {
+    // The caller named a label the pool cannot satisfy. Falling through to 500
+    // hid that, and the message names the fix.
+    manager.replaceProxy.mockImplementationOnce(() => {
+      throw new Error(
+        'Cannot resolve proxy label "nowhere": no entry in the proxy pool carries it.'
+      );
+    });
+
+    const response = await inject('PUT', '/api/v1/instances/bot/proxy', {
+      proxy: { label: 'nowhere' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.payload).toContain('Cannot resolve proxy label');
+  });
+
+  it('reports a missing pool for a label as a bad request', async () => {
+    manager.replaceProxy.mockImplementationOnce(() => {
+      throw new Error(
+        'Cannot resolve proxy label "eu": no proxy pool is configured. Set MIAW_PROXY_FILE.'
+      );
+    });
+
+    const response = await inject('PUT', '/api/v1/instances/bot/proxy', {
+      proxy: { label: 'eu' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.payload).toContain('MIAW_PROXY_FILE');
+  });
 });

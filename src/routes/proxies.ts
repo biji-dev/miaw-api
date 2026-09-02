@@ -222,5 +222,10 @@ function mapInstanceProxyError(error: unknown): Error {
   if (message.includes('Invalid proxy configuration')) {
     return new BadRequestError('Invalid proxy configuration');
   }
+  if (message.includes('Cannot resolve proxy label')) {
+    // The caller named a label the pool cannot satisfy - their input, not a
+    // server fault. The message already names the fix and carries no secrets.
+    return new BadRequestError(message);
+  }
   return error instanceof Error ? error : new Error(message);
 }

@@ -222,7 +222,7 @@ export class InstanceManager extends EventEmitter {
 
         restored.push(instanceId);
         this.logger.info(
-          { instanceId, proxy: describeProxy(effectiveProxy, proxySource) },
+          { instanceId, proxy: describeProxy(effectiveProxy, proxySource, null, true) },
           'Instance restored from store'
         );
       } catch (error) {
@@ -443,7 +443,7 @@ export class InstanceManager extends EventEmitter {
     this.logger.info(
       {
         instanceId,
-        proxy: describeProxy(effectiveProxy, proxySource),
+        proxy: this.describeManagedProxy(managed),
         reconnected: wasActive,
       },
       'Instance proxy replaced'

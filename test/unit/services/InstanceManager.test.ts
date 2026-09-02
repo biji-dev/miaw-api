@@ -452,6 +452,17 @@ describe('InstanceManager persistence and pins', () => {
     expect(manager.getProxy('bot').source).toBe('none');
   });
 
+  it('logs the assignment as persisted once it is stored', async () => {
+    const manager = build();
+    await manager.createInstance({ instanceId: 'bot' });
+    const logged = vi.spyOn((manager as any).logger, 'info');
+
+    await manager.replaceProxy('bot', 'http://proxy.test:8080');
+
+    const entry = logged.mock.calls.find((c) => c[1] === 'Instance proxy replaced');
+    expect(entry?.[0].proxy).toMatchObject({ persisted: true });
+  });
+
   it('drops the stored pin when a change is not persisted', async () => {
     const manager = build();
     await manager.createInstance({
