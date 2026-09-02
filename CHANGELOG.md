@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-09-03
+
+Everything here was found by running 2.2.0's proxy features against a real
+10-proxy pool instead of mocks.
+
+### Added
+
+- **`pnpm test:proxies`** — checks a real proxy pool end to end: every entry
+  parses, each one reaches WhatsApp, and traffic genuinely egresses through it
+  rather than falling back to a direct connection. It compares each proxy's exit
+  IP against the host's real one and exits non-zero on an unreachable proxy or a
+  leak, so it can gate a deploy. SOCKS entries are flagged because their media
+  downloads bypass the proxy. Passwords are never printed.
+- `proxies.live.example.txt` documents the pool format. Real pools live in
+  `proxies.live.txt`, which is gitignored along with any `proxies.*.txt`.
+
+### Fixed
+
+- **An unresolvable proxy label returned `500`.** `mapInstanceProxyError` had no
+  case for pool-resolution failures, so naming a label the pool cannot satisfy
+  produced "An unexpected error occurred" instead of a message identifying the
+  cause. It is now a `400` carrying that message, which names the fix and
+  contains no credentials.
+- **The proxy log lines always reported `persisted: false`.** Both
+  "Instance proxy replaced" and "Instance restored from store" called
+  `describeProxy()` without its `persisted` argument, so the logs contradicted
+  the API response for every stored assignment.
+- **Integration tests could collide on instance ids.** `test-${Date.now()}` is
+  not unique — two calls in the same millisecond return the same id. A test that
+  minted one id in `beforeEach` and another in its body reused the first instance
+  whenever the intervening work took under a millisecond; the duplicate create
+  returned an unasserted `409` and the assertion then ran against the wrong
+  instance. This produced an intermittent failure in the webhook suite. Ids now
+  come from a counter-backed `uniqueInstanceId()` helper.
+
 ## [2.2.0] - 2026-09-03
 
 Per-instance proxies become settable at connect time, visible across the fleet,

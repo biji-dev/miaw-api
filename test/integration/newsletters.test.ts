@@ -16,6 +16,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
+import { uniqueInstanceId } from './helpers/ids.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 
 describe('Phase 12 Newsletter Tests', () => {
@@ -41,7 +42,7 @@ describe('Phase 12 Newsletter Tests', () => {
 
   beforeEach(async () => {
     client = createTestClient();
-    testInstanceId = `test-${Date.now()}`;
+    testInstanceId = uniqueInstanceId('test');
     webhookServer.clearEvents();
 
     // Create instance

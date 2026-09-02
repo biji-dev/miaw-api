@@ -1,6 +1,6 @@
 {
   "name": "miaw-api",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "type": "module",
   "description": "REST API wrapper for miaw-core - Multiple Instance of App WhatsApp",
   "main": "dist/server.js",
@@ -15,6 +15,7 @@
     "test:unit": "vitest run -c vitest.config.ts",
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:live": "node --env-file-if-exists=.env.live-test ./test/live/run.mjs",
+    "test:proxies": "node ./test/live/proxy-check.mjs",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run -c vitest.coverage.config.ts --coverage",
     "test:coverage:all": "vitest run --coverage",

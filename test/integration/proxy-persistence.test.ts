@@ -10,12 +10,13 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
+import { uniqueInstanceId } from './helpers/ids.js';
 
 describe('Instance persistence across restarts', () => {
   // `config` is a module singleton read at first import, so the session path
   // cannot be overridden per file - read back whatever the server actually used.
   let storeFile: string;
-  const instanceId = `persist-${Date.now()}`;
+  const instanceId = uniqueInstanceId('persist');
 
   beforeAll(async () => {
     await startTestServer();

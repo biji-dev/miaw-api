@@ -1,6 +1,6 @@
 # Miaw API Testing Guide
 
-**Last updated:** 2026-07-29
+**Last updated:** 2026-09-03
 
 Miaw API uses Vitest. Automated tests do not require a WhatsApp account; live
 protocol scenarios are opt-in.
@@ -46,9 +46,15 @@ and lifecycle scenarios are suitable for CI.
 
 Current baseline:
 
-- 221 unit/contract tests.
-- 114 automated integration tests.
+- 295 unit/contract tests.
+- 117 automated integration tests.
 - 217 explicitly skipped live scenarios.
+
+Instance ids come from `uniqueInstanceId()` in `test/integration/helpers/ids.ts`,
+never from a bare `Date.now()`. Two `Date.now()` calls in the same millisecond
+return the same id, so a test that mints one in `beforeEach` and another in the
+body silently reuses the first instance whenever the work between them takes
+under a millisecond.
 
 ## Live WhatsApp tests
 
@@ -83,6 +89,28 @@ through instance `clientOptions.usePairingCode` and the protected
 
 Configure real test contacts in `test/integration/fixtures/data.ts`. Sessions
 are stored under `./test-sessions` and are ignored by Git.
+
+## Live proxy pool check
+
+`pnpm test:proxies` verifies a real proxy pool end to end: every entry parses,
+each one reaches WhatsApp, and traffic genuinely leaves through it rather than
+falling back to a direct connection.
+
+```bash
+cp proxies.live.example.txt proxies.live.txt   # then fill it in
+chmod 600 proxies.live.txt
+pnpm build && pnpm test:proxies
+```
+
+`proxies.live.txt` (and any `proxies.*.txt`) is gitignored because it holds
+credentials; only `proxies.*.example.txt` is committed. Point
+`MIAW_PROXY_FILE` elsewhere to check a different pool, and pass `--no-egress`
+to skip the third-party IP lookup on an air-gapped network.
+
+The check compares each proxy's exit IP against this host's real one and exits
+non-zero if any proxy is unreachable or reports the real IP, so it can gate a
+deploy. It also flags SOCKS entries, whose media *downloads* bypass the proxy.
+Passwords are never printed.
 
 ## Recommended CI checks
 

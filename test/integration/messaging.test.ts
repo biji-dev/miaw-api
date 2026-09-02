@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
+import { uniqueInstanceId } from './helpers/ids.js';
 import { HttpClient } from './helpers/http.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 import { TEST_CONFIG } from './fixtures/data.js';
@@ -35,7 +36,7 @@ describe('Messaging Tests', () => {
 
   beforeEach(async () => {
     client = createTestClient();
-    testInstanceId = `test-${Date.now()}`;
+    testInstanceId = uniqueInstanceId('test');
     webhookServer.clearEvents();
 
     // Create instance with webhook

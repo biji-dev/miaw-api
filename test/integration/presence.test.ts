@@ -8,6 +8,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TEST_CONFIG } from './fixtures/data.js';
 import { createTestClient, startTestServer, stopTestServer } from './helpers/server.js';
+import { uniqueInstanceId } from './helpers/ids.js';
 
 describe('Presence and read-state operations', () => {
   let client: ReturnType<typeof createTestClient>;
@@ -19,7 +20,7 @@ describe('Presence and read-state operations', () => {
 
   beforeEach(async () => {
     client = createTestClient();
-    instanceId = `presence-${Date.now()}`;
+    instanceId = uniqueInstanceId('presence');
     await client.post('/api/v1/instances', { instanceId });
   });
 

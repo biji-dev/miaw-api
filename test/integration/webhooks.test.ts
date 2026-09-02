@@ -13,6 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { startTestServer, stopTestServer, createTestClient } from './helpers/server.js';
+import { uniqueInstanceId } from './helpers/ids.js';
 import { WebhookTestServer } from './helpers/webhook.js';
 import { TEST_CONFIG } from './fixtures/data.js';
 import crypto from 'crypto';
@@ -35,7 +36,7 @@ describe('Phase 7 Webhook Tests', () => {
 
   beforeEach(async () => {
     client = createTestClient();
-    testInstanceId = `test-${Date.now()}`;
+    testInstanceId = uniqueInstanceId('test');
     webhookServer.clearEvents();
   });
 
@@ -347,7 +348,7 @@ describe('Phase 7 Webhook Tests', () => {
 
       it('should reject when no webhook URL configured', async () => {
         // Create instance without webhook
-        const noWebhookId = `test-${Date.now()}`;
+        const noWebhookId = uniqueInstanceId('test');
         await client.post('/api/v1/instances', {
           instanceId: noWebhookId,
           webhookUrl: '',
@@ -421,7 +422,7 @@ describe('Phase 7 Webhook Tests', () => {
       });
 
       it('should return null webhook URL when not configured', async () => {
-        const noWebhookId = `test-${Date.now()}`;
+        const noWebhookId = uniqueInstanceId('test');
         await client.post('/api/v1/instances', {
           instanceId: noWebhookId,
           webhookUrl: '',
