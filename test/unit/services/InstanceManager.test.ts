@@ -2,9 +2,9 @@
  * Unit tests for InstanceManager service
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 
-const coreMock = vi.hoisted(() => ({ clients: [] as any[], options: [] as any[] }));
+const coreMock = vi.hoisted(() => ({ clients: [] as any[], options: [] as any[], calls: [] as string[] }));
 
 // Mock miaw-core so createInstance does not spin up a real WhatsApp client
 vi.mock('miaw-core', () => {
@@ -15,9 +15,45 @@ vi.mock('miaw-core', () => {
       return this;
     });
     removeAllListeners = vi.fn();
-    disconnect = vi.fn();
+    disconnect = vi.fn(async () => { this.connected = false; coreMock.calls.push('disconnect'); });
+    connect = vi.fn(async () => { this.connected = true; coreMock.calls.push('connect'); });
     getOwnProfile = vi.fn(async () => ({ phone: '6281' }));
+    connected = false;
     options: any;
+
+    // Mirrors miaw-core: stages for the next connect(), never throws, and is
+    // refused outright when the client owns a custom agent.
+    setProxy = vi.fn((proxy: any) => {
+      coreMock.calls.push('setProxy');
+      const reconnectRequired = this.connected;
+      if (this.options?.agent || this.options?.fetchAgent) {
+        return { success: false, reconnectRequired: false, error: 'Cannot set proxy: this client was constructed with a custom agent/fetchAgent.' };
+      }
+      if (proxy === null || proxy === undefined) {
+        this.options = { ...this.options, proxy: undefined };
+        return { success: true, reconnectRequired };
+      }
+      const raw = typeof proxy === 'string' ? proxy : proxy.url;
+      if (!/^(https?|socks|socks4|socks4a|socks5|socks5h):\/\//.test(raw)) {
+        return { success: false, reconnectRequired: false, error: `Invalid proxy configuration: ${raw}` };
+      }
+      this.options = { ...this.options, proxy };
+      return { success: true, proxy: raw, reconnectRequired };
+    });
+
+    getProxyInfo = vi.fn(() => {
+      const proxy = this.options?.proxy;
+      if (!proxy) return null;
+      const raw = typeof proxy === 'string' ? proxy : proxy.url;
+      const url = new URL(raw);
+      if (url.password) url.password = '****';
+      return {
+        url: url.toString(),
+        protocol: url.protocol.replace(':', ''),
+        active: this.connected,
+      };
+    });
+
     constructor(opts: unknown) {
       this.options = opts;
       coreMock.clients.push(this);
@@ -41,7 +77,14 @@ vi.mock('miaw-core', () => {
   };
 });
 
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { InstanceManager } from '../../../src/services/InstanceManager.js';
+import {
+  InstanceStore,
+  getInstanceStorePath,
+} from '../../../src/services/InstanceStore.js';
 
 describe('InstanceManager.updateWebhook', () => {
   let manager: InstanceManager;
@@ -49,6 +92,7 @@ describe('InstanceManager.updateWebhook', () => {
   beforeEach(() => {
     coreMock.clients.length = 0;
     coreMock.options.length = 0;
+    coreMock.calls.length = 0;
     manager = new InstanceManager({
       sessionPath: './sessions',
       webhookSecret: 'test-secret',
@@ -173,7 +217,7 @@ describe('InstanceManager.updateWebhook', () => {
     expect(delivered.mock.calls[0][1].data).toEqual({ reason: 'logged out', statusCode: 401 });
   });
 
-  it('rebuilds a disconnected client with a replacement proxy', async () => {
+  it('stages a replacement proxy on the same client instead of rebuilding it', async () => {
     await manager.createInstance({
       instanceId: 'bot',
       webhookUrl: 'https://example.test/hook',
@@ -185,16 +229,17 @@ describe('InstanceManager.updateWebhook', () => {
       'http://region:secret@proxy.test:8080'
     );
 
-    expect(coreMock.clients).toHaveLength(2);
-    expect(coreMock.clients[0].removeAllListeners).toHaveBeenCalledOnce();
-    expect(coreMock.clients[1].disconnect).not.toHaveBeenCalled();
-    expect(coreMock.options[1]).toMatchObject({
-      instanceId: 'bot',
-      sessionPath: './sessions',
-      debug: true,
-      autoReconnect: false,
-      proxy: 'http://region:secret@proxy.test:8080',
-    });
+    // Reusing the client is the point: a second MiawClient on the same
+    // sessionPath/instanceId would give two writers on one auth state.
+    expect(coreMock.clients).toHaveLength(1);
+    expect(coreMock.clients[0].removeAllListeners).not.toHaveBeenCalled();
+    // Normalized through the URL parser, exactly as miaw-core's buildProxyUrl
+    // does, so a pin written here is byte-identical to a miaw-cli one.
+    expect(coreMock.clients[0].setProxy).toHaveBeenCalledWith(
+      'http://region:secret@proxy.test:8080/'
+    );
+    // Already disconnected, so nothing is torn down and nothing reconnects.
+    expect(coreMock.calls).toEqual(['setProxy']);
     expect(result).toMatchObject({
       source: 'explicit',
       protocol: 'http',
@@ -202,6 +247,48 @@ describe('InstanceManager.updateWebhook', () => {
     });
     expect(JSON.stringify(result)).not.toContain('secret');
     expect(manager.getInstance('bot')?.webhookUrl).toBe('https://example.test/hook');
+  });
+
+  it('disconnects before staging and reconnects after, when forced', async () => {
+    await manager.createInstance({ instanceId: 'bot' });
+    coreMock.clients[0].emitTest('connection', 'connected');
+
+    await manager.replaceProxy('bot', 'http://proxy.test:8080', { force: true });
+
+    // Order is load-bearing: staging before the teardown would let an
+    // auto-reconnect fire on the old egress.
+    expect(coreMock.calls).toEqual(['disconnect', 'setProxy', 'connect']);
+    expect(coreMock.clients).toHaveLength(1);
+  });
+
+  it('reports a core setProxy rejection instead of applying it', async () => {
+    await manager.createInstance({ instanceId: 'bot' });
+    coreMock.clients[0].setProxy.mockReturnValueOnce({
+      success: false,
+      reconnectRequired: false,
+      error: 'Invalid proxy configuration: http://nope',
+    });
+
+    await expect(
+      manager.replaceProxy('bot', 'http://proxy.test:8080')
+    ).rejects.toThrow('Invalid proxy configuration');
+    expect(manager.getProxy('bot').source).toBe('none');
+  });
+
+  it('rebuilds the client only when core refuses to stage on a custom agent', async () => {
+    await manager.createInstance({ instanceId: 'bot' });
+    coreMock.clients[0].setProxy.mockReturnValueOnce({
+      success: false,
+      reconnectRequired: false,
+      error: 'Cannot set proxy: this client was constructed with a custom agent/fetchAgent.',
+    });
+
+    const result = await manager.replaceProxy('bot', 'http://proxy.test:8080');
+
+    expect(coreMock.clients).toHaveLength(2);
+    expect(coreMock.clients[0].removeAllListeners).toHaveBeenCalledOnce();
+    expect(coreMock.options[1]).toMatchObject({ proxy: 'http://proxy.test:8080/' });
+    expect(result.source).toBe('explicit');
   });
 
   it.each(['connected', 'connecting', 'reconnecting', 'qr_required'])(
@@ -213,7 +300,7 @@ describe('InstanceManager.updateWebhook', () => {
       await expect(
         manager.replaceProxy('bot', 'http://proxy.test:8080')
       ).rejects.toThrow('must be disconnected');
-      expect(coreMock.clients).toHaveLength(1);
+      expect(coreMock.clients[0].setProxy).not.toHaveBeenCalled();
     }
   );
 
@@ -243,5 +330,162 @@ describe('InstanceManager.updateWebhook', () => {
       downloadProxied: false,
     });
     expect(select).toHaveBeenCalledWith('bot');
+  });
+});
+
+describe('InstanceManager persistence and pins', () => {
+  let dir: string;
+  let store: InstanceStore;
+
+  const build = (overrides: Record<string, unknown> = {}) =>
+    new InstanceManager({
+      sessionPath: './sessions',
+      webhookSecret: 'test-secret',
+      webhookTimeout: 1000,
+      webhookMaxRetries: 3,
+      webhookRetryDelay: 1000,
+      store,
+      ...overrides,
+    } as any);
+
+  beforeEach(() => {
+    coreMock.clients.length = 0;
+    coreMock.options.length = 0;
+    coreMock.calls.length = 0;
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'miaw-mgr-'));
+    store = new InstanceStore(getInstanceStorePath(dir));
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('persists a proxy supplied at creation as a pin', async () => {
+    const manager = build();
+    await manager.createInstance({
+      instanceId: 'bot',
+      webhookUrl: 'https://example.test/hook',
+      clientOptions: {
+        proxy: { url: 'http://proxy.test:8080', username: 'region', password: 'secret' },
+      },
+    });
+
+    const record = store.list().bot;
+    // Credentials fold into the URL exactly as core's buildProxyUrl does.
+    expect(record.proxy?.url).toBe('http://region:secret@proxy.test:8080/');
+    expect(record.proxy?.updatedAt).toBeTypeOf('string');
+    expect(record.webhookUrl).toBe('https://example.test/hook');
+    // The pin is the single source of truth; nothing shadows it. An otherwise
+    // empty clientOptions is omitted rather than stored as {}.
+    expect(record.clientOptions).toBeUndefined();
+    expect(manager.getProxy('bot').persisted).toBe(true);
+  });
+
+  it('restores instances and their pins without connecting them', async () => {
+    await store.upsert('bot', {
+      proxy: { url: 'http://proxy.test:8080/' },
+      webhookUrl: 'https://example.test/hook',
+      webhookEvents: ['ready'],
+      clientOptions: { debug: true },
+    });
+
+    const manager = build();
+    const restored = await manager.restore(store.list());
+
+    expect(restored).toEqual(['bot']);
+    expect(coreMock.options[0]).toMatchObject({
+      instanceId: 'bot',
+      debug: true,
+      proxy: 'http://proxy.test:8080/',
+    });
+    // Reconnecting paired sessions at boot is the caller's explicit decision.
+    expect(coreMock.calls).not.toContain('connect');
+
+    const state = manager.getInstance('bot');
+    expect(state?.status).toBe('disconnected');
+    expect(state?.webhookUrl).toBe('https://example.test/hook');
+    expect(state?.proxy).toMatchObject({ source: 'explicit', persisted: true });
+  });
+
+  it('skips an unusable record instead of aborting the whole restore', async () => {
+    await store.upsert('broken', { proxy: { label: 'nowhere' } });
+    await store.upsert('good', { proxy: { url: 'http://proxy.test:8080/' } });
+
+    // No pool configured, so the label cannot resolve.
+    const manager = build();
+    const restored = await manager.restore(store.list());
+
+    expect(restored).toEqual(['good']);
+    expect(manager.getInstance('broken')).toBeNull();
+  });
+
+  it('resolves a label pin through the pool and reports its own source', async () => {
+    const entry = { url: 'socks5h://eu1.test:1080', label: 'eu', weight: 1 };
+    const manager = build({
+      proxyPool: { select: vi.fn(), selectByLabel: vi.fn(() => entry) },
+    });
+
+    await manager.createInstance({ instanceId: 'bot' });
+    const info = await manager.replaceProxy('bot', { label: 'eu' });
+
+    expect(info.source).toBe('pin-label');
+    expect(store.list().bot.proxy).toMatchObject({ label: 'eu' });
+    // A label stores no credentials at all.
+    expect(JSON.stringify(store.list().bot.proxy)).not.toContain('://');
+  });
+
+  it('refuses an unresolvable label rather than falling back to a direct connection', async () => {
+    const manager = build({
+      proxyPool: {
+        select: vi.fn(),
+        selectByLabel: vi.fn(() => {
+          throw new Error('Cannot resolve proxy label "eu": no entry in the proxy pool carries it.');
+        }),
+      },
+    });
+    await manager.createInstance({ instanceId: 'bot' });
+
+    await expect(manager.replaceProxy('bot', { label: 'eu' })).rejects.toThrow(
+      'Cannot resolve proxy label'
+    );
+    // The old assignment survives a failed change.
+    expect(manager.getProxy('bot').source).toBe('none');
+  });
+
+  it('drops the stored pin when a change is not persisted', async () => {
+    const manager = build();
+    await manager.createInstance({
+      instanceId: 'bot',
+      clientOptions: { proxy: 'http://first.test:8080' },
+    });
+    expect(store.list().bot.proxy?.url).toBe('http://first.test:8080/');
+
+    await manager.replaceProxy('bot', 'http://second.test:8080', { persist: false });
+
+    // Leaving the old pin would silently restore the wrong egress on restart.
+    expect(store.list().bot.proxy).toBeUndefined();
+    expect(manager.getProxy('bot')).toMatchObject({
+      url: 'http://second.test:8080/',
+      persisted: false,
+    });
+  });
+
+  it('removes the stored record when the instance is deleted', async () => {
+    const manager = build();
+    await manager.createInstance({ instanceId: 'bot' });
+    expect(store.list()).toHaveProperty('bot');
+
+    await manager.deleteInstance('bot');
+    expect(store.list()).not.toHaveProperty('bot');
+  });
+
+  it('keeps serving requests when the store cannot be written', async () => {
+    const manager = build();
+    vi.spyOn(store, 'upsert').mockRejectedValue(new Error('disk full'));
+
+    await expect(manager.createInstance({ instanceId: 'bot' })).resolves.toMatchObject({
+      instanceId: 'bot',
+    });
+    expect(manager.getProxy('bot').persisted).toBe(false);
   });
 });

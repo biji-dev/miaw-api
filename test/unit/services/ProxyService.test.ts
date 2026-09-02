@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ProxyPoolService,
+  assertProxyReachable,
   describeProxy,
   testProxy,
 } from '../../../src/services/ProxyService.js';
@@ -158,5 +159,94 @@ describe('proxy descriptions and tests', () => {
       error: { code: 'ETIMEDOUT' },
     });
     expect(JSON.stringify(result)).not.toContain('secret');
+  });
+});
+
+describe('label pin resolution', () => {
+  const poolFile = () =>
+    proxyFile(
+      [
+        'http://region-id:secret@eu-1.test:8080 label=eu',
+        'http://region-id:secret@eu-2.test:8080 label=eu',
+        'socks5h://us-1.test:1080 label=us',
+      ].join('\n')
+    );
+
+  const service = async () => {
+    const created = await ProxyPoolService.create({
+      filePath: await poolFile(),
+      strategy: 'deterministic',
+      logger,
+    });
+    services.push(created);
+    return created;
+  };
+
+  it('resolves a label to a real entry, credentials included', async () => {
+    // getStats() masks its URLs because it exists to be printed, so an agent
+    // cannot be built from it - resolution must use the raw entries.
+    const selected = (await service()).selectByLabel('us', 'bot');
+    expect(selected.url).toBe('socks5h://us-1.test:1080');
+  });
+
+  it('keeps one instance on a stable entry when a label is shared', async () => {
+    const pool = await service();
+    const first = pool.selectByLabel('eu', 'bot-1');
+    expect(pool.selectByLabel('eu', 'bot-1').url).toBe(first.url);
+    expect(['http://region-id:secret@eu-1.test:8080', 'http://region-id:secret@eu-2.test:8080'])
+      .toContain(first.url);
+  });
+
+  it('throws for an unknown label rather than falling back to a direct route', async () => {
+    // Falling back would leak the real egress IP the pin exists to hide.
+    await expect(async () => (await service()).selectByLabel('apac', 'bot')).rejects.toThrow(
+      'no entry in the proxy pool carries it'
+    );
+  });
+
+  it('throws when no pool is configured at all', async () => {
+    const pool = await ProxyPoolService.create({ strategy: 'deterministic', logger });
+    services.push(pool);
+    expect(() => pool.selectByLabel('eu', 'bot')).toThrow('MIAW_PROXY_FILE');
+  });
+
+  it('picks up entries added by a reload', async () => {
+    const file = await proxyFile('http://old.test:8080 label=eu');
+    const pool = await ProxyPoolService.create({
+      filePath: file,
+      strategy: 'deterministic',
+      logger,
+    });
+    services.push(pool);
+
+    await writeFile(file, 'http://new.test:8080 label=eu\n', 'utf8');
+    await pool.reload();
+
+    expect(pool.selectByLabel('eu', 'bot').url).toBe('http://new.test:8080');
+  });
+});
+
+describe('assertProxyReachable', () => {
+  it('resolves when the probe succeeds', async () => {
+    await expect(
+      assertProxyReachable('http://proxy.test:8080', 1000, async () => 200)
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects with a credential-free message when the probe fails', async () => {
+    const fail = assertProxyReachable(
+      { url: 'http://proxy.test:8080', username: 'region', password: 'secret' },
+      1000,
+      async () => {
+        throw Object.assign(new Error('connect ECONNREFUSED http://region:secret@proxy.test:8080'), {
+          code: 'ECONNREFUSED',
+        });
+      }
+    );
+
+    await expect(fail).rejects.toThrow(/not reachable/);
+    const error = await fail.catch((e: Error) => e);
+    expect(error.message).not.toContain('secret');
+    expect(error.message).toContain('****');
   });
 });

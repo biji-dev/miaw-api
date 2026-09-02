@@ -8,12 +8,14 @@ import {
 } from 'miaw-core';
 import type {
   ProxyConfig,
+  ProxyInfo,
   ProxyPoolEntry,
   ProxyRotationStrategy,
 } from 'miaw-core';
+import type { EffectiveProxyInfo, ProxySource } from '../types/index.js';
 
 export type ProxyInput = ProxyConfig | string;
-export type ProxySource = 'explicit' | 'pool' | 'none';
+export type { EffectiveProxyInfo, ProxySource };
 
 interface ProxyLogger {
   info(data: object, message: string): void;
@@ -26,13 +28,6 @@ export interface ProxyPoolStatus {
   total: number;
   eligible: number;
   proxies: Array<{ url: string; weight: number; label?: string }>;
-}
-
-export interface EffectiveProxyInfo {
-  source: ProxySource;
-  url: string | null;
-  protocol: string | null;
-  downloadProxied: boolean;
 }
 
 export interface ProxyTestResult {
@@ -63,6 +58,14 @@ export class ProxyPoolService {
   private readonly logger: ProxyLogger;
   private rotator: ProxyRotator | null = null;
 
+  /**
+   * Raw pool entries, credentials included.
+   *
+   * `rotator.getStats()` masks its URLs because it exists to be printed, so a
+   * label pin cannot be resolved from it - an agent needs the real credentials.
+   */
+  private entries: ProxyPoolEntry[] = [];
+
   private constructor(options: ProxyPoolServiceOptions) {
     this.filePath = options.filePath;
     this.logger = options.logger;
@@ -76,6 +79,7 @@ export class ProxyPoolService {
       strategy: options.strategy,
       watch: true,
       onReload: (entries) => {
+        service.entries = [...entries];
         service.logger.info(
           { proxyCount: entries.length },
           'Proxy pool reloaded from watched file'
@@ -89,6 +93,18 @@ export class ProxyPoolService {
       },
     });
 
+    // onReload only fires on subsequent reloads, so seed the snapshot here.
+    // Lenient on purpose: one malformed line must not stop the server booting,
+    // which is already how the rotator treats the same file.
+    try {
+      service.entries = await loadProxyList(options.filePath, { strict: false });
+    } catch (error) {
+      options.logger.warn(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Could not snapshot the proxy pool; label pins will be unresolvable until the next reload'
+      );
+    }
+
     return service;
   }
 
@@ -98,6 +114,38 @@ export class ProxyPoolService {
 
   select(instanceId: string): ProxyPoolEntry | undefined {
     return this.rotator?.next(instanceId);
+  }
+
+  /**
+   * Resolve a `label` pin against the pool.
+   *
+   * Throws rather than falling back to a direct connection: a label that cannot
+   * be resolved must not silently leak the real egress IP, which is the whole
+   * reason the pin exists.
+   */
+  selectByLabel(label: string, instanceId: string): ProxyPoolEntry {
+    if (!this.rotator) {
+      throw new Error(
+        `Cannot resolve proxy label "${label}": no proxy pool is configured. Set MIAW_PROXY_FILE.`
+      );
+    }
+
+    const matches = this.entries.filter((entry) => entry.label === label);
+    if (matches.length === 0) {
+      throw new Error(
+        `Cannot resolve proxy label "${label}": no entry in the proxy pool carries it.`
+      );
+    }
+    if (matches.length === 1) return matches[0];
+
+    // Several entries share the label; pick deterministically so the instance
+    // keeps a stable egress IP across restarts.
+    const scoped = new ProxyRotator({ proxies: matches, strategy: 'deterministic' });
+    try {
+      return scoped.forInstance(instanceId);
+    } finally {
+      scoped.close();
+    }
   }
 
   getStatus(): ProxyPoolStatus {
@@ -128,6 +176,7 @@ export class ProxyPoolService {
 
     const entries = await loadProxyList(this.filePath, { strict: true });
     this.rotator.setProxies(entries);
+    this.entries = [...entries];
     this.logger.info(
       { proxyCount: entries.length },
       'Proxy pool reloaded on demand'
@@ -142,7 +191,9 @@ export class ProxyPoolService {
 
 export function describeProxy(
   proxy: ProxyInput | undefined,
-  source: ProxySource
+  source: ProxySource,
+  live?: ProxyInfo | null,
+  persisted = false
 ): EffectiveProxyInfo {
   if (!proxy) {
     return {
@@ -150,6 +201,10 @@ export function describeProxy(
       url: null,
       protocol: null,
       downloadProxied: false,
+      active: false,
+      appliesOnNextConnect: false,
+      persisted: false,
+      liveProxy: null,
     };
   }
 
@@ -161,12 +216,38 @@ export function describeProxy(
     // Invalid proxy inputs are rejected before this helper is called.
   }
 
+  // core's `pending` is the egress the open socket is still using - the
+  // opposite of what the name suggests - so it is surfaced as `liveProxy`.
+  const active = live?.active ?? false;
+
   return {
     source,
     url: maskProxyUrl(proxy),
     protocol,
     downloadProxied: protocol === 'http' || protocol === 'https',
+    active,
+    appliesOnNextConnect: !active,
+    persisted,
+    liveProxy: live?.pending ? { ...live.pending } : null,
   };
+}
+
+/**
+ * Probe a proxy and reject when it is unreachable.
+ *
+ * Opt-in: callers pass `validate: true`. The probe target is fixed and the
+ * error text is already credential-scrubbed by `testProxy`.
+ */
+export async function assertProxyReachable(
+  proxy: ProxyInput,
+  timeoutMs?: number,
+  requester?: ProxyRequester
+): Promise<void> {
+  const result = await testProxy(proxy, timeoutMs, requester);
+  if (result.reachable) return;
+  throw new Error(
+    `Proxy is not reachable: ${result.error?.message ?? 'no response'}`
+  );
 }
 
 export async function testProxy(

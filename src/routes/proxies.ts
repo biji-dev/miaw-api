@@ -1,5 +1,4 @@
 import type { FastifyInstance } from 'fastify';
-import type { ProxyConfig } from 'miaw-core';
 import { validateProxyConfig } from 'miaw-core';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import {
@@ -8,7 +7,12 @@ import {
   NotFoundError,
   ServiceUnavailableError,
 } from '../utils/errorHandler.js';
-import { testProxy, type ProxyInput } from '../services/ProxyService.js';
+import {
+  assertProxyReachable,
+  testProxy,
+  type ProxyInput,
+} from '../services/ProxyService.js';
+import type { EffectiveProxyInfo, ProxyAssignment } from '../types/index.js';
 
 const instanceParams = {
   type: 'object',
@@ -17,6 +21,59 @@ const instanceParams = {
     instanceId: { type: 'string' },
   },
 };
+
+/** Body shared by the proxy endpoints and the connect endpoints. */
+export interface ProxyMutationBody {
+  proxy?: ProxyAssignment | null;
+  validate?: boolean;
+  force?: boolean;
+  persist?: boolean;
+  timeoutMs?: number;
+}
+
+/**
+ * Validate, optionally probe, then apply a proxy assignment to an instance.
+ *
+ * Shared so `PUT /proxy` and the connect endpoints cannot drift apart on
+ * validation, masking or error mapping.
+ */
+export async function applyProxyMutation(
+  server: FastifyInstance,
+  instanceId: string,
+  body: ProxyMutationBody
+): Promise<EffectiveProxyInfo> {
+  // Fastify runs AJV with coerceTypes, which turns null into "" if the string
+  // branch of proxyConfig is tried first. The schema orders the null branch to
+  // prevent that; this keeps a clear working even if that ordering is lost.
+  const proxy = body.proxy === '' ? null : body.proxy;
+
+  if (proxy !== undefined && proxy !== null) {
+    const isLabel = typeof proxy === 'object' && 'label' in proxy;
+    if (!isLabel && !validateProxyConfig(proxy as ProxyInput)) {
+      throw new BadRequestError('Invalid proxy configuration');
+    }
+    // A label has no URL to probe until the pool resolves it, which happens
+    // inside the manager - so only URL forms are probed here.
+    if (body.validate && !isLabel) {
+      try {
+        await assertProxyReachable(proxy as ProxyInput, body.timeoutMs);
+      } catch (error) {
+        throw new BadRequestError(
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+  }
+
+  try {
+    return await server.instanceManager.replaceProxy(instanceId, proxy, {
+      force: body.force ?? false,
+      persist: body.persist ?? true,
+    });
+  } catch (error) {
+    throw mapInstanceProxyError(error);
+  }
+}
 
 export async function proxyRoutes(server: FastifyInstance): Promise<void> {
   server.addHook('onRequest', createAuthMiddleware());
@@ -111,49 +168,48 @@ export async function proxyRoutes(server: FastifyInstance): Promise<void> {
   server.put('/instances/:instanceId/proxy', {
     schema: {
       tags: ['Proxies'],
-      summary: 'Replace a disconnected instance proxy',
+      summary: 'Set an instance proxy',
+      description:
+        'Sets the egress for one instance. The instance must be disconnected ' +
+        'unless `force` is set, because changing a live session\'s IP is read ' +
+        'by WhatsApp as account takeover. Accepts a URL, a ProxyConfig, or a ' +
+        '`{ label }` reference to the proxy pool, which stores no credentials.',
       params: instanceParams,
       body: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['proxy'],
-        properties: {
-          proxy: { $ref: 'proxyConfig#' },
-        },
+        allOf: [
+          { $ref: 'proxyMutation#' },
+          // `type` is required alongside `required` under AJV strict mode.
+          { type: 'object', required: ['proxy'] },
+        ],
       },
     },
-  }, async (request) => {
-    const { instanceId } = request.params as { instanceId: string };
-    const { proxy } = request.body as { proxy: ProxyConfig | string };
-    if (!validateProxyConfig(proxy)) {
-      throw new BadRequestError('Invalid proxy configuration');
-    }
-    try {
-      return {
-        success: true,
-        data: await server.instanceManager.replaceProxy(instanceId, proxy),
-      };
-    } catch (error) {
-      throw mapInstanceProxyError(error);
-    }
-  });
+  }, async (request) => ({
+    success: true,
+    data: await applyProxyMutation(
+      server,
+      (request.params as { instanceId: string }).instanceId,
+      request.body as ProxyMutationBody
+    ),
+  }));
 
   server.delete('/instances/:instanceId/proxy', {
     schema: {
       tags: ['Proxies'],
       summary: 'Remove an instance proxy override',
       params: instanceParams,
+      querystring: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { force: { type: 'boolean', default: false } },
+      },
     },
   }, async (request) => {
     const { instanceId } = request.params as { instanceId: string };
-    try {
-      return {
-        success: true,
-        data: await server.instanceManager.replaceProxy(instanceId),
-      };
-    } catch (error) {
-      throw mapInstanceProxyError(error);
-    }
+    const { force } = request.query as { force?: boolean };
+    return {
+      success: true,
+      data: await applyProxyMutation(server, instanceId, { proxy: null, force }),
+    };
   });
 }
 

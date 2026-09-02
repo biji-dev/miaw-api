@@ -11,11 +11,13 @@ import {
   maskProxyUrl,
   validateProxyConfig,
 } from 'miaw-core';
-import type { ProxyConfig } from 'miaw-core';
 import { pino } from 'pino';
 import {
   InstanceConfig,
+  InstanceProxyPin,
   InstanceState,
+  ProxyAssignment,
+  StoredInstanceRecord,
   WebhookEvent,
   WebhookPayload,
 } from '../types/index.js';
@@ -26,6 +28,7 @@ import {
   type ProxyPoolService,
   type ProxySource,
 } from './ProxyService.js';
+import type { InstanceStore } from './InstanceStore.js';
 
 interface InstanceManagerOptions {
   sessionPath: string;
@@ -34,6 +37,14 @@ interface InstanceManagerOptions {
   webhookMaxRetries: number;
   webhookRetryDelay: number;
   proxyPool?: ProxyPoolService;
+  store?: InstanceStore;
+}
+
+export interface ReplaceProxyOptions {
+  /** Swap on a live instance: disconnect, restage, reconnect. */
+  force?: boolean;
+  /** Write the assignment to instances.json. Defaults to true. */
+  persist?: boolean;
 }
 
 interface ManagedInstance {
@@ -46,6 +57,37 @@ interface ManagedInstance {
   pairingRetryTimeout?: NodeJS.Timeout;
   effectiveProxy?: ProxyInput;
   proxySource: ProxySource;
+  /** In-memory truth for the assignment; mirrored to instances.json. */
+  pin?: InstanceProxyPin;
+  persisted: boolean;
+}
+
+/**
+ * Convert a caller-supplied proxy into the pin shape stored on disk.
+ *
+ * Credentials are folded into the URL exactly as miaw-core's `buildProxyUrl`
+ * does (`url.username = ...`), so a pin written here is byte-identical to one
+ * written by `miaw-cli instance set-proxy` and percent-encoding is handled by
+ * the URL parser rather than by hand.
+ */
+function pinFromProxy(proxy: ProxyAssignment): InstanceProxyPin {
+  const updatedAt = new Date().toISOString();
+
+  if (typeof proxy === 'object' && 'label' in proxy) {
+    return { label: proxy.label, updatedAt };
+  }
+
+  const raw = typeof proxy === 'string' ? proxy : proxy.url;
+  const url = new URL(raw);
+  if (typeof proxy !== 'string') {
+    if (proxy.username) url.username = proxy.username;
+    if (proxy.password) url.password = proxy.password;
+  }
+  return { url: url.toString(), updatedAt };
+}
+
+function isLabelRef(proxy: ProxyAssignment): proxy is { label: string } {
+  return typeof proxy === 'object' && 'label' in proxy;
 }
 
 /**
@@ -75,8 +117,21 @@ export class InstanceManager extends EventEmitter {
     this.logger.info({ instanceId }, 'Creating instance');
 
     const storedConfig = this.cloneConfig(config);
+
+    // A proxy supplied at creation becomes a pin, so it is persisted and
+    // resolved by exactly the same path as one set later through the API.
+    let pin: InstanceProxyPin | undefined;
+    const supplied = storedConfig.clientOptions?.proxy;
+    if (supplied !== undefined) {
+      if (!validateProxyConfig(supplied)) {
+        throw new Error(`Invalid proxy configuration: ${maskProxyUrl(supplied)}`);
+      }
+      pin = pinFromProxy(supplied);
+      delete storedConfig.clientOptions?.proxy;
+    }
+
     const { proxy: effectiveProxy, source: proxySource } =
-      this.resolveEffectiveProxy(storedConfig);
+      this.resolveEffectiveProxy(storedConfig, pin);
     const client = this.createClient(storedConfig, effectiveProxy);
 
     // Set up event handlers
@@ -100,9 +155,12 @@ export class InstanceManager extends EventEmitter {
       state,
       effectiveProxy,
       proxySource,
+      pin,
+      persisted: false,
     };
 
     this.instances.set(instanceId, managed);
+    await this.persist(instanceId);
 
     // miaw-core 1.10.0 still requests a pairing code immediately after constructing
     // its socket. Baileys rejects that pre-handshake request; retry once after
@@ -113,7 +171,70 @@ export class InstanceManager extends EventEmitter {
 
     this.logger.info({ instanceId }, 'Instance created');
 
-    return state;
+    return this.toPublicState(managed);
+  }
+
+  /**
+   * Rebuild instances from the persistent store at boot.
+   *
+   * Clients are constructed but never connected - reconnecting N paired
+   * sessions in a burst is a thundering herd against WhatsApp, so that is the
+   * caller's explicit decision. One unusable record must not stop the server,
+   * so failures are isolated and logged.
+   */
+  async restore(records: Record<string, StoredInstanceRecord>): Promise<string[]> {
+    const restored: string[] = [];
+
+    for (const [instanceId, record] of Object.entries(records)) {
+      if (this.instances.has(instanceId)) continue;
+
+      try {
+        const config: InstanceConfig = {
+          instanceId,
+          webhookUrl: record.webhookUrl,
+          webhookEvents: record.webhookEvents,
+          clientOptions: record.clientOptions,
+        };
+        const pin = record.proxy;
+        const { proxy: effectiveProxy, source: proxySource } =
+          this.resolveEffectiveProxy(config, pin);
+        const client = this.createClient(config, effectiveProxy);
+        this.setupClientEvents(instanceId, client);
+
+        this.instances.set(instanceId, {
+          config,
+          client,
+          state: {
+            instanceId,
+            status: 'disconnected',
+            webhookEvents: config.webhookEvents || [],
+            webhookUrl: config.webhookUrl,
+            webhookEnabled: !!config.webhookUrl,
+            authMode: config.clientOptions?.usePairingCode ? 'pairing_code' : 'qr',
+            createdAt: new Date(),
+            lastActivity: new Date(),
+          },
+          effectiveProxy,
+          proxySource,
+          pin,
+          persisted: true,
+        });
+
+        restored.push(instanceId);
+        this.logger.info(
+          { instanceId, proxy: describeProxy(effectiveProxy, proxySource) },
+          'Instance restored from store'
+        );
+      } catch (error) {
+        // Refusing one instance beats booting it onto the wrong egress IP.
+        this.logger.error(
+          { instanceId, error: error instanceof Error ? error.message : String(error) },
+          'Could not restore instance; skipping it'
+        );
+      }
+    }
+
+    return restored;
   }
 
   /**
@@ -121,14 +242,14 @@ export class InstanceManager extends EventEmitter {
    */
   getInstance(instanceId: string): InstanceState | null {
     const managed = this.instances.get(instanceId);
-    return managed ? managed.state : null;
+    return managed ? this.toPublicState(managed) : null;
   }
 
   /**
    * List all instances
    */
   listInstances(): InstanceState[] {
-    return Array.from(this.instances.values()).map((m) => m.state);
+    return Array.from(this.instances.values()).map((m) => this.toPublicState(m));
   }
 
   /**
@@ -154,6 +275,17 @@ export class InstanceManager extends EventEmitter {
 
     // Delete from map
     this.instances.delete(instanceId);
+
+    if (this.options.store) {
+      try {
+        await this.options.store.remove(instanceId);
+      } catch (error) {
+        this.logger.warn(
+          { instanceId, error: error instanceof Error ? error.message : String(error) },
+          'Could not remove the stored instance record'
+        );
+      }
+    }
 
     this.logger.info({ instanceId }, 'Instance deleted');
   }
@@ -186,9 +318,10 @@ export class InstanceManager extends EventEmitter {
     }
 
     this.updateState(instanceId, patch);
+    void this.persist(instanceId);
     this.logger.info({ instanceId }, 'Webhook updated');
 
-    return managed.state;
+    return this.toPublicState(managed);
   }
 
   /**
@@ -202,61 +335,120 @@ export class InstanceManager extends EventEmitter {
   getProxy(instanceId: string): EffectiveProxyInfo {
     const managed = this.instances.get(instanceId);
     if (!managed) throw new Error(`Instance ${instanceId} not found`);
-    return describeProxy(managed.effectiveProxy, managed.proxySource);
+    return this.describeManagedProxy(managed);
   }
 
+  /**
+   * Change an instance's proxy.
+   *
+   * miaw-core stages a proxy for the next connect() rather than touching a live
+   * socket, so the order below is load-bearing and comes straight from core's
+   * failover recipe: **disconnect first, then setProxy(), then connect()**.
+   * Staging before the teardown would let an auto-reconnect fire on the old
+   * egress; changing a connected session's IP is read by WhatsApp as account
+   * takeover, which is why `force` is required to do it at all.
+   *
+   * Disconnecting first also sidesteps a core reporting gap: `setProxy(null)`
+   * on a live client makes `getProxyInfo()` return null while the socket is
+   * still on the old proxy. We never enter that window.
+   *
+   * @param proxy - a URL, a ProxyConfig, a `{ label }` pool reference, or
+   *   null/undefined to clear the assignment and fall back to pool or direct.
+   */
   async replaceProxy(
     instanceId: string,
-    proxy?: ProxyConfig | string
+    proxy?: ProxyAssignment | null,
+    options: ReplaceProxyOptions = {}
   ): Promise<EffectiveProxyInfo> {
     const managed = this.instances.get(instanceId);
     if (!managed) throw new Error(`Instance ${instanceId} not found`);
-    if (managed.state.status !== 'disconnected') {
+
+    const force = options.force ?? false;
+    const persist = options.persist ?? true;
+    const wasActive = managed.state.status !== 'disconnected';
+
+    if (wasActive && !force) {
       throw new Error('Instance must be disconnected before changing its proxy');
     }
-    if (proxy !== undefined && !validateProxyConfig(proxy)) {
-      throw new Error(`Invalid proxy configuration: ${maskProxyUrl(proxy)}`);
+
+    let nextPin: InstanceProxyPin | undefined;
+    if (proxy !== undefined && proxy !== null) {
+      if (!isLabelRef(proxy) && !validateProxyConfig(proxy)) {
+        throw new Error(`Invalid proxy configuration: ${maskProxyUrl(proxy)}`);
+      }
+      nextPin = pinFromProxy(proxy);
     }
 
+    // The pin is the single source of truth, so no stale clientOptions.proxy
+    // can shadow it later.
     const nextClientOptions = { ...(managed.config.clientOptions || {}) };
-    if (proxy === undefined) {
-      delete nextClientOptions.proxy;
-    } else {
-      nextClientOptions.proxy = proxy;
-    }
-
+    delete nextClientOptions.proxy;
     const nextConfig: InstanceConfig = {
       ...managed.config,
       clientOptions: nextClientOptions,
     };
-    const { proxy: effectiveProxy, source: proxySource } =
-      this.resolveEffectiveProxy(nextConfig);
-    const nextClient = this.createClient(nextConfig, effectiveProxy);
 
-    if (managed.pairingRetryTimeout) clearTimeout(managed.pairingRetryTimeout);
-    await managed.client.disconnect();
-    managed.client.removeAllListeners();
-    this.setupClientEvents(instanceId, nextClient);
-    managed.client = nextClient;
+    // Resolving before any teardown means an unresolvable label fails while the
+    // instance is still intact.
+    const { proxy: effectiveProxy, source: proxySource } =
+      this.resolveEffectiveProxy(nextConfig, nextPin);
+
+    if (managed.pairingRetryTimeout) {
+      clearTimeout(managed.pairingRetryTimeout);
+      managed.pairingRetryTimeout = undefined;
+    }
+    if (wasActive) {
+      await managed.client.disconnect();
+    }
+
+    const staged = managed.client.setProxy(effectiveProxy ?? null);
+    if (!staged.success) {
+      if (staged.error?.includes('custom agent')) {
+        // The only case staging cannot serve: a client built with its own
+        // agent/fetchAgent never consults options.proxy. Unreachable today -
+        // this API never passes those - so rebuilding is a narrow fallback.
+        this.rebuildClient(instanceId, managed, nextConfig, effectiveProxy);
+      } else {
+        throw new Error(staged.error || 'Invalid proxy configuration');
+      }
+    }
+
     managed.config = nextConfig;
     managed.effectiveProxy = effectiveProxy;
     managed.proxySource = proxySource;
+    managed.pin = nextPin;
     managed.qrCode = undefined;
     managed.pairingCode = undefined;
-    managed.pairingRetryTimeout = undefined;
 
     if (nextConfig.clientOptions?.usePairingCode && nextConfig.clientOptions.phoneNumber) {
       this.schedulePairingCodeRetry(
         instanceId,
-        nextClient,
+        managed.client,
         nextConfig.clientOptions.phoneNumber
       );
     }
 
+    if (persist) {
+      await this.persist(instanceId);
+    } else if (managed.persisted) {
+      // Drop the stored pin rather than leave a stale one to win on the next
+      // restart, which would silently move the instance to another egress IP.
+      await this.forgetPin(instanceId);
+    }
+
+    if (wasActive) {
+      await managed.client.connect();
+    }
+
     this.logger.info(
-      { instanceId, proxy: describeProxy(effectiveProxy, proxySource) },
+      {
+        instanceId,
+        proxy: describeProxy(effectiveProxy, proxySource),
+        reconnected: wasActive,
+      },
       'Instance proxy replaced'
     );
+
     return this.getProxy(instanceId);
   }
 
@@ -288,7 +480,104 @@ export class InstanceManager extends EventEmitter {
     };
   }
 
-  private resolveEffectiveProxy(config: InstanceConfig): {
+  /** State as the API reports it: the proxy is computed on read, never cached. */
+  private toPublicState(managed: ManagedInstance): InstanceState {
+    return { ...managed.state, proxy: this.describeManagedProxy(managed) };
+  }
+
+  private describeManagedProxy(managed: ManagedInstance): EffectiveProxyInfo {
+    return describeProxy(
+      managed.effectiveProxy,
+      managed.proxySource,
+      managed.client.getProxyInfo(),
+      managed.persisted
+    );
+  }
+
+  /**
+   * Mirror an instance to the store.
+   *
+   * Never throws: losing a write is worth a warning, not a failed request. The
+   * record is merged, so keys written by `miaw-cli` that this API does not know
+   * about survive.
+   */
+  private async persist(instanceId: string): Promise<void> {
+    const store = this.options.store;
+    const managed = this.instances.get(instanceId);
+    if (!store || !managed) return;
+
+    const clientOptions = { ...(managed.config.clientOptions || {}) };
+    delete clientOptions.proxy;
+
+    try {
+      await store.upsert(instanceId, {
+        proxy: managed.pin,
+        webhookUrl: managed.state.webhookUrl,
+        webhookEvents: managed.state.webhookEvents,
+        clientOptions: Object.keys(clientOptions).length ? clientOptions : undefined,
+      });
+      managed.persisted = true;
+    } catch (error) {
+      this.logger.warn(
+        { instanceId, error: error instanceof Error ? error.message : String(error) },
+        'Could not persist the instance record'
+      );
+    }
+  }
+
+  /**
+   * Remove only the stored proxy pin, keeping the rest of the record.
+   *
+   * Used when a caller asks for an in-memory-only change: leaving the old pin
+   * behind would restore the wrong egress IP on the next boot.
+   */
+  private async forgetPin(instanceId: string): Promise<void> {
+    const store = this.options.store;
+    const managed = this.instances.get(instanceId);
+    if (!store || !managed) return;
+
+    try {
+      await store.upsert(instanceId, { proxy: undefined });
+    } catch (error) {
+      this.logger.warn(
+        { instanceId, error: error instanceof Error ? error.message : String(error) },
+        'Could not drop the stored proxy pin'
+      );
+    }
+    managed.persisted = false;
+  }
+
+  /**
+   * Replace the underlying client outright.
+   *
+   * Only reachable when setProxy() refuses because the client owns a custom
+   * agent. Kept as a fallback rather than deleted so that path stays correct if
+   * this API ever passes one.
+   */
+  private rebuildClient(
+    instanceId: string,
+    managed: ManagedInstance,
+    config: InstanceConfig,
+    proxy?: ProxyInput
+  ): void {
+    const nextClient = this.createClient(config, proxy);
+    managed.client.removeAllListeners();
+    this.setupClientEvents(instanceId, nextClient);
+    managed.client = nextClient;
+  }
+
+  /**
+   * Resolve one instance's egress, highest precedence first:
+   * explicit clientOptions.proxy, the stored pin (url or label), the pool, direct.
+   *
+   * This deliberately omits miaw-core's `MIAW_PROXY` step. Reading a global
+   * environment proxy here would silently outrank every per-instance
+   * assignment - see docs/SECURITY.md.
+   */
+  private resolveEffectiveProxy(
+    config: InstanceConfig,
+    pin?: InstanceProxyPin
+  ): {
     proxy?: ProxyInput;
     source: ProxySource;
   } {
@@ -298,6 +587,27 @@ export class InstanceManager extends EventEmitter {
         throw new Error(`Invalid proxy configuration: ${maskProxyUrl(explicit)}`);
       }
       return { proxy: explicit, source: 'explicit' };
+    }
+
+    if (pin?.url) {
+      if (!validateProxyConfig(pin.url)) {
+        throw new Error(`Invalid proxy configuration: ${maskProxyUrl(pin.url)}`);
+      }
+      return { proxy: pin.url, source: 'explicit' };
+    }
+
+    if (pin?.label) {
+      if (!this.options.proxyPool) {
+        throw new Error(
+          `Cannot resolve proxy label "${pin.label}": no proxy pool is configured. Set MIAW_PROXY_FILE.`
+        );
+      }
+      // Throws when unresolvable, on purpose - falling back to a direct
+      // connection would leak the egress IP the pin exists to hide.
+      return {
+        proxy: this.options.proxyPool.selectByLabel(pin.label, config.instanceId),
+        source: 'pin-label',
+      };
     }
 
     const pooled = this.options.proxyPool?.select(config.instanceId);

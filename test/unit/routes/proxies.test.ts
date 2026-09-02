@@ -180,11 +180,17 @@ describe('proxy routes', () => {
       proxy: replacement,
     });
     expect(replaced.statusCode).toBe(200);
-    expect(manager.replaceProxy).toHaveBeenCalledWith('bot', replacement);
+    expect(manager.replaceProxy).toHaveBeenCalledWith('bot', replacement, {
+      force: false,
+      persist: true,
+    });
 
     const cleared = await inject('DELETE', '/api/v1/instances/bot/proxy');
     expect(cleared.statusCode).toBe(200);
-    expect(manager.replaceProxy).toHaveBeenCalledWith('bot');
+    expect(manager.replaceProxy).toHaveBeenCalledWith('bot', null, {
+      force: false,
+      persist: true,
+    });
   });
 
   it('maps missing instances and live proxy changes to REST errors', async () => {

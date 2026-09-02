@@ -31,6 +31,10 @@ interface Config {
   proxyFile?: string;
   proxyStrategy: ProxyRotationStrategy;
 
+  // Persistent instance store
+  instanceStoreFile?: string;
+  restoreAutoConnect: boolean;
+
   // Webhook Configuration
   webhookTimeout: number;
   webhookMaxRetries: number;
@@ -50,6 +54,8 @@ function loadConfig(): Config {
     sessionPath: process.env.SESSION_PATH || './sessions',
     proxyFile: process.env.MIAW_PROXY_FILE || undefined,
     proxyStrategy: parseProxyStrategy(process.env.MIAW_PROXY_STRATEGY),
+    instanceStoreFile: process.env.INSTANCE_STORE_FILE || undefined,
+    restoreAutoConnect: process.env.RESTORE_AUTOCONNECT === 'true',
     webhookTimeout: parseInt(process.env.WEBHOOK_TIMEOUT_MS || '10000', 10),
     webhookMaxRetries: parseInt(process.env.WEBHOOK_MAX_RETRIES || '6', 10),
     webhookRetryDelay: parseInt(process.env.WEBHOOK_RETRY_DELAY_MS || '60000', 10),
