@@ -35,6 +35,8 @@ protected endpoints now live under `/api/v1`.
 - Rich messaging, chat operations, statuses, business extras, and communities
 - LID mapping/resolution plus safe proxy-pool management, testing, and masked
   runtime inspection
+- Per-instance proxies settable at creation, at connect time, or on a live
+  instance, persisted across restarts and shared with `miaw-cli`
 - Webhooks for pairing codes, poll votes, message receipts, and session saves
 - ESM runtime compatible with the ESM-only `miaw-core`
 
@@ -176,14 +178,24 @@ LOG_LEVEL=info
 ```
 
 `MIAW_PROXY_FILE` accepts the TXT and JSON formats supported by
-`miaw-core` 1.10.0. Pool entries are assigned to new instances using
-`deterministic` selection by default, so a stable `instanceId` keeps a stable
-egress proxy. An explicit `clientOptions.proxy` supplied during instance
-creation takes precedence over the pool.
+`miaw-core`. Pool entries are assigned to new instances using `deterministic`
+selection by default, so a stable `instanceId` keeps a stable egress proxy.
+
+Precedence is: an explicit assignment, then the stored pin, then the pool, then
+a direct connection. Unlike `miaw-cli`, this API deliberately ignores
+`MIAW_PROXY` — a global environment proxy would silently outrank every
+per-instance assignment.
+
+Instances and their proxies persist to `<SESSION_PATH>/instances.json` and are
+restored at boot, so a restart cannot silently move a paired session to a
+different egress IP. That is the same file `miaw-cli instance set-proxy` writes,
+and the two tools preserve each other's fields. Restored instances are not
+connected automatically; set `RESTORE_AUTOCONNECT=true` for that.
 
 Proxy passwords are never returned by the API. Manage the pool file as a
 mounted secret and use `POST /api/v1/proxy-pool/reloads` after replacing it
-when an immediate reload is required.
+when an immediate reload is required. Prefer `{"label":"eu"}` assignments,
+which reference the pool and store no credentials at all.
 
 ### Running
 
@@ -449,6 +461,8 @@ The v1-style command routes and body-based identifiers were removed in 2.0.0.
 | `SESSION_PATH`           | ./sessions | Session storage path                 |
 | `MIAW_PROXY_FILE`        | -          | Optional mounted TXT/JSON proxy pool |
 | `MIAW_PROXY_STRATEGY`    | deterministic | Pool selection strategy           |
+| `INSTANCE_STORE_FILE`    | `$SESSION_PATH/instances.json` | Persistent instance/proxy store |
+| `RESTORE_AUTOCONNECT`    | false      | Connect restored instances at boot   |
 | `LOG_LEVEL`              | info       | Log level (debug, info, warn, error) |
 | `CORS_ORIGIN`            | \*         | CORS allowed origin                  |
 

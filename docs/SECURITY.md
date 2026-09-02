@@ -275,6 +275,43 @@ credentials:
 - Restrict API access to `POST /api/v1/proxy-tests`. It probes only the fixed
   WhatsApp Web target and cannot be used as an arbitrary URL fetcher.
 
+### The instance store holds credentials
+
+Per-instance assignments persist to `<SESSION_PATH>/instances.json`, the same
+file `miaw-cli instance set-proxy` writes. It is created `0600` via an atomic
+temp-and-rename, and the API warns once per path if it finds the file group- or
+world-readable.
+
+- **A `url` assignment stores the proxy password in plaintext.** Prefer
+  `{"label":"eu"}`, which records only the label and resolves through
+  `MIAW_PROXY_FILE`. Credentials then live in one mounted secret, and rotating a
+  password touches nothing else.
+- Keep the file on the same persistent volume as the sessions. Losing it drops
+  every assignment, so each instance falls back to pool selection or a direct
+  connection on its next connect — a silent egress-IP change on a paired
+  session, which WhatsApp reads as account takeover.
+- It deliberately sits beside the instance directories rather than inside them,
+  because logout deletes an instance directory outright.
+- A corrupt store fails startup rather than being treated as empty. An empty
+  store would connect every instance directly and leak the egress IP the
+  assignments exist to hide.
+
+### Changing a proxy on a live instance
+
+`PUT /api/v1/instances/:id/proxy` and the connect endpoints return `409` on a
+non-disconnected instance unless `force` is set. With `force`, the instance is
+disconnected, the proxy is staged, and it is reconnected.
+
+**Rotation is for distributing instances across proxies, never for rotating a
+live session's IP.** Reserve `force` for a proxy that has actually failed.
+
+### `MIAW_PROXY` is deliberately ignored
+
+`miaw-cli` honours a `MIAW_PROXY` environment variable above every per-instance
+pin. This API does not read it, because a cluster-wide value would silently
+outrank every assignment and route every instance through one egress. If you
+operate both tools against one session volume, do not set `MIAW_PROXY`.
+
 ## Deployment Recommendations
 
 ### Use HTTPS
