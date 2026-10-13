@@ -5,6 +5,11 @@
   "description": "REST API wrapper for miaw-core - Multiple Instance of App WhatsApp",
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    ".env.example"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
