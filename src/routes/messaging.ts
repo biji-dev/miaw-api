@@ -570,7 +570,7 @@ export async function messagingRoutes(server: FastifyInstance): Promise<void> {
     '/instances/:instanceId/chats/:chatJid/message-history-loads',
     {
       schema: {
-        description: 'Load more messages from chat history (pagination). Fetches older messages beyond what is currently in memory.',
+        description: 'Load more messages from chat history (pagination). Fetches older messages beyond what is currently in memory. History sync is lazy by default (`syncFullHistory: false`), so this is how older messages are fetched after pairing.',
         tags: ['Messaging'],
         summary: 'Load more messages',
         params: {

@@ -239,7 +239,7 @@ export async function basicGetsRoutes(server: FastifyInstance, instanceManager: 
 **What is @lid?**
 WhatsApp uses LID (Limited ID) as a privacy measure for phone numbers. When WhatsApp doesn't want to expose the actual phone number, it returns an @lid JID instead. Use the \`resolveLidToJid\` method to convert LIDs to actual phone JIDs.
 
-**Note:** Returns empty array if chat has no messages in store.
+**Note:** Returns empty array if chat has no messages in store. History sync is lazy by default (\`syncFullHistory: false\`): the store holds the messages from the initial bootstrap plus everything received since. Use \`POST /instances/:instanceId/chats/:chatJid/message-history-loads\` to page older messages in, or create the instance with \`clientOptions.syncFullHistory: true\`.
 
 **Response:** Array of MiawMessage objects with:
 - \`id\`: Message ID
@@ -248,7 +248,8 @@ WhatsApp uses LID (Limited ID) as a privacy measure for phone numbers. When What
 - \`text\`: Message text (if text message)
 - \`type\`: Message type (text, image, video, audio, document, sticker)
 - \`timestamp\`: Unix timestamp
-- \`fromMe\`: true if sent by authenticated user`,
+- \`fromMe\`: true if sent by authenticated user
+- \`sentByThisClient\`: true on a \`fromMe\` message sent through this API; absent when the user sent it from their phone or another linked device`,
       params: {
         type: 'object',
         required: ['instanceId', 'chatJid'],

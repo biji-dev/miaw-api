@@ -1,6 +1,6 @@
 # Miaw API Testing Guide
 
-**Last updated:** 2026-09-03
+**Last updated:** 2026-10-13
 
 Miaw API uses Vitest. Automated tests do not require a WhatsApp account; live
 protocol scenarios are opt-in.
@@ -39,14 +39,17 @@ pnpm test:integration -- instance-management
 pnpm test:integration -- messaging
 ```
 
-The integration helper starts and stops the Fastify server itself. Test files
+The integration helper starts and stops the Fastify server itself, on port
+3000 by default. Set `MIAW_TEST_PORT` if that port is taken by another local
+service (`MIAW_TEST_PORT=3100 pnpm test:integration`); otherwise every suite
+fails with `EADDRINUSE` while its requests reach the other service. Test files
 run serially to avoid sharing ports and session state. WhatsApp-dependent cases
 are marked skipped; the remaining HTTP, validation, authentication, webhook,
 and lifecycle scenarios are suitable for CI.
 
 Current baseline:
 
-- 295 unit/contract tests.
+- 303 unit/contract tests.
 - 117 automated integration tests.
 - 217 explicitly skipped live scenarios.
 

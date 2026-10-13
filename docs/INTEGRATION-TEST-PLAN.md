@@ -1,7 +1,7 @@
 # Miaw API Integration Test Plan
 
 **Status:** Active
-**Last updated:** 2026-07-12
+**Last updated:** 2026-10-13
 
 ## Objectives
 
@@ -42,7 +42,8 @@ on pull-request CI.
 
 ## Test environment
 
-The integration helper sets the API server to `127.0.0.1:3000`, creates an
+The integration helper sets the API server to `127.0.0.1:3000` (override with
+`MIAW_TEST_PORT` when that port is taken), creates an
 isolated `InstanceManager`, and shuts down the manager and webhook dispatcher on
 server close. Local webhook receivers start at port 3001 and fall back to an
 ephemeral port if necessary.

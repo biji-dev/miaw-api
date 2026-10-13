@@ -171,6 +171,7 @@ export function registerSchemas(server: FastifyInstance): void {
           qrScanTimeout: { type: 'integer', minimum: 1000 },
           connectionTimeout: { type: 'integer', minimum: 1000 },
           syncFullHistory: { type: 'boolean' },
+          emitOwnMessages: { type: 'boolean' },
           browser: {
             type: 'array',
             minItems: 3,

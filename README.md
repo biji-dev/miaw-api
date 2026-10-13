@@ -2,7 +2,7 @@
 
 > REST API wrapper for miaw-core - Multiple Instance of App WhatsApp
 
-**Version:** 2.1.0 · synchronized with `miaw-core` 1.10.0
+**Version:** 2.3.0 · synchronized with `miaw-core` 1.13.2
 
 Miaw API provides a RESTful interface to manage multiple WhatsApp instances, send messages, and receive real-time webhook events. Built with Fastify and TypeScript.
 
@@ -25,11 +25,11 @@ Miaw API provides a RESTful interface to manage multiple WhatsApp instances, sen
 
 ## Current Status
 
-The API exposes the HTTP-serializable `miaw-core` 1.10.0 surface through one
+The API exposes the HTTP-serializable `miaw-core` 1.13.2 surface through one
 versioned v2 contract. The former 1.x command-style routes were removed; all
 protected endpoints now live under `/api/v1`.
 
-### miaw-core 1.10.0 synchronization
+### miaw-core 1.13.2 synchronization
 
 - QR or pairing-code authentication with protected challenge retrieval
 - Rich messaging, chat operations, statuses, business extras, and communities
@@ -38,6 +38,11 @@ protected endpoints now live under `/api/v1`.
 - Per-instance proxies settable at creation, at connect time, or on a live
   instance, persisted across restarts and shared with `miaw-cli`
 - Webhooks for pairing codes, poll votes, message receipts, and session saves
+- Lazy history sync by default, so a fresh pairing does not hang ingesting
+  history. Older messages are loaded per chat with `message-history-loads`;
+  `clientOptions.syncFullHistory: true` restores full sync
+- Opt-in `clientOptions.emitOwnMessages` delivers messages the account sends
+  from its phone. `sentByThisClient` tells them apart from this API's own sends
 - ESM runtime compatible with the ESM-only `miaw-core`
 
 ### Implemented (Phase 1-9)
@@ -513,7 +518,7 @@ The v1-style command routes and body-based identifiers were removed in 2.0.0.
 
 This project follows Semantic Versioning (semver).
 
-Current version: `2.1.0`
+Current version: `2.3.0`
 
 - **Major version**: breaking HTTP or configuration changes
 - **Minor version**: backward-compatible capabilities

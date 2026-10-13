@@ -21,8 +21,8 @@ importers:
         specifier: ^5.2.0
         version: 5.6.2
       miaw-core:
-        specifier: ^1.12.1
-        version: 1.12.1(audio-decode@2.2.3)(sharp@0.32.6)
+        specifier: ^1.13.2
+        version: 1.13.2(audio-decode@2.2.3)(sharp@0.32.6)
       pino:
         specifier: ^8.19.0
         version: 8.21.0
@@ -1441,8 +1441,8 @@ packages:
     resolution: {integrity: sha512-kOy3OxT2HH39N70UnKgu4NWDZjLOz8W/mfyvniHjRH/DrL3f2pOfvWQ4p60offbbtDAnXWp0v9LfMIqMec269Q==}
     engines: {node: '>=18'}
 
-  miaw-core@1.12.1:
-    resolution: {integrity: sha512-bA8Ica8XqQtI/h+gnVpB4Vt9hfu0eeV4QBrHdS1D1mffEyxsnqxx1aEgrMenTA9dY0IeB3pLcEOuqmtXmB6yfw==}
+  miaw-core@1.13.2:
+    resolution: {integrity: sha512-+p9Z7gnSrDIefhqqdd2b9O9TCoV4gyaSpJoClju4xmY5j+EcdLK1uNCVUHNqminfz9KMa4VIAVeF1PMqrsX4lw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -3495,7 +3495,7 @@ snapshots:
 
   media-typer@2.0.0: {}
 
-  miaw-core@1.12.1(audio-decode@2.2.3)(sharp@0.32.6):
+  miaw-core@1.13.2(audio-decode@2.2.3)(sharp@0.32.6):
     dependencies:
       '@hapi/boom': 10.0.1
       '@whiskeysockets/baileys': 7.0.0-rc14(audio-decode@2.2.3)(sharp@0.32.6)

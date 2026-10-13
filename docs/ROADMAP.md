@@ -1,14 +1,13 @@
 # Miaw API Roadmap
 
-**Current API version:** 2.1.0
-**Core compatibility:** `miaw-core` 1.10.0
-**Last updated:** 2026-07-30
+**Current API version:** 2.3.0
+**Core compatibility:** `miaw-core` 1.13.2
+**Last updated:** 2026-10-13
 
 ## Current state
 
 Miaw API is a Fastify REST wrapper for the HTTP-serializable `miaw-core` API.
-The synchronization through core 1.10.0 is complete on the current feature
-branch. The API uses native ESM, pnpm, JSON Schema validation, OpenAPI at
+The synchronization through core 1.13.2 is complete. The API uses native ESM, pnpm, JSON Schema validation, OpenAPI at
 `/documentation/json`, and Scalar documentation at `/docs`.
 
 All protected routes start with `/api/v1/instances/:instanceId`; health and
@@ -26,6 +25,7 @@ generated documentation remain unversioned.
 | API-wide endpoint normalization | 2.0.0 | Complete | Central version prefix, resource-oriented routes, uniform envelopes, route manifest and breaking-route checks |
 | `miaw-core` 1.10.0 safe proxy management | 2.1.0 | Complete | Watched proxy pools, masked status/test endpoints, and disconnected-only client proxy replacement |
 | `miaw-core` 1.12.1 sync and durable per-instance proxies | 2.2.0 | Complete | Connect-time proxy assignment, fleet-wide proxy visibility, forced live swaps via `setProxy()`, and a persistent store shared with `miaw-cli` |
+| `miaw-core` 1.13.2 synchronization | 2.3.0 | Complete | Lazy history sync by default (fixes the pairing hang), `emitOwnMessages` with `sentByThisClient`, store reset on logout, proxy-masking fix |
 
 ## Current capability coverage
 
@@ -69,16 +69,16 @@ generated documentation remain unversioned.
 ## Quality status
 
 - TypeScript build and ESLint pass.
-- 250 unit/contract tests pass.
-- 114 automated integration scenarios pass.
+- 303 unit/contract tests pass.
+- 117 automated integration scenarios pass.
 - 217 WhatsApp-dependent scenarios remain explicitly skipped unless a live test
   account is paired.
-- Generated OpenAPI currently contains 103 paths.
+- Generated OpenAPI currently contains 107 paths.
 
 ## Next priorities
 
-The API runs on core 1.12.1, but only its proxy surface is exposed. The 2.2.0
-release deliberately scoped out the ~37 non-proxy methods core added in 1.12.0.
+The API runs on core 1.13.2. The ~37 non-proxy methods core added in 1.12.0
+are still not exposed; 2.2.0 and 2.3.0 deliberately left them out.
 
 1. **Expose the `miaw-core` 1.12.0 feature backlog.** Privacy settings,
    blocklist, calls (including the new `call` event), group and community

@@ -108,6 +108,7 @@ export type InstanceClientOptions = Pick<
   | 'qrScanTimeout'
   | 'connectionTimeout'
   | 'syncFullHistory'
+  | 'emitOwnMessages'
   | 'browser'
   | 'proxy'
   | 'usePairingCode'
