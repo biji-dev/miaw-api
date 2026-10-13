@@ -16,7 +16,7 @@ export async function operationRoutes(server: FastifyInstance): Promise<void> {
     } };
   });
 
-  server.patch('/instances/:instanceId/runtime', { schema: { tags: ['Operations'], summary: 'Update runtime toggles', params, body: {
+  server.patch('/instances/:instanceId/runtime', { schema: { tags: ['Operations'], summary: 'Update runtime toggles', description: '`debug` applies immediately. `syncEnabled` switches between full history sync and lazy sync, and takes effect on the next connection; reconnect the instance to apply it.', params, body: {
     type: 'object', additionalProperties: false, properties: { debug: { type: 'boolean' }, syncEnabled: { type: 'boolean' } },
   } } }, async (request) => {
     const { instanceId: id } = request.params as { instanceId: string };

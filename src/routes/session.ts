@@ -31,6 +31,7 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
 **What happens:**
 - Sends logout notification to WhatsApp servers
 - Clears all session/authentication files
+- Empties the in-memory contacts, chats, messages, labels, and LID mappings
 - Instance status changes to \`disconnected\`
 
 **After logout:**
@@ -131,6 +132,7 @@ export async function sessionRoutes(server: FastifyInstance): Promise<void> {
 
 **What happens:**
 - Deletes authentication/session files from disk
+- Empties the in-memory contacts, chats, messages, labels, and LID mappings
 - Does NOT disconnect from WhatsApp (use logout for that)
 
 **Use case:**
