@@ -363,6 +363,27 @@ echo ".env" >> .gitignore
 # - Google Secret Manager
 ```
 
+### Publishing to npm
+
+A checkout holds live secrets that must never reach the npm registry:
+`sessions/` and `test-sessions/` (full WhatsApp credentials),
+`proxies.live.txt` (proxy passwords), and `.env` / `.env.live-test`.
+
+Publishing is therefore restricted by the `files` allowlist in
+`package.json`: only `dist/`, README, CHANGELOG and `.env.example` ship. Do
+not replace it with an `.npmignore`. A denylist fails silently on any name
+nobody thought of, and npm stops reading `.gitignore` entirely once an
+`.npmignore` exists. miaw-core shipped its development credentials in every
+release up to 1.13.0 this way.
+
+`test/unit/package/published-tarball.test.ts` runs `npm pack --dry-run` and
+fails on anything outside the allowlist or anything credential-shaped. Before
+publishing, also review the listing yourself:
+
+```bash
+npm pack --dry-run
+```
+
 ### Container Security
 
 If using Docker:
@@ -413,6 +434,7 @@ Use this checklist before deploying to production:
 ### Deployment
 - [ ] Running as non-root user
 - [ ] Secrets not in version control
+- [ ] `npm pack --dry-run` reviewed before publishing (only `dist/` and docs ship)
 - [ ] Environment variables from secure source
 - [ ] Log aggregation configured
 - [ ] Monitoring for failed authentication attempts
@@ -440,3 +462,4 @@ If you discover a security vulnerability, please report it responsibly:
 | Version | Changes |
 |---------|---------|
 | 1.0.0 | Initial security documentation |
+| 2.3.0 | npm `files` allowlist with a tarball test; logout and session clear also empty the in-memory stores (core 1.13.2), so one account's data cannot leak into the next pairing |
