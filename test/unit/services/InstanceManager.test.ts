@@ -174,6 +174,38 @@ describe('InstanceManager.updateWebhook', () => {
     expect(manager.getAuthChallenge('pairing-bot', 'pairing_code')).toBeNull();
   });
 
+  it('passes the history-sync and own-message options through to core', async () => {
+    await manager.createInstance({
+      instanceId: 'inbox',
+      clientOptions: { syncFullHistory: true, emitOwnMessages: true },
+    });
+    expect(coreMock.options[0]).toMatchObject({
+      instanceId: 'inbox', syncFullHistory: true, emitOwnMessages: true,
+    });
+  });
+
+  it('leaves both options unset so core applies its own defaults', async () => {
+    await manager.createInstance({ instanceId: 'bot' });
+    expect(coreMock.options[0]).not.toHaveProperty('syncFullHistory');
+    expect(coreMock.options[0]).not.toHaveProperty('emitOwnMessages');
+  });
+
+  it('forwards sentByThisClient on own-message webhooks unchanged', async () => {
+    await manager.createInstance({
+      instanceId: 'inbox',
+      webhookUrl: 'https://example.test/hook',
+      webhookEvents: ['message'],
+      clientOptions: { emitOwnMessages: true },
+    });
+    const delivered = vi.fn();
+    manager.on('webhook', delivered);
+    coreMock.clients[0].emitTest('message', { id: 'own-1', fromMe: true, sentByThisClient: true });
+    coreMock.clients[0].emitTest('message', { id: 'phone-1', fromMe: true });
+    expect(delivered).toHaveBeenCalledTimes(2);
+    expect(delivered.mock.calls[0][1].data).toMatchObject({ id: 'own-1', sentByThisClient: true });
+    expect(delivered.mock.calls[1][1].data).not.toHaveProperty('sentByThisClient');
+  });
+
   it('retries the pairing-code request after the socket handshake window', async () => {
     vi.useFakeTimers();
     try {
@@ -405,6 +437,20 @@ describe('InstanceManager persistence and pins', () => {
     expect(state?.status).toBe('disconnected');
     expect(state?.webhookUrl).toBe('https://example.test/hook');
     expect(state?.proxy).toMatchObject({ source: 'explicit', persisted: true });
+  });
+
+  it('persists and restores the history-sync and own-message options', async () => {
+    await build().createInstance({
+      instanceId: 'inbox',
+      clientOptions: { syncFullHistory: true, emitOwnMessages: true },
+    });
+    expect(store.list().inbox.clientOptions).toEqual({ syncFullHistory: true, emitOwnMessages: true });
+
+    coreMock.options.length = 0;
+    await build().restore(store.list());
+    expect(coreMock.options[0]).toMatchObject({
+      instanceId: 'inbox', syncFullHistory: true, emitOwnMessages: true,
+    });
   });
 
   it('skips an unusable record instead of aborting the whole restore', async () => {

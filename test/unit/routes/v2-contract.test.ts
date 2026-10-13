@@ -78,6 +78,27 @@ describe('API v2 route contract', () => {
     });
   });
 
+  it('accepts the history-sync and own-message client options and validates their type', async () => {
+    const headers = { authorization: `Bearer ${config.apiKey}` };
+    const instanceId = `contract-opts-${Date.now()}`;
+    const created = await server.inject({
+      method: 'POST',
+      url: '/api/v1/instances',
+      headers,
+      payload: { instanceId, clientOptions: { syncFullHistory: false, emitOwnMessages: true } },
+    });
+    expect(created.statusCode).toBe(201);
+    await server.inject({ method: 'DELETE', url: `/api/v1/instances/${instanceId}`, headers });
+
+    const rejected = await server.inject({
+      method: 'POST',
+      url: '/api/v1/instances',
+      headers,
+      payload: { instanceId: `${instanceId}-bad`, clientOptions: { emitOwnMessages: 'yes' } },
+    });
+    expect(rejected.statusCode).toBe(400);
+  });
+
   it.each(REMOVED_V1_ROUTES)('returns 404 for removed route %s', async (route) => {
     const [method, path] = route.split(' ', 2);
     const oldUrl = path.replace(/:[^/]+/g, 'test');
