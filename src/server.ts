@@ -7,6 +7,7 @@ import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
 import ScalarApiReference from '@scalar/fastify-api-reference';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { config } from './config/index.js';
 import { registerRoutes } from './routes/index.js';
@@ -18,6 +19,12 @@ import {
 } from './services/InstanceStore.js';
 import { ProxyPoolService } from './services/ProxyService.js';
 import { WebhookDispatcher } from './services/WebhookDispatcher.js';
+
+// Read at runtime (src/ and dist/ both sit one level below package.json) so the
+// OpenAPI version cannot drift from the released one again.
+const { version: apiVersion } = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8')
+) as { version: string };
 import { errorHandler } from './utils/errorHandler.js';
 
 /**
@@ -52,7 +59,7 @@ export async function createServer(): Promise<FastifyInstance> {
       info: {
         title: 'Miaw API',
         description: 'REST API wrapper for miaw-core - Multiple Instance of App WhatsApp',
-        version: '2.1.0',
+        version: apiVersion,
       },
       servers: [
         {
