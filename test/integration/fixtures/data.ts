@@ -2,8 +2,10 @@
  * Test Data Constants
  */
 
+import { TEST_API_URL } from '../helpers/server.js';
+
 export const TEST_CONFIG = {
-  API_URL: 'http://127.0.0.1:3000',
+  API_URL: TEST_API_URL,
   API_KEY: 'test-api-key-for-integration-tests',
   INSTANCE_ID: 'integration-test-bot',
   SESSION_PATH: './test-sessions',

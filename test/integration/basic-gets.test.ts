@@ -11,9 +11,9 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { startTestServer, stopTestServer } from './helpers/server.js';
+import { startTestServer, stopTestServer, TEST_API_URL } from './helpers/server.js';
 
-const API_URL = 'http://127.0.0.1:3000';
+const API_URL = TEST_API_URL;
 const API_KEY = process.env.API_KEY || 'test-api-key-for-integration-tests';
 const INSTANCE_ID = process.env.TEST_INSTANCE_ID || 'integration-test-bot';
 

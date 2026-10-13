@@ -8,13 +8,17 @@ import { HttpClient } from './http.js';
 
 let apiServer: FastifyInstance | null = null;
 
+// Override with MIAW_TEST_PORT when 3000 is taken by another local service.
+export const TEST_PORT = Number(process.env.MIAW_TEST_PORT || 3000);
+export const TEST_API_URL = `http://127.0.0.1:${TEST_PORT}`;
+
 export async function startTestServer(): Promise<void> {
   if (apiServer) {
     return; // Already running
   }
 
   // Set test environment variables
-  process.env.PORT = '3000';
+  process.env.PORT = String(TEST_PORT);
   process.env.HOST = '127.0.0.1';
   process.env.API_KEY = 'test-api-key-for-integration-tests';
   process.env.WEBHOOK_SECRET = 'test-webhook-secret';
@@ -23,7 +27,7 @@ export async function startTestServer(): Promise<void> {
 
   const { createServer } = await import('../../../src/server.js');
   apiServer = await createServer();
-  await apiServer.listen({ port: 3000, host: '127.0.0.1' });
+  await apiServer.listen({ port: TEST_PORT, host: '127.0.0.1' });
 }
 
 export async function stopTestServer(): Promise<void> {
@@ -35,7 +39,7 @@ export async function stopTestServer(): Promise<void> {
 
 export function createTestClient(): HttpClient {
   return new HttpClient(
-    'http://127.0.0.1:3000',
+    TEST_API_URL,
     {
       'Authorization': 'Bearer test-api-key-for-integration-tests',
     },
