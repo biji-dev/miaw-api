@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-13
+
+Upgrades `miaw-core` from 1.12.1 to 1.13.2. The route contract is unchanged.
+
+### Added
+
+- **`clientOptions.emitOwnMessages`** (core 1.13.0). Off by default. When on,
+  the `message` webhook also fires for messages the account sends, including
+  ones typed on the phone or another linked device. An inbox needs these, or a
+  conversation answered from the phone looks unanswered.
+- **`sentByThisClient` on `message` payloads.** It is `true` for the echo of a
+  send made through this API and absent for a message the user sent elsewhere,
+  so a consumer can keep the second and drop the first. It is passed through
+  from core unchanged.
+
+### Changed
+
+- **History sync is lazy by default** (core 1.13.2). `syncFullHistory` now
+  defaults to `false`. A fresh pairing ingests only the bootstrap (chats,
+  contacts, LID mappings, recent messages per chat). Older messages are fetched
+  with `POST /chats/:chatJid/message-history-loads`, which now works with sync
+  off; before, it always timed out. Set `clientOptions.syncFullHistory: true`
+  to restore the old behaviour. This also applies to restored instances whose
+  stored options do not set it.
+- **`PATCH /runtime` `syncEnabled` applies on the next connection**, matching
+  core. Reconnect the instance to apply it. The route description now says so.
+- **Logout and session clear empty the in-memory stores.**
+  `DELETE /session`, `DELETE /authentication` and an unlink from the phone
+  now also clear contacts, chats, messages, labels and LID mappings, so the
+  previous account's data cannot leak into the next pairing. Read anything you
+  need before logging out.
+- The integration server port can be overridden with `MIAW_TEST_PORT`, for
+  machines where 3000 is already taken.
+
+### Security
+
+- **The npm tarball is now an allowlist.** `package.json` `files` publishes only
+  `dist/`, README, CHANGELOG and `.env.example`. Before, publishing relied on
+  `.gitignore` to keep out `sessions/`, `test-sessions/`, `proxies.live.txt`
+  and `.env.live-test`. That held, and every published version (0.7.0–2.2.1)
+  was checked and is clean. But it was the same kind of denylist behind
+  miaw-core's 1.13.1 credential leak: adding an `.npmignore` would have
+  silently disabled it. `src/`, `test/`, `docs/` and tooling config no longer
+  ship either (213 → 124 files). `test/unit/package/published-tarball.test.ts`
+  asks npm what it would pack and fails on anything outside the allowlist or
+  anything credential-shaped.
+
+### Fixed (via core)
+
+- **A fresh pairing could hang for minutes while ingesting history.** Store
+  writes are now batched instead of rewriting `messages.json` once per
+  message.
+- **`maskProxyUrl()` could print a proxy password in clear text** for a
+  scheme-less URL. The API routes all proxy strings it reports through this
+  function.
+
 ## [2.2.1] - 2026-09-03
 
 Everything here was found by running 2.2.0's proxy features against a real

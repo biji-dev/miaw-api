@@ -1,8 +1,8 @@
 # Miaw API v2 Guide
 
-**API version:** 2.1.0
-**Core compatibility:** `miaw-core` 1.10.0
-**Last updated:** 2026-07-29
+**API version:** 2.3.0
+**Core compatibility:** `miaw-core` 1.13.2
+**Last updated:** 2026-10-13
 
 The generated reference is the authoritative field-level contract:
 
@@ -59,6 +59,25 @@ Pairing-code authentication and proxy configuration can be supplied through
 `clientOptions`. Proxy credentials are never returned. Connect using
 `PUT /api/v1/instances/support/connection`, then read the transient challenge
 from `/authentication/qr-code` or `/authentication/pairing-code`.
+
+Two `clientOptions` change what the account receives:
+
+- `syncFullHistory` (default `false`): a fresh pairing ingests only the
+  bootstrap, which is chats, contacts, LID mappings, and the most recent
+  messages per chat. Fetch older messages per chat with
+  `POST /chats/:chatJid/message-history-loads`. Set it to `true` to request
+  the phone's full history at pairing; this can take minutes on a large
+  account. `PATCH /runtime` with `syncEnabled` changes the mode for the
+  **next** connection only.
+- `emitOwnMessages` (default `false`): also deliver `message` webhooks for
+  messages the account sends, including ones typed on the phone or another
+  linked device. On those payloads `sentByThisClient: true` marks the echo of
+  a send made through this API. The field is absent when the user sent the
+  message elsewhere.
+
+Logging out (`DELETE /session`), clearing credentials (`DELETE /authentication`)
+or unlinking from the phone also empties the instance's in-memory contacts,
+chats, messages, labels, and LID mappings.
 
 Supported proxy schemes are `http`, `https`, `socks`, `socks4`, `socks4a`,
 `socks5`, and `socks5h`. Prefer HTTP(S) when media downloads must also use the
